@@ -629,6 +629,12 @@ def export_report(n_clicks, json_data):
 #  Chart builder
 # ──────────────────────────────────────────────────────────────────────
 
+def _hex_to_rgba(hex_color, alpha=0.08):
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
 def _build_log_charts(df):
     """Creates the 5-track well-log style chart."""
     depth = df['DEPTH'].values
@@ -663,7 +669,7 @@ def _build_log_charts(df):
             fig.add_trace(
                 go.Scatter(x=vals, y=depth, mode="lines", name=name,
                            line=dict(color=color, width=1.2),
-                           fill="tozerox", fillcolor=color + "15"),
+                           fill="tozerox", fillcolor=_hex_to_rgba(color, 0.08)),
                 row=1, col=1,
             )
 
@@ -780,19 +786,20 @@ def _build_log_charts(df):
         fig.update_layout(**{yaxis: dict(autorange="reversed")})
 
     # Clean up x-axis labels
+    grid_clr = _hex_to_rgba(CLR_MUTED, 0.15)
     fig.update_xaxes(title_text="PPM", row=1, col=1, type="log",
-                     gridcolor=f"{CLR_MUTED}22")
+                     gridcolor=grid_clr)
     fig.update_xaxes(title_text="Ratio", row=1, col=2, type="log",
-                     gridcolor=f"{CLR_MUTED}22")
+                     gridcolor=grid_clr)
     fig.update_xaxes(title_text="Value", row=1, col=3, type="log",
-                     gridcolor=f"{CLR_MUTED}22")
+                     gridcolor=grid_clr)
     fig.update_xaxes(title_text="Value", row=1, col=4,
-                     gridcolor=f"{CLR_MUTED}22")
+                     gridcolor=grid_clr)
     fig.update_xaxes(title_text="Zone", row=1, col=5,
-                     showticklabels=False, gridcolor=f"{CLR_MUTED}22")
+                     showticklabels=False, gridcolor=grid_clr)
 
     fig.update_yaxes(title_text="Depth (m)", row=1, col=1,
-                     gridcolor=f"{CLR_MUTED}22")
+                     gridcolor=grid_clr)
 
     # Add annotations for subplot titles (restyle)
     for ann in fig.layout.annotations:
