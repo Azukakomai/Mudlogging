@@ -204,42 +204,6 @@ navbar = dbc.Navbar(
 
 stats_row = dbc.Row(id="stats-row", className="g-3 mb-3", style={"display": "none"})
 
-# ─── Data table with toggle button ───
-data_table_card = dbc.Card(
-    [
-        dbc.CardHeader(
-            html.Div([
-                html.Div([
-                    html.Span("📊 Data Preview",
-                              style={"fontWeight": "600", "color": CLR_TEXT}),
-                    html.Small(id="row-count-badge",
-                               style={"marginLeft": "12px", "color": CLR_ACCENT}),
-                ]),
-                dbc.Button(
-                    "Show Computed",
-                    id="btn-toggle-table",
-                    color="info",
-                    outline=True,
-                    size="sm",
-                    disabled=True,
-                    style={"borderRadius": "8px", "fontSize": "12px"},
-                ),
-            ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between"}),
-            style={"background": CLR_CARD, "borderBottom": f"1px solid {CLR_MUTED}33"},
-        ),
-        dbc.CardBody(
-            html.Div(id="data-table-container",
-                     children=html.P("Upload a file to see data preview.",
-                                     style={"color": CLR_MUTED, "textAlign": "center",
-                                            "padding": "40px"})),
-            style={"background": CLR_BG, "padding": "0", "maxHeight": "400px",
-                    "overflowY": "auto"},
-        ),
-    ],
-    style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22",
-           "borderRadius": "12px", "marginBottom": "16px"},
-)
-
 charts_area = html.Div(
     id="charts-container",
     children=html.Div([
@@ -274,7 +238,6 @@ app.layout = html.Div([
     dbc.Container([
         html.Div(style={"height": "20px"}),
         stats_row,
-        data_table_card,
         charts_area,
         eval_area,
         dcc.Download(id="download-report"),
@@ -284,7 +247,6 @@ app.layout = html.Div([
     dcc.Store(id="store-parsed",   data=None),
     dcc.Store(id="store-computed", data=None),
     dcc.Store(id="store-truth",    data=None),
-    dcc.Store(id="store-table-mode", data="raw"),  # "raw" or "computed"
 
 ], style={
     "background": CLR_BG,
@@ -416,45 +378,18 @@ def parse_truth(contents, filename):
         return no_update, status
 
 
-# --- Show data preview + stats ---
+# --- Show summary stats on file upload ---
 @app.callback(
-    [Output("data-table-container", "children"),
-     Output("row-count-badge", "children"),
-     Output("stats-row", "children"),
+    [Output("stats-row", "children"),
      Output("stats-row", "style")],
-    [Input("store-parsed", "data"),
-     Input("store-computed", "data"),
-     Input("btn-toggle-table", "n_clicks")],
-    [State("store-table-mode", "data")],
+    [Input("store-parsed", "data")],
     prevent_initial_call=True,
 )
-def show_preview(json_raw, json_computed, toggle_clicks, table_mode):
-    ctx = callback_context
-    triggered = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+def show_stats(json_raw):
+    if json_raw is None:
+        return no_update, {"display": "none"}
 
-    # Determine which data to show
-    if "btn-toggle-table" in triggered and json_computed is not None:
-        # Toggle between raw and computed
-        if table_mode == "raw":
-            show_computed = True
-        else:
-            show_computed = False
-    elif json_computed is not None and "store-computed" in triggered:
-        show_computed = True
-    else:
-        show_computed = False
-
-    if show_computed and json_computed is not None:
-        df_display = pd.read_json(io.StringIO(json_computed), orient="split")
-        badge_prefix = "Computed • "
-    elif json_raw is not None:
-        df_display = pd.read_json(io.StringIO(json_raw), orient="split")
-        badge_prefix = "Raw • "
-    else:
-        return no_update, no_update, no_update, no_update
-
-    # Stats cards (from raw data)
-    df_raw = pd.read_json(io.StringIO(json_raw), orient="split") if json_raw else df_display
+    df_raw = pd.read_json(io.StringIO(json_raw), orient="split")
     depth_min = df_raw['DEPTH'].min()
     depth_max = df_raw['DEPTH'].max()
     c1_max    = df_raw['C1'].max()
@@ -468,72 +403,7 @@ def show_preview(json_raw, json_computed, toggle_clicks, table_mode):
                    "fas fa-flask", CLR_SUCCESS if has_heavy else CLR_MUTED),
     ]
 
-    # Determine columns to show
-    if show_computed:
-        display_cols = [c for c in df_display.columns if c != 'index']
-    else:
-        display_cols = [c for c in ['DEPTH', 'C1', 'C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5', 'TG']
-                        if c in df_display.columns]
-
-    preview = df_display[display_cols].head(50).round(4)
-
-    table = dash_table.DataTable(
-        data=preview.to_dict("records"),
-        columns=[{"name": c, "id": c} for c in display_cols],
-        style_table={"overflowX": "auto"},
-        style_header={
-            "backgroundColor": CLR_CARD,
-            "color": CLR_ACCENT,
-            "fontWeight": "600",
-            "border": f"1px solid {CLR_MUTED}33",
-            "fontSize": "12px",
-            "whiteSpace": "nowrap",
-        },
-        style_cell={
-            "backgroundColor": CLR_BG,
-            "color": CLR_TEXT,
-            "border": f"1px solid {CLR_MUTED}22",
-            "padding": "6px 10px",
-            "fontSize": "12px",
-            "fontFamily": "'Inter', monospace",
-            "maxWidth": "120px",
-            "overflow": "hidden",
-            "textOverflow": "ellipsis",
-        },
-        style_data_conditional=[
-            {"if": {"row_index": "odd"}, "backgroundColor": "#0f172a"},
-        ],
-        page_size=50,
-    )
-
-    return table, f"{badge_prefix}{len(df_display):,} rows", stats, {"display": "flex"}
-
-
-# --- Toggle table mode store ---
-@app.callback(
-    [Output("store-table-mode", "data"),
-     Output("btn-toggle-table", "children"),
-     Output("btn-toggle-table", "disabled")],
-    [Input("btn-toggle-table", "n_clicks"),
-     Input("store-computed", "data")],
-    [State("store-table-mode", "data")],
-    prevent_initial_call=True,
-)
-def toggle_table_mode(n_clicks, computed_data, current_mode):
-    ctx = callback_context
-    triggered = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
-
-    if "store-computed" in triggered and computed_data is not None:
-        # Enable button when computed data arrives
-        return "raw", "Show Computed", False
-
-    if "btn-toggle-table" in triggered:
-        if current_mode == "raw":
-            return "computed", "Show Raw Data", False
-        else:
-            return "raw", "Show Computed", False
-
-    return no_update, no_update, no_update
+    return stats, {"display": "flex"}
 
 
 def _stat_card(label, value, icon, color):
