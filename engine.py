@@ -68,9 +68,9 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     out['TG_USED']    = TG
 
     # ------------------------------------------------------------------
-    #  7. Dryness Ratio
+    #  7. Dryness Ratio (C1 / Derived_TG)
     # ------------------------------------------------------------------
-    out['DRYNESS'] = _safe_div(C1, TG)
+    out['DRYNESS'] = _safe_div(C1, derived_tg)
 
     # ------------------------------------------------------------------
     #  8. Carbon Index (TG Sum)
@@ -82,7 +82,7 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     #  9. Expanded Wetness Ratio (Wh)
     # ------------------------------------------------------------------
     heavy_sum = C2 + C3 + IC4 + NC4 + IC5 + NC5
-    out['WH'] = _safe_div(heavy_sum, TG) * 100.0
+    out['WH'] = _safe_div(heavy_sum, derived_tg) * 100.0
 
     # ------------------------------------------------------------------
     # 10. Expanded Balance Ratio (Bh)
@@ -100,12 +100,12 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     # ------------------------------------------------------------------
     # 12. GOW indicator
     # ------------------------------------------------------------------
-    out['GOW'] = heavy * TG
+    out['GOW'] = heavy * derived_tg
 
     # ------------------------------------------------------------------
     # 13. GOW without TG multiplier
     # ------------------------------------------------------------------
-    out['GOW_NOTG'] = _safe_div(heavy, TG)
+    out['GOW_NOTG'] = _safe_div(heavy, derived_tg)
 
     # ------------------------------------------------------------------
     # 14. Wetness-Balance Score (WBS)
@@ -144,63 +144,73 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
 
 def _classify_zones(df: pd.DataFrame) -> pd.Series:
     """
-    Applies rule-based expert matrix per depth row.
-    Each rule casts a 'Gas', 'Oil', or 'Water' vote.
-    Majority wins; ties broken: Gas > Oil > Water.
-
-    A row with ALL gas components == 0 (no show) is labelled "No Show".
+    Applies rule-based expert decision logic per depth row.
+    Cross-references Haworth (Wh, Bh, Ch), Dryness, Pixler (C1/C2), and WBS.
+    Outputs: 'No Show', 'Gas', 'Oil', or 'Water'.
     """
     n = len(df)
     zones = []
 
-    Wh  = df['WH'].values
-    Bh  = df['BH'].values
-    Ch  = df['CH'].values
-    Wbs = df['WBS'].values
-    Dry = df['DRYNESS'].values
-    Gor = df['GOR'].values
-    C1  = df['C1'].values
-    C2  = df['C2'].values
-    C3  = df['C3'].values
-    IC4 = df['IC4'].values
-    NC4 = df['NC4'].values
-    IC5 = df['IC5'].values
-    NC5 = df['NC5'].values
+    Wh  = df['WH'].values.astype(float)
+    Bh  = df['BH'].values.astype(float)
+    Ch  = df['CH'].values.astype(float)
+    Wbs = df['WBS'].values.astype(float)
+    Dry = df['DRYNESS'].values.astype(float)
+    C1  = df['C1'].values.astype(float)
+    C2  = df['C2'].values.astype(float)
+    C3  = df['C3'].values.astype(float)
+    IC4 = df['IC4'].values.astype(float)
+    NC4 = df['NC4'].values.astype(float)
+    IC5 = df['IC5'].values.astype(float)
+    NC5 = df['NC5'].values.astype(float)
+
+    if 'DERIVED_TG' in df.columns:
+        derived_tg = df['DERIVED_TG'].values.astype(float)
+    else:
+        derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
+
+    heavy_sum = C2 + C3 + IC4 + NC4 + IC5 + NC5
 
     for i in range(n):
-        # If there are absolutely no gas components, mark "No Show"
-        total_components = C2[i] + C3[i] + IC4[i] + NC4[i] + IC5[i] + NC5[i]
-        if total_components == 0 and C1[i] == 0:
+        tg = derived_tg[i]
+        c1 = C1[i]
+
+        # 1. No Show (Nothing) Cutoff:
+        # Background noise / shallow drilling hole where total gas < 300 PPM or C1 < 200 PPM
+        if tg < 300 or c1 < 200:
             zones.append("No Show")
+            continue
+
+        # 2. Pure Methane Streak (Dry Gas):
+        if heavy_sum[i] == 0:
+            zones.append("Gas")
             continue
 
         gas_votes = 0
         oil_votes = 0
         water_votes = 0
 
-        # --- Wetness rule ---
+        # --- Haworth Wetness (Wh) rule ---
         wh = Wh[i]
         if not np.isnan(wh):
             if wh < 17.5:
                 gas_votes += 1
-            elif wh > 80.0:
-                # Extremely wet — likely water-bearing
-                water_votes += 1
-            else:
+            elif wh <= 45.0:
                 oil_votes += 1
+            else:
+                water_votes += 1
 
-        # --- Balance rule ---
+        # --- Haworth Balance (Bh) rule ---
         bh = Bh[i]
         if not np.isnan(bh):
-            if bh > 100:
+            if bh >= 15.0:
                 gas_votes += 1
-            elif bh < 2.0:
-                # Very low balance — water indicator
-                water_votes += 1
-            else:
+            elif bh >= 2.0:
                 oil_votes += 1
+            else:
+                water_votes += 1
 
-        # --- Character rule ---
+        # --- Haworth Character (Ch) rule ---
         ch = Ch[i]
         if not np.isnan(ch):
             if ch < 0.5:
@@ -208,40 +218,49 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
             else:
                 oil_votes += 1
 
+        # --- Dryness rule ---
+        dry = Dry[i]
+        if not np.isnan(dry):
+            if dry >= 0.85:
+                gas_votes += 1
+            elif dry >= 0.50:
+                oil_votes += 1
+            else:
+                water_votes += 1
+
+        # --- Pixler C1/C2 rule ---
+        c2 = C2[i]
+        if c2 > 0:
+            r1 = c1 / c2
+            if r1 >= 15.0:
+                gas_votes += 1
+            elif r1 >= 2.0:
+                oil_votes += 1
+            else:
+                water_votes += 1
+
         # --- WBS rule ---
         wbs = Wbs[i]
         if not np.isnan(wbs):
             if wbs > 0:
                 gas_votes += 1
-            elif wbs < -0.5:
-                # Strongly negative WBS — water indicator
-                water_votes += 1
-            else:
+            elif wbs >= -0.5:
                 oil_votes += 1
-
-        # --- Dryness rule ---
-        dry = Dry[i]
-        if not np.isnan(dry):
-            if dry > 0.95:
-                gas_votes += 1
-            elif dry < 0.5:
-                # Very low dryness — water indicator
-                water_votes += 1
             else:
-                oil_votes += 1
-
-        # --- GOR rule ---
-        if Gor[i] == 0:
-            gas_votes += 1
+                water_votes += 1
 
         # --- Determine winner ---
-        if total_components == 0:
-            # Only C1 present, no heavier gases → dry gas
-            zones.append("Gas")
+        votes = {"Gas": gas_votes, "Oil": oil_votes, "Water": water_votes}
+        max_v = max(votes.values())
+        if max_v == 0:
+            zones.append("No Show")
         else:
-            # Pick the highest vote count; ties broken Gas > Oil > Water
-            votes = {"Gas": gas_votes, "Oil": oil_votes, "Water": water_votes}
-            winner = max(votes, key=lambda k: (votes[k], -list(votes.keys()).index(k)))
-            zones.append(winner)
+            winners = [k for k, v in votes.items() if v == max_v]
+            if "Gas" in winners:
+                zones.append("Gas")
+            elif "Oil" in winners:
+                zones.append("Oil")
+            else:
+                zones.append("Water")
 
     return pd.Series(zones, index=df.index)
