@@ -436,12 +436,12 @@ def _stat_card(label, value, icon, color):
     [Output("store-computed", "data"),
      Output("charts-container", "children"),
      Output("btn-export", "disabled")],
-    [Input("btn-run", "n_clicks")],
-    [State("store-parsed", "data")],
+    [Input("btn-run", "n_clicks"),
+     Input("store-parsed", "data")],
     prevent_initial_call=True,
 )
 def run_analysis(n_clicks, json_data):
-    if not n_clicks or json_data is None:
+    if json_data is None:
         return no_update, no_update, no_update
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
