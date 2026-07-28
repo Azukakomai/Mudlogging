@@ -172,16 +172,7 @@ navbar = dbc.Navbar(
                         className="me-2",
                         style={"borderRadius": "8px"},
                     ),
-                    dbc.Button(
-                        [html.I(className="fas fa-play", style={"marginRight": "8px"}),
-                         "Run Analysis"],
-                        id="btn-run",
-                        color="success",
-                        size="sm",
-                        className="me-2",
-                        disabled=True,
-                        style={"borderRadius": "8px"},
-                    ),
+
                     dbc.Button(
                         [html.I(className="fas fa-download", style={"marginRight": "8px"}),
                          "Export Report"],
@@ -211,7 +202,7 @@ charts_area = html.Div(
         html.P("⛏️", style={"fontSize": "64px", "textAlign": "center", "margin": "0"}),
         html.H4("Ready to Analyze", style={"textAlign": "center", "color": CLR_TEXT,
                                             "fontWeight": "300"}),
-        html.P("Upload a mudlogging CSV file and click 'Run Analysis' to begin.",
+        html.P("Upload a mudlogging CSV file to begin — analysis runs automatically.",
                style={"textAlign": "center", "color": CLR_MUTED, "maxWidth": "400px",
                        "margin": "12px auto"}),
     ]),
@@ -275,7 +266,6 @@ def toggle_modal(n, is_open):
 @app.callback(
     [Output("store-parsed", "data"),
      Output("upload-status", "children"),
-     Output("btn-run", "disabled"),
      Output("upload-modal", "is_open", allow_duplicate=True)],
     [Input("upload-data", "contents")],
     [State("upload-data", "filename")],
@@ -283,7 +273,7 @@ def toggle_modal(n, is_open):
 )
 def parse_upload(contents, filename):
     if contents is None:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     try:
         content_type, content_string = contents.split(",")
@@ -316,17 +306,17 @@ def parse_upload(contents, filename):
         df = df.sort_values('DEPTH').reset_index(drop=True)
 
         status = dbc.Alert(
-            f"✅ Loaded {filename} — {len(df)} depth rows",
+            f"✅ Loaded {filename} — {len(df)} depth rows. Running analysis…",
             color="success",
             style={"borderRadius": "8px"},
         )
-        return df.to_json(date_format="iso", orient="split"), status, False, False
+        return df.to_json(date_format="iso", orient="split"), status, False
 
     except Exception as e:
         status = dbc.Alert(
             f"❌ Error: {str(e)}", color="danger", style={"borderRadius": "8px"}
         )
-        return no_update, status, True, no_update
+        return no_update, status, no_update
 
 
 # --- Parse uploaded ground truth file ---
@@ -431,16 +421,15 @@ def _stat_card(label, value, icon, color):
     )
 
 
-# --- Run analysis ---
+# --- Run analysis (auto-triggered on upload) ---
 @app.callback(
     [Output("store-computed", "data"),
      Output("charts-container", "children"),
      Output("btn-export", "disabled")],
-    [Input("btn-run", "n_clicks"),
-     Input("store-parsed", "data")],
+    [Input("store-parsed", "data")],
     prevent_initial_call=True,
 )
-def run_analysis(n_clicks, json_data):
+def run_analysis(json_data):
     if json_data is None:
         return no_update, no_update, no_update
 
