@@ -1364,11 +1364,10 @@ def _build_separate_column_charts(df):
     total_depth = max(depth) - min(depth) if len(depth) > 1 else 100
     chart_height = max(850, int(total_depth * 0.6))
     chart_height = min(chart_height, 3000)
-    chart_width = max(1400, num_cols * 135)
 
     fig.update_layout(
         height=chart_height,
-        width=chart_width,
+        autosize=True,
         template="plotly_dark",
         paper_bgcolor=CLR_BG,
         plot_bgcolor="#0f172a",
@@ -1434,11 +1433,11 @@ def _build_separate_column_charts(df):
     return html.Div([
         zone_legend,
         dbc.Row(summary_items, className="g-2 mb-3", justify="center"),
-        html.Div(
-            dcc.Graph(figure=fig, config={"scrollZoom": True, "displayModeBar": True},
-                      style={"borderRadius": "12px"}),
-            style={"overflowX": "auto", "width": "100%", "borderRadius": "12px",
-                   "border": f"1px solid {CLR_MUTED}22"},
+        dcc.Graph(
+            figure=fig,
+            responsive=True,
+            config={"scrollZoom": True, "displayModeBar": True},
+            style={"borderRadius": "12px", "width": "100%", "height": f"{chart_height}px"},
         ),
     ])
 
@@ -1572,6 +1571,7 @@ def _build_log_charts(df):
 
     fig.update_layout(
         height=chart_height,
+        autosize=True,
         template="plotly_dark",
         paper_bgcolor=CLR_BG,
         plot_bgcolor="#0f172a",
@@ -1667,8 +1667,12 @@ def _build_log_charts(df):
     return html.Div([
         zone_legend,
         dbc.Row(summary_items, className="g-2 mb-3", justify="center"),
-        dcc.Graph(figure=fig, config={"scrollZoom": True, "displayModeBar": True},
-                  style={"borderRadius": "12px", "overflow": "hidden"}),
+        dcc.Graph(
+            figure=fig,
+            responsive=True,
+            config={"scrollZoom": True, "displayModeBar": True},
+            style={"borderRadius": "12px", "width": "100%", "height": f"{chart_height}px"},
+        ),
     ])
 
 
