@@ -562,13 +562,13 @@ def run_analysis(json_data):
     df = pd.read_json(io.StringIO(json_data), orient="split")
     computed = compute_all(df)
 
-    # Build charts panel with separate graphs for each column
-    charts = _build_charts_panel(computed, mode="separate")
+    # Build charts panel with side-by-side track row as default
+    charts = _build_charts_panel(computed, mode="side_by_side")
 
     return computed.to_json(date_format="iso", orient="split"), charts, False
 
 
-# --- Switch Chart View (Separate per column vs Grouped) ---
+# --- Switch Chart View (Side-by-Side Track Row vs Separate Cards vs Grouped) ---
 @app.callback(
     Output("charts-wrapper", "children"),
     [Input("chart-view-mode", "value")],
@@ -581,8 +581,10 @@ def switch_chart_view(mode, json_computed):
     df = pd.read_json(io.StringIO(json_computed), orient="split")
     if mode == "grouped":
         return _build_log_charts(df)
-    else:
+    elif mode == "separate":
         return _build_separate_column_charts(df)
+    else:
+        return _build_side_by_side_row_charts(df)
 
 
 # --- Evaluation panel ---
@@ -1200,11 +1202,12 @@ def _hex_to_rgba(hex_color, alpha=0.08):
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
-def _build_charts_panel(df, mode="separate"):
+def _build_charts_panel(df, mode="side_by_side"):
     view_selector = dbc.RadioItems(
         id="chart-view-mode",
         options=[
-            {"label": "📊 Separate Column Graphs", "value": "separate"},
+            {"label": "📐 Side-by-Side Track Row", "value": "side_by_side"},
+            {"label": "📊 Separate Column Cards", "value": "separate"},
             {"label": "📑 Grouped Category Tracks", "value": "grouped"},
         ],
         value=mode,
@@ -1220,7 +1223,7 @@ def _build_charts_panel(df, mode="separate"):
             html.Div([
                 html.Span("📈 Depth Log Visualization",
                           style={"fontWeight": "600", "color": CLR_TEXT, "fontSize": "15px"}),
-                html.Small(" — Individual column tracks & interactive zone analysis",
+                html.Small(" — Side-by-side multi-track row view & interactive zone analysis",
                            style={"color": CLR_MUTED, "marginLeft": "8px"}),
             ]),
             view_selector,
@@ -1230,8 +1233,10 @@ def _build_charts_panel(df, mode="separate"):
 
     if mode == "grouped":
         chart_content = _build_log_charts(df)
-    else:
+    elif mode == "separate":
         chart_content = _build_separate_column_charts(df)
+    else:
+        chart_content = _build_side_by_side_row_charts(df)
 
     return dbc.Card(
         [
@@ -1244,6 +1249,213 @@ def _build_charts_panel(df, mode="separate"):
         style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22",
                "borderRadius": "12px", "marginBottom": "24px"},
     )
+
+
+def _build_side_by_side_row_charts(df):
+    """
+    Renders every column as a narrow individual Plotly graph, placed in a
+    horizontal flex row inside an overflow-x:auto scrolling container.
+    This produces a classical mud-log side-by-side track layout.
+    """
+    depth = df['DEPTH'].values
+    grid_clr = _hex_to_rgba(CLR_MUTED, 0.18)
+
+    total_depth = max(depth) - min(depth) if len(depth) > 1 else 100
+    chart_height = max(600, min(int(total_depth * 0.55), 2000))
+
+    column_specs = [
+        # (col_key, display_title, color, scale_type)
+        ("C1",           "C1",         "#38bdf8", "log"),
+        ("C2",           "C2",         "#818cf8", "log"),
+        ("C3",           "C3",         "#f472b6", "log"),
+        ("IC4",          "iC4",        "#fb923c", "log"),
+        ("NC4",          "nC4",        "#facc15", "log"),
+        ("IC5",          "iC5",        "#34d399", "log"),
+        ("NC5",          "nC5",        "#a78bfa", "log"),
+        ("TG_USED",      "TG",         "#e2e8f0", "log"),
+        ("R1_C1_C2",     "C1/C2",      "#38bdf8", "log"),
+        ("R2_C1_C3",     "C1/C3",      "#818cf8", "log"),
+        ("R3_C2_C3",     "C2/C3",      "#f472b6", "log"),
+        ("R4_C1_IC4",    "C1/iC4",     "#fb923c", "log"),
+        ("R5_C1_NC4",    "C1/nC4",     "#facc15", "log"),
+        ("WH",           "Wh%",        "#22c55e", "linear"),
+        ("BH",           "Bh",         "#f59e0b", "linear"),
+        ("CH",           "Ch",         "#ef4444", "linear"),
+        ("DRYNESS",      "Dryness",    "#38bdf8", "linear"),
+        ("CARBON_INDEX", "Ci",         "#818cf8", "linear"),
+        ("WBS",          "WBS",        "#f59e0b", "linear"),
+        ("GOW",          "GOW",        "#a78bfa", "log"),
+        ("GOW_NOTG",     "GOW/TG",     "#ef4444", "linear"),
+        ("GOR",          "GOR",        "#34d399", "linear"),
+    ]
+
+    active_specs = [(k, t, c, s) for (k, t, c, s) in column_specs if k in df.columns]
+
+    track_divs = []
+
+    for idx, (col_key, title, color, scale_type) in enumerate(active_specs):
+        is_first = (idx == 0)
+        vals = df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
+        x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
+
+        track_w = 115 if is_first else 90   # first track wider to fit depth labels
+        l_margin = 48 if is_first else 4
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x_plot, y=depth,
+            mode="lines",
+            line=dict(color=color, width=1.4),
+            fill="tozerox",
+            fillcolor=_hex_to_rgba(color, 0.25),
+            showlegend=False,
+            hovertemplate=f"Depth: %{{y:.1f}} m<br>{title}: %{{x:.4g}}<extra></extra>",
+        ))
+        fig.update_layout(
+            height=chart_height,
+            width=track_w,
+            autosize=False,
+            template="plotly_dark",
+            paper_bgcolor=CLR_BG,
+            plot_bgcolor="#070c18",
+            font=dict(family="Inter, sans-serif", size=8, color=CLR_TEXT),
+            margin=dict(l=l_margin, r=3, t=26, b=10),
+            title=dict(
+                text=title,
+                font=dict(size=9, color=color, family="Inter, sans-serif"),
+                x=0.5, xanchor="center", pad=dict(t=2),
+            ),
+            xaxis=dict(
+                type="log" if scale_type == "log" else "linear",
+                gridcolor=grid_clr,
+                tickfont=dict(size=7, color=CLR_MUTED),
+                nticks=3,
+                showgrid=True,
+                zeroline=False,
+                showline=True,
+                linecolor=_hex_to_rgba(CLR_MUTED, 0.4),
+            ),
+            yaxis=dict(
+                autorange="reversed",
+                gridcolor=grid_clr,
+                showticklabels=is_first,
+                tickfont=dict(size=8, color=CLR_MUTED),
+                showgrid=True,
+                zeroline=False,
+                title=dict(
+                    text="Depth (m)" if is_first else "",
+                    font=dict(size=9, color=CLR_MUTED),
+                ),
+                showline=True,
+                linecolor=_hex_to_rgba(CLR_MUTED, 0.4),
+            ),
+        )
+
+        track_divs.append(
+            html.Div(
+                dcc.Graph(
+                    figure=fig,
+                    responsive=False,
+                    config={"scrollZoom": True, "displayModeBar": False},
+                    style={"display": "block"},
+                ),
+                style={
+                    "display":       "inline-block",
+                    "flexShrink":    "0",
+                    "width":         f"{track_w}px",
+                    "borderRight":   f"1px solid {_hex_to_rgba(CLR_MUTED, 0.25)}",
+                    "verticalAlign": "top",
+                }
+            )
+        )
+
+    # ── Zone classification track ──
+    if 'ZONE' in df.columns:
+        zone_vals = df['ZONE'].values
+        zone_numeric, zone_clrs = [], []
+        for z in zone_vals:
+            if z == "Gas":     zone_numeric.append(3); zone_clrs.append(ZONE_COLORS["Gas"])
+            elif z == "Oil":   zone_numeric.append(2); zone_clrs.append(ZONE_COLORS["Oil"])
+            elif z == "Water": zone_numeric.append(1); zone_clrs.append(ZONE_COLORS["Water"])
+            else:              zone_numeric.append(0); zone_clrs.append(ZONE_COLORS["No Show"])
+
+        zone_fig = go.Figure(go.Bar(
+            x=zone_numeric, y=depth, orientation="h",
+            marker=dict(color=zone_clrs),
+            hovertext=zone_vals, hoverinfo="text+y",
+            showlegend=False, width=0.9,
+        ))
+        zone_fig.update_layout(
+            height=chart_height,
+            width=55,
+            autosize=False,
+            template="plotly_dark",
+            paper_bgcolor=CLR_BG,
+            plot_bgcolor="#070c18",
+            margin=dict(l=3, r=3, t=26, b=10),
+            title=dict(
+                text="Zone",
+                font=dict(size=9, color=CLR_WARNING, family="Inter, sans-serif"),
+                x=0.5, xanchor="center",
+            ),
+            xaxis=dict(showticklabels=False, zeroline=False),
+            yaxis=dict(autorange="reversed", showticklabels=False,
+                       gridcolor=grid_clr, showgrid=True, zeroline=False),
+        )
+        track_divs.append(
+            html.Div(
+                dcc.Graph(
+                    figure=zone_fig,
+                    responsive=False,
+                    config={"displayModeBar": False},
+                    style={"display": "block"},
+                ),
+                style={
+                    "display":    "inline-block",
+                    "flexShrink": "0",
+                    "width":      "55px",
+                    "verticalAlign": "top",
+                }
+            )
+        )
+
+    # ── Zone legend bar ──
+    legend = html.Div([
+        *[
+            html.Span([
+                html.Div(style={
+                    "width": "10px", "height": "10px", "borderRadius": "2px",
+                    "backgroundColor": ZONE_COLORS[z],
+                    "display": "inline-block", "marginRight": "4px",
+                    "verticalAlign": "middle",
+                }),
+                html.Span(z, style={"fontSize": "11px", "marginRight": "12px",
+                                    "color": CLR_MUTED}),
+            ])
+            for z in ["Gas", "Oil", "Water", "No Show"]
+        ]
+    ], style={
+        "display": "flex", "alignItems": "center", "justifyContent": "center",
+        "marginBottom": "8px", "flexWrap": "wrap",
+    })
+
+    scroll_container = html.Div(
+        track_divs,
+        style={
+            "display":         "flex",
+            "flexDirection":   "row",
+            "alignItems":      "flex-start",
+            "overflowX":       "auto",
+            "overflowY":       "auto",
+            "backgroundColor": "#070c18",
+            "borderRadius":    "8px",
+            "border":          f"1px solid {_hex_to_rgba(CLR_MUTED, 0.2)}",
+            "padding":         "0",
+            "maxHeight":       f"{chart_height + 60}px",
+        }
+    )
+
+    return html.Div([legend, scroll_container])
 
 
 def _build_separate_column_charts(df):
