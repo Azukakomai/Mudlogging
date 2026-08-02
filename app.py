@@ -1253,209 +1253,143 @@ def _build_charts_panel(df, mode="side_by_side"):
 
 def _build_side_by_side_row_charts(df):
     """
-    Renders every column as a narrow individual Plotly graph, placed in a
-    horizontal flex row inside an overflow-x:auto scrolling container.
-    This produces a classical mud-log side-by-side track layout.
+    Side-by-side mud-log track layout using a single make_subplots figure
+    with explicit column_widths, matching the proven view_sbs.py approach.
     """
-    depth = df['DEPTH'].values
+    depth = df["DEPTH"].values
     grid_clr = _hex_to_rgba(CLR_MUTED, 0.18)
 
-    total_depth = max(depth) - min(depth) if len(depth) > 1 else 100
-    chart_height = max(600, min(int(total_depth * 0.55), 2000))
+    total_depth  = max(depth) - min(depth) if len(depth) > 1 else 100
+    chart_height = max(700, min(int(total_depth * 0.55), 2200))
 
     column_specs = [
-        # (col_key, display_title, color, scale_type)
-        ("C1",           "C1",         "#38bdf8", "log"),
-        ("C2",           "C2",         "#818cf8", "log"),
-        ("C3",           "C3",         "#f472b6", "log"),
-        ("IC4",          "iC4",        "#fb923c", "log"),
-        ("NC4",          "nC4",        "#facc15", "log"),
-        ("IC5",          "iC5",        "#34d399", "log"),
-        ("NC5",          "nC5",        "#a78bfa", "log"),
-        ("TG_USED",      "TG",         "#e2e8f0", "log"),
-        ("R1_C1_C2",     "C1/C2",      "#38bdf8", "log"),
-        ("R2_C1_C3",     "C1/C3",      "#818cf8", "log"),
-        ("R3_C2_C3",     "C2/C3",      "#f472b6", "log"),
-        ("R4_C1_IC4",    "C1/iC4",     "#fb923c", "log"),
-        ("R5_C1_NC4",    "C1/nC4",     "#facc15", "log"),
-        ("WH",           "Wh%",        "#22c55e", "linear"),
-        ("BH",           "Bh",         "#f59e0b", "linear"),
-        ("CH",           "Ch",         "#ef4444", "linear"),
-        ("DRYNESS",      "Dryness",    "#38bdf8", "linear"),
-        ("CARBON_INDEX", "Ci",         "#818cf8", "linear"),
-        ("WBS",          "WBS",        "#f59e0b", "linear"),
-        ("GOW",          "GOW",        "#a78bfa", "log"),
-        ("GOW_NOTG",     "GOW/TG",     "#ef4444", "linear"),
-        ("GOR",          "GOR",        "#34d399", "linear"),
+        ("C1",           "C1",        "#38bdf8", "log"),
+        ("C2",           "C2",        "#818cf8", "log"),
+        ("C3",           "C3",        "#f472b6", "log"),
+        ("IC4",          "iC4",       "#fb923c", "log"),
+        ("NC4",          "nC4",       "#facc15", "log"),
+        ("IC5",          "iC5",       "#34d399", "log"),
+        ("NC5",          "nC5",       "#a78bfa", "log"),
+        ("TG_USED",      "Total Gas", "#e2e8f0", "log"),
+        ("R1_C1_C2",     "C1/C2",     "#38bdf8", "log"),
+        ("R2_C1_C3",     "C1/C3",     "#818cf8", "log"),
+        ("R3_C2_C3",     "C2/C3",     "#f472b6", "log"),
+        ("R4_C1_IC4",    "C1/iC4",    "#fb923c", "log"),
+        ("R5_C1_NC4",    "C1/nC4",    "#facc15", "log"),
+        ("WH",           "Wh%",       "#22c55e", "linear"),
+        ("BH",           "Bh",        "#f59e0b", "linear"),
+        ("CH",           "Ch",        "#ef4444", "linear"),
+        ("DRYNESS",      "Dryness",   "#38bdf8", "linear"),
+        ("CARBON_INDEX", "Ci",        "#818cf8", "linear"),
+        ("WBS",          "WBS",       "#f59e0b", "linear"),
+        ("GOW",          "GOW",       "#a78bfa", "log"),
+        ("GOW_NOTG",     "GOW/TG",    "#ef4444", "linear"),
+        ("GOR",          "GOR",       "#34d399", "linear"),
     ]
 
-    active_specs = [(k, t, c, s) for (k, t, c, s) in column_specs if k in df.columns]
+    active = [(k, t, c, s) for (k, t, c, s) in column_specs if k in df.columns]
+    has_zone = "ZONE" in df.columns
+    total_cols = len(active) + (1 if has_zone else 0)
 
-    track_divs = []
+    if total_cols == 0:
+        return html.Div("No valid data columns found.", style={"color": CLR_MUTED})
 
-    for idx, (col_key, title, color, scale_type) in enumerate(active_specs):
-        is_first = (idx == 0)
-        vals = df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
+    titles      = [t for _, t, _, _ in active] + (["Zone"] if has_zone else [])
+    col_widths  = [130] * len(active) + ([55] if has_zone else [])
+    chart_width = sum(col_widths) + 80
+
+    fig = make_subplots(
+        rows=1,
+        cols=total_cols,
+        shared_yaxes=True,
+        horizontal_spacing=0.003,
+        subplot_titles=titles,
+        column_widths=col_widths,
+    )
+
+    for i, (col_key, title, color, scale_type) in enumerate(active, start=1):
+        vals   = df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
         x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
 
-        track_w = 115 if is_first else 90   # first track wider to fit depth labels
-        l_margin = 48 if is_first else 4
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=x_plot, y=depth,
-            mode="lines",
-            line=dict(color=color, width=1.4),
-            fill="tozerox",
-            fillcolor=_hex_to_rgba(color, 0.25),
-            showlegend=False,
-            hovertemplate=f"Depth: %{{y:.1f}} m<br>{title}: %{{x:.4g}}<extra></extra>",
-        ))
-        fig.update_layout(
-            height=chart_height,
-            width=track_w,
-            autosize=False,
-            template="plotly_dark",
-            paper_bgcolor=CLR_BG,
-            plot_bgcolor="#070c18",
-            font=dict(family="Inter, sans-serif", size=8, color=CLR_TEXT),
-            margin=dict(l=l_margin, r=3, t=26, b=10),
-            title=dict(
-                text=title,
-                font=dict(size=9, color=color, family="Inter, sans-serif"),
-                x=0.5, xanchor="center", pad=dict(t=2),
+        fig.add_trace(
+            go.Scatter(
+                x=x_plot, y=depth, mode="lines", name=title,
+                line=dict(color=color, width=1.3),
+                fill="tozerox", fillcolor=_hex_to_rgba(color, 0.22),
+                showlegend=False,
+                hovertemplate=f"Depth: %{{y:.1f}} m<br>{title}: %{{x:.4g}}<extra></extra>",
             ),
-            xaxis=dict(
-                type="log" if scale_type == "log" else "linear",
-                gridcolor=grid_clr,
-                tickfont=dict(size=7, color=CLR_MUTED),
-                nticks=3,
-                showgrid=True,
-                zeroline=False,
-                showline=True,
-                linecolor=_hex_to_rgba(CLR_MUTED, 0.4),
-            ),
-            yaxis=dict(
-                autorange="reversed",
-                gridcolor=grid_clr,
-                showticklabels=is_first,
-                tickfont=dict(size=8, color=CLR_MUTED),
-                showgrid=True,
-                zeroline=False,
-                title=dict(
-                    text="Depth (m)" if is_first else "",
-                    font=dict(size=9, color=CLR_MUTED),
-                ),
-                showline=True,
-                linecolor=_hex_to_rgba(CLR_MUTED, 0.4),
-            ),
+            row=1, col=i,
         )
+        xname = "xaxis" if i == 1 else f"xaxis{i}"
+        fig.update_layout(**{xname: dict(
+            type="log" if scale_type == "log" else "linear",
+            gridcolor=grid_clr,
+            tickfont=dict(size=7, color=CLR_MUTED),
+            nticks=3,
+            showgrid=True,
+            zeroline=False,
+        )})
 
-        track_divs.append(
-            html.Div(
-                dcc.Graph(
-                    figure=fig,
-                    responsive=False,
-                    config={"scrollZoom": True, "displayModeBar": False},
-                    style={"display": "block"},
-                ),
-                style={
-                    "display":       "inline-block",
-                    "flexShrink":    "0",
-                    "width":         f"{track_w}px",
-                    "borderRight":   f"1px solid {_hex_to_rgba(CLR_MUTED, 0.25)}",
-                    "verticalAlign": "top",
-                }
-            )
+    if has_zone:
+        ci   = total_cols
+        zv   = df["ZONE"].values
+        znr  = [3 if z=="Gas" else 2 if z=="Oil" else 1 if z=="Water" else 0 for z in zv]
+        zclr = [ZONE_COLORS.get(z, ZONE_COLORS["No Show"]) for z in zv]
+        fig.add_trace(
+            go.Bar(x=znr, y=depth, orientation="h",
+                   marker=dict(color=zclr),
+                   hovertext=zv, hoverinfo="text+y",
+                   showlegend=False, width=0.9),
+            row=1, col=ci,
         )
+        fig.update_layout(**{f"xaxis{ci}": dict(showticklabels=False, zeroline=False)})
 
-    # ── Zone classification track ──
-    if 'ZONE' in df.columns:
-        zone_vals = df['ZONE'].values
-        zone_numeric, zone_clrs = [], []
-        for z in zone_vals:
-            if z == "Gas":     zone_numeric.append(3); zone_clrs.append(ZONE_COLORS["Gas"])
-            elif z == "Oil":   zone_numeric.append(2); zone_clrs.append(ZONE_COLORS["Oil"])
-            elif z == "Water": zone_numeric.append(1); zone_clrs.append(ZONE_COLORS["Water"])
-            else:              zone_numeric.append(0); zone_clrs.append(ZONE_COLORS["No Show"])
+    fig.update_layout(
+        height        = chart_height,
+        width         = chart_width,
+        autosize      = False,
+        template      = "plotly_dark",
+        paper_bgcolor = CLR_BG,
+        plot_bgcolor  = "#070c18",
+        font          = dict(family="Inter, sans-serif", size=9, color=CLR_TEXT),
+        margin        = dict(l=60, r=20, t=60, b=30),
+    )
 
-        zone_fig = go.Figure(go.Bar(
-            x=zone_numeric, y=depth, orientation="h",
-            marker=dict(color=zone_clrs),
-            hovertext=zone_vals, hoverinfo="text+y",
-            showlegend=False, width=0.9,
-        ))
-        zone_fig.update_layout(
-            height=chart_height,
-            width=55,
-            autosize=False,
-            template="plotly_dark",
-            paper_bgcolor=CLR_BG,
-            plot_bgcolor="#070c18",
-            margin=dict(l=3, r=3, t=26, b=10),
-            title=dict(
-                text="Zone",
-                font=dict(size=9, color=CLR_WARNING, family="Inter, sans-serif"),
-                x=0.5, xanchor="center",
-            ),
-            xaxis=dict(showticklabels=False, zeroline=False),
-            yaxis=dict(autorange="reversed", showticklabels=False,
-                       gridcolor=grid_clr, showgrid=True, zeroline=False),
-        )
-        track_divs.append(
-            html.Div(
-                dcc.Graph(
-                    figure=zone_fig,
-                    responsive=False,
-                    config={"displayModeBar": False},
-                    style={"display": "block"},
-                ),
-                style={
-                    "display":    "inline-block",
-                    "flexShrink": "0",
-                    "width":      "55px",
-                    "verticalAlign": "top",
-                }
-            )
-        )
+    for i in range(1, total_cols + 1):
+        yk = "yaxis" if i == 1 else f"yaxis{i}"
+        fig.update_layout(**{yk: dict(
+            autorange="reversed",
+            gridcolor=grid_clr,
+            showgrid=True,
+            zeroline=False,
+            tickfont=dict(size=8, color=CLR_MUTED),
+        )})
 
-    # ── Zone legend bar ──
-    legend = html.Div([
-        *[
-            html.Span([
-                html.Div(style={
-                    "width": "10px", "height": "10px", "borderRadius": "2px",
-                    "backgroundColor": ZONE_COLORS[z],
-                    "display": "inline-block", "marginRight": "4px",
-                    "verticalAlign": "middle",
-                }),
-                html.Span(z, style={"fontSize": "11px", "marginRight": "12px",
-                                    "color": CLR_MUTED}),
-            ])
-            for z in ["Gas", "Oil", "Water", "No Show"]
-        ]
-    ], style={
-        "display": "flex", "alignItems": "center", "justifyContent": "center",
-        "marginBottom": "8px", "flexWrap": "wrap",
-    })
+    fig.update_yaxes(title_text="Depth (m)", row=1, col=1)
 
-    scroll_container = html.Div(
-        track_divs,
+    for ann in fig.layout.annotations:
+        ann.font = dict(size=9, color=CLR_ACCENT, family="Inter, sans-serif")
+
+    return html.Div(
+        dcc.Graph(
+            figure=fig,
+            responsive=False,
+            config={"scrollZoom": True, "displayModeBar": True},
+            style={"minWidth": f"{chart_width}px"},
+        ),
         style={
-            "display":         "flex",
-            "flexDirection":   "row",
-            "alignItems":      "flex-start",
             "overflowX":       "auto",
-            "overflowY":       "auto",
+            "overflowY":       "hidden",
             "backgroundColor": "#070c18",
             "borderRadius":    "8px",
             "border":          f"1px solid {_hex_to_rgba(CLR_MUTED, 0.2)}",
-            "padding":         "0",
-            "maxHeight":       f"{chart_height + 60}px",
         }
     )
 
-    return html.Div([legend, scroll_container])
+
+
+
 
 
 def _build_separate_column_charts(df):
@@ -2041,11 +1975,11 @@ def open_browser():
     """Open the default browser after a short delay."""
     import time
     time.sleep(1.5)
-    webbrowser.open("http://127.0.0.1:8050")
+    webbrowser.open("http://127.0.0.1:8051")
 
 
 if __name__ == "__main__":
     # Auto-open browser in a background thread
     threading.Thread(target=open_browser, daemon=True).start()
 
-    app.run(debug=False, port=8050)
+    app.run(debug=False, port=8051)
