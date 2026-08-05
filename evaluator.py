@@ -12,13 +12,6 @@ All metrics compare predicted zone labels against ground-truth well test results
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import (
-    confusion_matrix,
-    precision_score,
-    recall_score,
-    f1_score,
-    accuracy_score,
-)
 
 
 # Canonical class order
@@ -40,6 +33,9 @@ def match_depths(predicted_df: pd.DataFrame, truth_df: pd.DataFrame,
 
     pred = pred.rename(columns={'ZONE': 'ZONE_PRED'}).sort_values('DEPTH').reset_index(drop=True)
     truth = truth.rename(columns={'ZONE': 'ZONE_TRUE'}).sort_values('DEPTH').reset_index(drop=True)
+
+    pred['DEPTH'] = pred['DEPTH'].astype(float)
+    truth['DEPTH'] = truth['DEPTH'].astype(float)
 
     # Use merge_asof for nearest-depth matching
     merged = pd.merge_asof(
@@ -101,32 +97,37 @@ def compute_evaluation(predicted_df: pd.DataFrame, truth_df: pd.DataFrame,
         key=lambda x: ZONE_LABELS.index(x) if x in ZONE_LABELS else len(ZONE_LABELS)
     )
 
-    cm = confusion_matrix(y_true, y_pred, labels=present_labels)
-
-    # Per-class metrics
-    prec_per = precision_score(y_true, y_pred, labels=present_labels,
-                               average=None, zero_division=0)
-    rec_per  = recall_score(y_true, y_pred, labels=present_labels,
-                            average=None, zero_division=0)
-    f1_per   = f1_score(y_true, y_pred, labels=present_labels,
-                        average=None, zero_division=0)
-
+    n_labels = len(present_labels)
+    cm = np.zeros((n_labels, n_labels), dtype=int)
     per_class = {}
-    for idx, label in enumerate(present_labels):
-        per_class[label] = {
-            'precision': float(prec_per[idx]),
-            'recall':    float(rec_per[idx]),
-            'f1':        float(f1_per[idx]),
-        }
+    prec_list, rec_list, f1_list = [], [], []
 
-    # Macro-averaged metrics (thesis specifies macro averaging)
-    macro_prec = float(precision_score(y_true, y_pred, labels=present_labels,
-                                       average='macro', zero_division=0))
-    macro_rec  = float(recall_score(y_true, y_pred, labels=present_labels,
-                                    average='macro', zero_division=0))
-    macro_f1   = float(f1_score(y_true, y_pred, labels=present_labels,
-                                average='macro', zero_division=0))
-    acc        = float(accuracy_score(y_true, y_pred))
+    for i, true_lbl in enumerate(present_labels):
+        for j, pred_lbl in enumerate(present_labels):
+            cm[i, j] = int(np.sum((y_true == true_lbl) & (y_pred == pred_lbl)))
+
+    for label in present_labels:
+        tp = np.sum((y_true == label) & (y_pred == label))
+        fp = np.sum((y_true != label) & (y_pred == label))
+        fn = np.sum((y_true == label) & (y_pred != label))
+
+        prec = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
+        rec = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
+        f1 = float(2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+
+        per_class[label] = {
+            'precision': prec,
+            'recall': rec,
+            'f1': f1,
+        }
+        prec_list.append(prec)
+        rec_list.append(rec)
+        f1_list.append(f1)
+
+    macro_prec = float(np.mean(prec_list)) if prec_list else 0.0
+    macro_rec = float(np.mean(rec_list)) if rec_list else 0.0
+    macro_f1 = float(np.mean(f1_list)) if f1_list else 0.0
+    acc = float(np.mean(y_true == y_pred)) if len(y_true) > 0 else 0.0
 
     return {
         'matched_count':    len(merged),
@@ -138,3 +139,4 @@ def compute_evaluation(predicted_df: pd.DataFrame, truth_df: pd.DataFrame,
         'macro_f1':         macro_f1,
         'accuracy':         acc,
     }
+
