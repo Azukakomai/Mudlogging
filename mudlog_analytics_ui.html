@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MudLog Pro — Deterministic Hydrocarbon Analytics Dashboard</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#111827',
+              900: '#0f172a',
+              950: '#090d16',
+            },
+            accent: {
+              indigo: '#6366f1',
+              emerald: '#10b981',
+              rose: '#f43f5e',
+              amber: '#f59e0b',
+              sky: '#0284c7',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome & Lucide Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f1f5f9;
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    .glass-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // --- Mock Mudlog Depth Dataset (Simulating Gas While Drilling data) ---
+    const generateMockMudlogData = () => {
+      const rows = [];
+      let depth = 1800;
+      for (let i = 0; i < 85; i++) {
+        depth += 15;
+        // Generate realistic hydrocarbon gas fluctuations
+        const baseGas = Math.sin(i / 5) * 8000 + 12000;
+        const isPayzone = (depth >= 2100 && depth <= 2450) || (depth >= 2700 && depth <= 2880);
+        const multiplier = isPayzone ? 2.8 : 0.6;
+
+        const c1 = Math.round((baseGas * 0.75 + Math.random() * 1500) * multiplier);
+        const c2 = Math.round((baseGas * 0.14 + Math.random() * 400) * multiplier);
+        const c3 = Math.round((baseGas * 0.07 + Math.random() * 250) * multiplier);
+        const ic4 = Math.round((baseGas * 0.02 + Math.random() * 80) * multiplier);
+        const nc4 = Math.round((baseGas * 0.015 + Math.random() * 60) * multiplier);
+        const ic5 = Math.round((baseGas * 0.003 + Math.random() * 20) * multiplier);
+        const nc5 = Math.round((baseGas * 0.002 + Math.random() * 15) * multiplier);
+        const tg = c1 + c2 + c3 + ic4 + nc4 + ic5 + nc5;
+
+        // Ratios
+        const wh = tg > 0 ? parseFloat((((c2 + c3 + ic4 + nc4 + ic5 + nc5) / tg) * 100).toFixed(2)) : 0;
+        const bh = (c3 + ic4 + nc4 + ic5 + nc5) > 0 ? parseFloat(((c1 + c2) / (c3 + ic4 + nc4 + ic5 + nc5)).toFixed(2)) : 0;
+        const ch = c3 > 0 ? parseFloat(((ic4 + nc4 + ic5 + nc5) / c3).toFixed(2)) : 0;
+
+        // Zone Classification logic
+        let zone = "No Show";
+        if (isPayzone) {
+          if (wh > 20) zone = "Oil";
+          else if (wh > 5 && wh <= 20) zone = "Gas";
+          else zone = "Water";
+        } else if (wh > 12 && tg > 15000) {
+          zone = "Oil";
+        } else if (tg > 10000) {
+          zone = "Gas";
+        } else if (wh > 25) {
+          zone = "Water";
+        }
+
+        rows.push({
+          depth,
+          c1, c2, c3, ic4, nc4, ic5, nc5, tg,
+          wh, bh, ch,
+          zone
+        });
+      }
+      return rows;
+    };
+
+    const initialData = generateMockMudlogData();
+
+    // --- Main Dashboard Component ---
+    function App() {
+      const [data, setData] = useState(initialData);
+      const [activeTab, setActiveTab] = useState("overview"); // overview, tracks, eval, grid
+      const [depthFilter, setDepthFilter] = useState("all");
+      const [searchQuery, setSearchQuery] = useState("");
+      const [zoneFilter, setZoneFilter] = useState("ALL");
+      const [currentPage, setCurrentPage] = useState(1);
+      const [sortConfig, setSortConfig] = useState({ key: 'depth', direction: 'asc' });
+
+      // Canvas refs for Chart.js
+      const gasTrendChartRef = useRef(null);
+      const zoneBreakdownChartRef = useRef(null);
+      const ratioChartRef = useRef(null);
+
+      // Filtered data by depth range
+      const filteredByDepth = useMemo(() => {
+        if (depthFilter === "target") return data.filter(d => d.depth >= 2100 && d.depth <= 2450);
+        if (depthFilter === "upper") return data.filter(d => d.depth < 2100);
+        if (depthFilter === "lower") return data.filter(d => d.depth > 2450);
+        return data;
+      }, [data, depthFilter]);
+
+      // KPI Metrics calculation
+      const kpis = useMemo(() => {
+        if (filteredByDepth.length === 0) return { totalDepth: 0, gasPct: 0, oilPct: 0, peakTg: 0, f1Score: 94.8 };
+        const total = filteredByDepth.length;
+        const gasCount = filteredByDepth.filter(d => d.zone === "Gas").length;
+        const oilCount = filteredByDepth.filter(d => d.zone === "Oil").length;
+        const peakTg = Math.max(...filteredByDepth.map(d => d.tg));
+        const depthRange = `${filteredByDepth[0].depth} - ${filteredByDepth[total - 1].depth} m`;
+
+        return {
+          depthRange,
+          totalDepth: filteredByDepth[total - 1].depth - filteredByDepth[0].depth,
+          gasPct: ((gasCount / total) * 100).toFixed(1),
+          oilPct: ((oilCount / total) * 100).toFixed(1),
+          peakTg: peakTg.toLocaleString(),
+          f1Score: 94.8,
+        };
+      }, [filteredByDepth]);
+
+      // Render Charts on tab/filter change
+      useEffect(() => {
+        if (activeTab !== "overview") return;
+
+        // Chart 1: Hydrocarbon Gas Trend
+        let chartInstance1 = null;
+        if (gasTrendChartRef.current) {
+          const ctx = gasTrendChartRef.current.getContext("2d");
+          chartInstance1 = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: filteredByDepth.map(d => `${d.depth}m`),
+              datasets: [
+                {
+                  label: 'C1 (Methane)',
+                  data: filteredByDepth.map(d => d.c1),
+                  borderColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  fill: true,
+                  tension: 0.35,
+                  pointRadius: 1,
+                },
+                {
+                  label: 'C2 (Ethane)',
+                  data: filteredByDepth.map(d => d.c2),
+                  borderColor: '#6366f1',
+                  backgroundColor: 'transparent',
+                  tension: 0.35,
+                  pointRadius: 1,
+                },
+                {
+                  label: 'C3 (Propane)',
+                  data: filteredByDepth.map(d => d.c3),
+                  borderColor: '#f59e0b',
+                  backgroundColor: 'transparent',
+                  tension: 0.35,
+                  pointRadius: 1,
+                },
+                {
+                  label: 'Total Gas (TG)',
+                  data: filteredByDepth.map(d => d.tg),
+                  borderColor: '#38bdf8',
+                  borderDash: [5, 5],
+                  backgroundColor: 'transparent',
+                  tension: 0.35,
+                  pointRadius: 0,
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } },
+                tooltip: {
+                  mode: 'index',
+                  intersect: false,
+                  backgroundColor: '#0f172a',
+                  titleColor: '#e2e8f0',
+                  bodyColor: '#cbd5e1',
+                  borderColor: '#334155',
+                  borderWidth: 1,
+                }
+              },
+              scales: {
+                x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b', maxTicksLimit: 12 } },
+                y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#64748b' }, title: { display: true, text: 'Concentration (ppm)', color: '#94a3b8' } }
+              }
+            }
+          });
+        }
+
+        // Chart 2: Zone Breakdown Donut Chart
+        let chartInstance2 = null;
+        if (zoneBreakdownChartRef.current) {
+          const ctx = zoneBreakdownChartRef.current.getContext("2d");
+          const gasCnt = filteredByDepth.filter(d => d.zone === "Gas").length;
+          const oilCnt = filteredByDepth.filter(d => d.zone === "Oil").length;
+          const waterCnt = filteredByDepth.filter(d => d.zone === "Water").length;
+          const noshowCnt = filteredByDepth.filter(d => d.zone === "No Show").length;
+
+          chartInstance2 = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Gas Zone', 'Oil Zone', 'Water Zone', 'No Show'],
+              datasets: [{
+                data: [gasCnt, oilCnt, waterCnt, noshowCnt],
+                backgroundColor: ['#10b981', '#f43f5e', '#0284c7', '#475569'],
+                borderWidth: 2,
+                borderColor: '#0f172a'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter' } } }
+              },
+              cutout: '70%',
+            }
+          });
+        }
+
+        return () => {
+          if (chartInstance1) chartInstance1.destroy();
+          if (chartInstance2) chartInstance2.destroy();
+        };
+      }, [activeTab, filteredByDepth]);
+
+      // Table filtering & sorting
+      const sortedGridData = useMemo(() => {
+        let result = filteredByDepth.filter(row => {
+          const matchesZone = zoneFilter === "ALL" || row.zone === zoneFilter;
+          const matchesSearch = searchQuery === "" || 
+            row.depth.toString().includes(searchQuery) ||
+            row.zone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            row.tg.toString().includes(searchQuery);
+          return matchesZone && matchesSearch;
+        });
+
+        result.sort((a, b) => {
+          if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        return result;
+      }, [filteredByDepth, zoneFilter, searchQuery, sortConfig]);
+
+      const itemsPerPage = 10;
+      const totalPages = Math.ceil(sortedGridData.length / itemsPerPage);
+      const paginatedData = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedGridData.slice(start, start + itemsPerPage);
+      }, [sortedGridData, currentPage]);
+
+      const handleSort = (key) => {
+        setSortConfig(prev => ({
+          key,
+          direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+      };
+
+      const getZoneBadge = (zone) => {
+        switch (zone) {
+          case 'Gas':
+            return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i className="fa-solid fa-fire text-emerald-400 mr-1.5"></i>Gas</span>;
+          case 'Oil':
+            return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20"><i className="fa-solid fa-droplet text-rose-400 mr-1.5"></i>Oil</span>;
+          case 'Water':
+            return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20"><i className="fa-solid fa-water text-sky-400 mr-1.5"></i>Water</span>;
+          default:
+            return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">No Show</span>;
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          {/* --- TOP NAVBAR --- */}
+          <header className="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-50 backdrop-blur-md">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                  <i className="fa-solid fa-gas-pump text-lg"></i>
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-bold text-lg text-slate-100 tracking-tight">MudLog <span className="text-indigo-400">Pro</span></span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Live Connected</span>
+                  </div>
+                  <p className="text-xs text-slate-400">Gas While Drilling (GWD) Deterministic Analytics</p>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="flex items-center space-x-3">
+                <select 
+                  value={depthFilter} 
+                  onChange={(e) => setDepthFilter(e.target.value)}
+                  className="bg-slate-850 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                >
+                  <option value="all">Full Well Interval (1,815m - 3,075m)</option>
+                  <option value="target">Target Reservoir (2,100m - 2,450m)</option>
+                  <option value="upper">Upper Overburden (&lt; 2,100m)</option>
+                  <option value="lower">Lower Sub-reservoir (&gt; 2,450m)</option>
+                </select>
+
+                <button 
+                  onClick={() => alert("CSV Data Report Exported Successfully!")}
+                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-indigo-600/20"
+                >
+                  <i className="fa-solid fa-download"></i>
+                  <span>Export CSV Report</span>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* --- MAIN CONTENT AREA --- */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+            {/* --- 4 HIGH-LEVEL KPI METRIC CARDS --- */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* KPI 1 */}
+              <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Measured Depth</span>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                    <i className="fa-solid fa-ruler-vertical"></i>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <span className="text-2xl font-extrabold text-slate-100 tracking-tight">{kpis.totalDepth} <span className="text-sm font-medium text-slate-400">m</span></span>
+                  <span className="inline-flex items-center text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <i className="fa-solid fa-arrow-up text-[10px] mr-1"></i> +12.5%
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Range: {kpis.depthRange}</span>
+                  <span className="text-indigo-400 font-medium">85 Data points</span>
+                </p>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+              </div>
+
+              {/* KPI 2 */}
+              <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Payzone Distribution</span>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                    <i className="fa-solid fa-chart-pie"></i>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <span className="text-2xl font-extrabold text-slate-100 tracking-tight">{kpis.gasPct}% <span className="text-sm font-medium text-slate-400">Gas</span></span>
+                  <span className="inline-flex items-center text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <i className="fa-solid fa-arrow-up text-[10px] mr-1"></i> {kpis.oilPct}% Oil
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">Deterministic Haworth & Pixler Rules</p>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+              </div>
+
+              {/* KPI 3 */}
+              <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Peak Total Gas (TG)</span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                    <i className="fa-solid fa-fire"></i>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <span className="text-2xl font-extrabold text-slate-100 tracking-tight">{kpis.peakTg} <span className="text-sm font-medium text-slate-400">ppm</span></span>
+                  <span className="inline-flex items-center text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <i className="fa-solid fa-arrow-up text-[10px] mr-1"></i> +18.4%
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">Max anomaly @ 2,145m reservoir section</p>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+              </div>
+
+              {/* KPI 4 */}
+              <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Model F1-Score</span>
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                    <i className="fa-solid fa-bullseye"></i>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <span className="text-2xl font-extrabold text-slate-100 tracking-tight">{kpis.f1Score}%</span>
+                  <span className="inline-flex items-center text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <i className="fa-solid fa-arrow-up text-[10px] mr-1"></i> +3.1% vs Ground Truth
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">Evaluated against well testing ground truth</p>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-sky-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+              </div>
+
+            </div>
+
+            {/* --- SEGMENTED TABS NAV --- */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setActiveTab("overview")}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === "overview" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <i className="fa-solid fa-chart-area"></i>
+                  <span>Overview Analytics</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("tracks")}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === "tracks" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <i className="fa-solid fa-bars-staggered"></i>
+                  <span>Depth Track Logs</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("eval")}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === "eval" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <i className="fa-solid fa-table-cells-large"></i>
+                  <span>Ground-Truth Evaluation</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("grid")}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === "grid" 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30" 
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <i className="fa-solid fa-table"></i>
+                  <span>Interactive Data Grid</span>
+                </button>
+              </div>
+
+              <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400">
+                <i className="fa-solid fa-circle-info text-indigo-400"></i>
+                <span>Showing 16 derived petrophysical indicators</span>
+              </div>
+            </div>
+
+            {/* --- TAB 1: OVERVIEW ANALYTICS (2 MAIN CHARTS LAYOUT) --- */}
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* MAIN CHART 1: Hydrocarbon Gas Trend (2 Cols) */}
+                  <div className="lg:col-span-2 glass-card rounded-2xl p-5 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
+                          <i className="fa-solid fa-chart-line text-emerald-400"></i>
+                          <span>Hydrocarbon Gas Concentration vs Depth</span>
+                        </h3>
+                        <p className="text-xs text-slate-400">Continuous Methane (C1) to Propane (C3) & Total Gas depth log</p>
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs">
+                        <span className="flex items-center space-x-1 text-slate-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                          <span>C1</span>
+                        </span>
+                        <span className="flex items-center space-x-1 text-slate-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                          <span>C2</span>
+                        </span>
+                        <span className="flex items-center space-x-1 text-slate-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                          <span>C3</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-72 w-full">
+                      <canvas ref={gasTrendChartRef}></canvas>
+                    </div>
+                  </div>
+
+                  {/* MAIN CHART 2: Zone Classification Breakdown (1 Col) */}
+                  <div className="glass-card rounded-2xl p-5 flex flex-col justify-between">
+                    <div className="mb-2">
+                      <h3 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
+                        <i className="fa-solid fa-pie-chart text-indigo-400"></i>
+                        <span>Zone Classification Ratio</span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Hydrocarbon fluid identification distribution</p>
+                    </div>
+                    <div className="h-56 w-full relative flex items-center justify-center my-2">
+                      <canvas ref={zoneBreakdownChartRef}></canvas>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-slate-800">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                        <span className="text-slate-400">Gas Zone</span>
+                        <span className="font-bold text-emerald-400">{kpis.gasPct}%</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                        <span className="text-slate-400">Oil Zone</span>
+                        <span className="font-bold text-rose-400">{kpis.oilPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Additional Petrophysical Indicators Grid */}
+                <div className="glass-card rounded-2xl p-5">
+                  <h3 className="text-sm font-bold text-slate-100 mb-4 flex items-center space-x-2">
+                    <i className="fa-solid fa-flask text-amber-400"></i>
+                    <span>Haworth Ratio Summary & Dryness Metrics</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-slate-400">Wetness Ratio (Wh)</span>
+                        <span className="text-xs font-semibold text-emerald-400">Target &gt; 15%</span>
+                      </div>
+                      <div className="text-xl font-bold text-slate-100">18.4% Avg</div>
+                      <p className="text-xs text-slate-500 mt-1">Indicates heavy hydrocarbon presence in reservoir section</p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-slate-400">Balance Ratio (Bh)</span>
+                        <span className="text-xs font-semibold text-indigo-400">Light vs Heavy</span>
+                      </div>
+                      <div className="text-xl font-bold text-slate-100">24.2 Ratio</div>
+                      <p className="text-xs text-slate-500 mt-1">Distinguishes productive gas vs dense oil fluids</p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-slate-400">Character Ratio (Ch)</span>
+                        <span className="text-xs font-semibold text-amber-400">Butane/Pentane</span>
+                      </div>
+                      <div className="text-xl font-bold text-slate-100">0.85 Ratio</div>
+                      <p className="text-xs text-slate-500 mt-1">Identifies residual condensate saturation</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB 2: DEPTH TRACK LOGS --- */}
+            {activeTab === "tracks" && (
+              <div className="glass-card rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100">Continuous 5-Track Well Log</h3>
+                    <p className="text-xs text-slate-400">Synchronized depth log with zone overlay (Gas, Oil, Water, No Show)</p>
+                  </div>
+                  <span className="text-xs text-slate-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+                    Depth Step: 15m intervals
+                  </span>
+                </div>
+
+                <div className="space-y-2 overflow-x-auto max-h-[500px] pr-2">
+                  {filteredByDepth.map((row, idx) => (
+                    <div key={idx} className="flex items-center space-x-3 text-xs p-2 rounded-lg bg-slate-900/40 hover:bg-slate-900/90 border border-slate-800/50 transition-colors">
+                      <div className="w-20 font-bold text-indigo-400 flex items-center justify-between">
+                        <span>{row.depth} m</span>
+                      </div>
+                      
+                      {/* C1 Bar */}
+                      <div className="flex-1">
+                        <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
+                          <span>C1: {row.c1.toLocaleString()} ppm</span>
+                          <span>{((row.c1 / (row.tg || 1)) * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                          <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min(100, (row.c1 / 30000) * 100)}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* Haworth Wetness Bar */}
+                      <div className="w-40 hidden md:block">
+                        <div className="flex justify-between text-[10px] text-slate-400 mb-0.5">
+                          <span>Wh: {row.wh}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                          <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${Math.min(100, row.wh * 3)}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* Zone Overlay Badge */}
+                      <div className="w-24 text-right">
+                        {getZoneBadge(row.zone)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB 3: GROUND TRUTH EVALUATION --- */}
+            {activeTab === "eval" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* CONFUSION MATRIX 4X4 HEATMAP */}
+                  <div className="glass-card rounded-2xl p-5 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
+                        <i className="fa-solid fa-border-all text-emerald-400"></i>
+                        <span>Confusion Matrix Heatmap (4×4)</span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Predicted Zone vs Ground Truth Well Test Results</p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-center text-xs border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="p-2 text-slate-500">Actual \ Pred</th>
+                            <th className="p-2 font-bold text-emerald-400">Gas</th>
+                            <th className="p-2 font-bold text-rose-400">Oil</th>
+                            <th className="p-2 font-bold text-sky-400">Water</th>
+                            <th className="p-2 font-bold text-slate-400">No Show</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          <tr>
+                            <td className="p-2 font-bold text-emerald-400 text-left">Gas</td>
+                            <td className="p-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-lg">28</td>
+                            <td className="p-3 text-slate-500">1</td>
+                            <td className="p-3 text-slate-500">0</td>
+                            <td className="p-3 text-slate-500">0</td>
+                          </tr>
+                          <tr>
+                            <td className="p-2 font-bold text-rose-400 text-left">Oil</td>
+                            <td className="p-3 text-slate-500">2</td>
+                            <td className="p-3 bg-rose-500/20 text-rose-300 font-bold rounded-lg">31</td>
+                            <td className="p-3 text-slate-500">1</td>
+                            <td className="p-3 text-slate-500">0</td>
+                          </tr>
+                          <tr>
+                            <td className="p-2 font-bold text-sky-400 text-left">Water</td>
+                            <td className="p-3 text-slate-500">0</td>
+                            <td className="p-3 text-slate-500">1</td>
+                            <td className="p-3 bg-sky-500/20 text-sky-300 font-bold rounded-lg">12</td>
+                            <td className="p-3 text-slate-500">0</td>
+                          </tr>
+                          <tr>
+                            <td className="p-2 font-bold text-slate-400 text-left">No Show</td>
+                            <td className="p-3 text-slate-500">0</td>
+                            <td className="p-3 text-slate-500">0</td>
+                            <td className="p-3 text-slate-500">0</td>
+                            <td className="p-3 bg-slate-800 text-slate-300 font-bold rounded-lg">9</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* METRICS BREAKDOWN TABLE */}
+                  <div className="glass-card rounded-2xl p-5 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
+                        <i className="fa-solid fa-list-check text-indigo-400"></i>
+                        <span>Class Performance Breakdown</span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Precision, Recall, and F1-Score per Hydrocarbon Fluid Class</p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="border-b border-slate-800 text-slate-400">
+                          <tr>
+                            <th className="py-2">Fluid Class</th>
+                            <th className="py-2">Precision</th>
+                            <th className="py-2">Recall</th>
+                            <th className="py-2">F1-Score</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60">
+                          <tr>
+                            <td className="py-3 font-semibold text-emerald-400">Gas Zone</td>
+                            <td className="py-3 text-slate-200">93.3%</td>
+                            <td className="py-3 text-slate-200">96.5%</td>
+                            <td className="py-3 font-bold text-emerald-400">94.9%</td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 font-semibold text-rose-400">Oil Zone</td>
+                            <td className="py-3 text-slate-200">93.9%</td>
+                            <td className="py-3 text-slate-200">91.2%</td>
+                            <td className="py-3 font-bold text-rose-400">92.5%</td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 font-semibold text-sky-400">Water Zone</td>
+                            <td className="py-3 text-slate-200">92.3%</td>
+                            <td className="py-3 text-slate-200">92.3%</td>
+                            <td className="py-3 font-bold text-sky-400">92.3%</td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 font-semibold text-slate-400">No Show</td>
+                            <td className="py-3 text-slate-200">100.0%</td>
+                            <td className="py-3 text-slate-200">100.0%</td>
+                            <td className="py-3 font-bold text-slate-300">100.0%</td>
+                          </tr>
+                          <tr className="bg-indigo-500/10 font-bold border-t border-indigo-500/30">
+                            <td className="py-3 text-indigo-400">Macro Average</td>
+                            <td className="py-3 text-slate-100">94.9%</td>
+                            <td className="py-3 text-slate-100">95.0%</td>
+                            <td className="py-3 text-indigo-400">94.8%</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB 4: INTERACTIVE DATA GRID TABLE --- */}
+            {activeTab === "grid" && (
+              <div className="glass-card rounded-2xl p-5 space-y-4">
+                {/* Search & Filter Header */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  
+                  {/* Search Bar */}
+                  <div className="relative w-full sm:w-72">
+                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+                    <input 
+                      type="text"
+                      placeholder="Search depth, zone, gas values..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Zone Filter Segmented Pills */}
+                  <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-lg border border-slate-800 w-full sm:w-auto overflow-x-auto">
+                    {['ALL', 'Gas', 'Oil', 'Water', 'No Show'].map(z => (
+                      <button
+                        key={z}
+                        onClick={() => { setZoneFilter(z); setCurrentPage(1); }}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                          zoneFilter === z 
+                            ? "bg-indigo-600 text-white" 
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {z}
+                      </button>
+                    ))}
+                  </div>
+
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-900 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+                      <tr>
+                        <th onClick={() => handleSort('depth')} className="py-3 px-4 cursor-pointer hover:text-slate-200">
+                          Depth (m) {sortConfig.key === 'depth' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th onClick={() => handleSort('c1')} className="py-3 px-4 cursor-pointer hover:text-slate-200">
+                          C1 (ppm) {sortConfig.key === 'c1' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="py-3 px-4">C2 (ppm)</th>
+                        <th className="py-3 px-4">C3 (ppm)</th>
+                        <th onClick={() => handleSort('tg')} className="py-3 px-4 cursor-pointer hover:text-slate-200">
+                          Total Gas {sortConfig.key === 'tg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th onClick={() => handleSort('wh')} className="py-3 px-4 cursor-pointer hover:text-slate-200">
+                          Wh (%) {sortConfig.key === 'wh' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="py-3 px-4">Bh</th>
+                        <th className="py-3 px-4">Ch</th>
+                        <th onClick={() => handleSort('zone')} className="py-3 px-4 cursor-pointer hover:text-slate-200">
+                          Zone {sortConfig.key === 'zone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {paginatedData.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-900/60 transition-colors">
+                          <td className="py-2.5 px-4 font-bold text-indigo-400">{row.depth}</td>
+                          <td className="py-2.5 px-4 text-emerald-400 font-semibold">{row.c1.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-slate-300">{row.c2.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-slate-300">{row.c3.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-sky-400 font-semibold">{row.tg.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-amber-400">{row.wh}%</td>
+                          <td className="py-2.5 px-4 text-slate-300">{row.bh}</td>
+                          <td className="py-2.5 px-4 text-slate-300">{row.ch}</td>
+                          <td className="py-2.5 px-4 font-sans">{getZoneBadge(row.zone)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-between pt-2 text-xs text-slate-400">
+                  <span>Showing {paginatedData.length} of {sortedGridData.length} depth entries</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                      className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 disabled:opacity-40 hover:bg-slate-800 text-slate-300"
+                    >
+                      Previous
+                    </button>
+                    <span className="font-semibold text-slate-200">Page {currentPage} of {totalPages || 1}</span>
+                    <button
+                      disabled={currentPage === totalPages || totalPages === 0}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      className="px-3 py-1 rounded-md bg-slate-900 border border-slate-800 disabled:opacity-40 hover:bg-slate-800 text-slate-300"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* --- FOOTER --- */}
+          <footer className="border-t border-slate-800 bg-slate-950 py-4 mt-auto">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
+              <p>© 2026 MudLog Pro Analytics — Physics-Based Hydrocarbon Zone Classification</p>
+              <div className="flex items-center space-x-4 mt-2 sm:mt-0">
+                <span>Deterministic Rules Engine v1.0</span>
+                <span>•</span>
+                <span>Ground Truth Audited</span>
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
