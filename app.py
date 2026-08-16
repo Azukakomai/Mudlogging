@@ -1,34 +1,31 @@
 """
-Mudlogging Hydrocarbon Analysis — Desktop Application
-=====================================================
-Single-page Dash dashboard for Gas While Drilling (GWD) analysis.
+MudLog Pro — Continuous Multi-Track Depth Log (Dash Python)
+===========================================================
+Interactive single-page Dash application featuring a clean, full-screen
+continuous multi-track well log where every hydrocarbon gas, ratio,
+and petrophysical indicator has its own dedicated track column.
 
-Features:
-  • Drag-and-drop CSV/TXT/XLSX upload via modal
-  • Optional ground-truth CSV upload for evaluation
-  • Automatic data parsing & cleaning
-  • 16 petrophysical indicator computations
-  • Interactive Plotly depth-log charts (5 tracks)
-  • Majority-vote zone classification with colour overlay (Gas/Oil/Water/No Show)
-  • Evaluation metrics: confusion matrix, accuracy, precision, recall, F1-Score
-  • One-click CSV report download
-  • Toggle between Raw Data and Computed Data views
+Tracks Included:
+  • Raw Gases: C1, C2, C3, iC4, nC4, iC5, nC5, Total Gas (TG)
+  • Pixler & Gas Ratios: C1/C2 (R1), C1/C3 (R2), C2/C1, C3/C1, C2/C3 (R3), C1/iC4 (R4), C1/nC4 (R5)
+  • Haworth Ratios: Wh% (Wetness), Bh (Balance), Ch (Character)
+  • Composite Indicators: Dryness, Carbon Index (Ci), WBS, GOW, GOW/TG, GOR
+  • Classification: Fluid Zone (Gas, Oil, Water, No Show)
 
-Run:  python app.py
-Build: pyinstaller --onefile --noconsole app.py
+All tracks are engineered to fit 100% within the screen width with zero horizontal scroll.
+
+Run: py app.py
 """
 
 import io
 import base64
 import webbrowser
 import threading
-import sys
-import os
-
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 import dash
-from dash import dcc, html, dash_table, callback_context, no_update
+from dash import dcc, html, no_update
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
@@ -37,105 +34,220 @@ from plotly.subplots import make_subplots
 # Local imports
 from parser import parse_mudlog_file
 from engine import compute_all
-from evaluator import compute_evaluation
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  App initialisation
+#  Theme & Color Palette
+# ──────────────────────────────────────────────────────────────────────
+CLR_BG       = "#090d16"
+CLR_SURFACE  = "#0f172a"
+CLR_CARD     = "#111827"
+CLR_BORDER   = "rgba(51, 65, 85, 0.5)"
+CLR_ACCENT   = "#6366f1"  # Indigo
+CLR_CYAN     = "#38bdf8"  # Sky/Cyan
+CLR_SUCCESS  = "#10b981"  # Emerald
+CLR_WARNING  = "#f59e0b"  # Amber
+CLR_DANGER   = "#f43f5e"  # Rose
+CLR_TEXT     = "#f1f5f9"  # Slate 100
+CLR_MUTED    = "#94a3b8"  # Slate 400
+CLR_DARK_MUTED = "#64748b" # Slate 500
+
+ZONE_COLORS = {
+    "Gas":     "#10b981",
+    "Oil":     "#f43f5e",
+    "Water":   "#0284c7",
+    "No Show": "#475569",
+}
+
+# Complete List of Continuous Multi-Track Specifications (All 24 Indicators)
+CONTINUOUS_TRACK_SPECS = [
+    # (col_key, title, color, scale_type)
+    ("C1",           "C1",        "#38bdf8", "log"),
+    ("C2",           "C2",        "#818cf8", "log"),
+    ("C3",           "C3",        "#f472b6", "log"),
+    ("IC4",          "iC4",       "#fb923c", "log"),
+    ("NC4",          "nC4",       "#facc15", "log"),
+    ("IC5",          "iC5",       "#34d399", "log"),
+    ("NC5",          "nC5",       "#a78bfa", "log"),
+    ("TG_USED",      "TG",        "#ffffff", "log"),
+    ("R1_C1_C2",     "C1/C2",     "#38bdf8", "log"),
+    ("R2_C1_C3",     "C1/C3",     "#818cf8", "log"),
+    ("C2_C1",        "C2/C1",     "#38bdf8", "log"),
+    ("C3_C1",        "C3/C1",     "#818cf8", "log"),
+    ("R3_C2_C3",     "C2/C3",     "#f472b6", "log"),
+    ("R4_C1_IC4",    "C1/iC4",    "#fb923c", "log"),
+    ("R5_C1_NC4",    "C1/nC4",    "#facc15", "log"),
+    ("WH",           "Wh%",       "#22c55e", "linear"),
+    ("BH",           "Bh",        "#f59e0b", "linear"),
+    ("CH",           "Ch",        "#ef4444", "linear"),
+    ("DRYNESS",      "Dryness",   "#38bdf8", "linear"),
+    ("CARBON_INDEX", "Ci",        "#818cf8", "linear"),
+    ("WBS",          "WBS",       "#f59e0b", "linear"),
+    ("GOW",          "GOW",       "#a78bfa", "log"),
+    ("GOW_NOTG",     "GOW/TG",    "#ef4444", "linear"),
+    ("GOR",          "GOR",       "#34d399", "linear"),
+]
+
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Mock Dataset Generator (Realistic Gas While Drilling with Payzones)
+# ──────────────────────────────────────────────────────────────────────
+def generate_initial_mudlog_data():
+    """Generates realistic synthetic GWD dataset with target payzones."""
+    np.random.seed(42)
+    rows = []
+    depth = 1800
+    for i in range(85):
+        depth += 15
+        base_gas = np.sin(i / 5.0) * 8000.0 + 12000.0
+        is_payzone = (2100 <= depth <= 2450) or (2700 <= depth <= 2880)
+        multiplier = 2.8 if is_payzone else 0.6
+
+        c1 = max(10.0, (base_gas * 0.75 + np.random.uniform(0, 1500)) * multiplier)
+        c2 = max(1.0, (base_gas * 0.14 + np.random.uniform(0, 400)) * multiplier)
+        c3 = max(0.5, (base_gas * 0.07 + np.random.uniform(0, 250)) * multiplier)
+        ic4 = max(0.1, (base_gas * 0.02 + np.random.uniform(0, 80)) * multiplier)
+        nc4 = max(0.1, (base_gas * 0.015 + np.random.uniform(0, 60)) * multiplier)
+        ic5 = max(0.05, (base_gas * 0.003 + np.random.uniform(0, 20)) * multiplier)
+        nc5 = max(0.05, (base_gas * 0.002 + np.random.uniform(0, 15)) * multiplier)
+        tg = c1 + c2 + c3 + ic4 + nc4 + ic5 + nc5
+
+        rows.append({
+            "DEPTH": depth,
+            "C1": round(c1, 1),
+            "C2": round(c2, 1),
+            "C3": round(c3, 1),
+            "IC4": round(ic4, 1),
+            "NC4": round(nc4, 1),
+            "IC5": round(ic5, 1),
+            "NC5": round(nc5, 1),
+            "TG": round(tg, 1),
+        })
+
+    raw_df = pd.DataFrame(rows)
+    computed_df = compute_all(raw_df)
+    return raw_df, computed_df
+
+
+INIT_RAW_DF, INIT_COMPUTED_DF = generate_initial_mudlog_data()
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  App Initialisation & External Assets
 # ──────────────────────────────────────────────────────────────────────
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.DARKLY],
+    external_stylesheets=[
+        dbc.themes.DARKLY,
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
+    ],
     suppress_callback_exceptions=True,
-    title="MudLog Analyzer v1.0",
+    title="MudLog Pro — Continuous Depth Track Log",
 )
 
-# Colour palette
-CLR_BG       = "#0b0f19"
-CLR_CARD     = "#111827"
-CLR_ACCENT   = "#38bdf8"
-CLR_ACCENT2  = "#818cf8"
-CLR_TEXT     = "#e2e8f0"
-CLR_MUTED    = "#64748b"
-CLR_SUCCESS  = "#22c55e"
-CLR_WARNING  = "#f59e0b"
-CLR_DANGER   = "#ef4444"
+server = app.server
 
-ZONE_COLORS = {
-    "Gas":     "#22c55e",
-    "Oil":     "#ef4444",
-    "Water":   "#3b82f6",
-    "No Show": "#374151",
-}
+# Custom HTML index template for Dark Glassmorphism, Google Fonts, and Screen-Fitting styles
+app.index_string = """<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+        <style>
+            body {
+                font-family: 'Inter', sans-serif !important;
+                background-color: #090d16 !important;
+                color: #f1f5f9 !important;
+                margin: 0;
+                overflow-x: hidden;
+            }
+            .glass-card {
+                background: rgba(15, 23, 42, 0.8) !important;
+                backdrop-filter: blur(12px) !important;
+                border: 1px solid rgba(51, 65, 85, 0.5) !important;
+                border-radius: 14px !important;
+                transition: all 0.2s ease-in-out;
+            }
+            .glass-card:hover {
+                border-color: rgba(99, 102, 241, 0.45) !important;
+            }
+            /* Scrollbars */
+            ::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            ::-webkit-scrollbar-track {
+                background: #0f172a;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #334155;
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #475569;
+            }
+        </style>
+    </head>
+    <body class="bg-dark text-light">
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>"""
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Layout
+#  Modal for Uploading Files
 # ──────────────────────────────────────────────────────────────────────
-
 upload_modal = dbc.Modal(
     [
         dbc.ModalHeader(
-            dbc.ModalTitle("Upload Files", style={"color": CLR_ACCENT}),
+            dbc.ModalTitle(
+                html.Div([
+                    html.I(className="fas fa-cloud-arrow-up me-2", style={"color": CLR_CYAN}),
+                    "Upload Mudlog Data File",
+                ]),
+                style={"color": CLR_TEXT, "fontSize": "16px", "fontWeight": "700"},
+            ),
             close_button=True,
+            style={"background": CLR_SURFACE, "borderBottom": f"1px solid {CLR_BORDER}"},
         ),
         dbc.ModalBody([
-            # ─── Mudlog file upload ───
-            html.Label("Mudlog Data File", style={"fontWeight": "600", "color": CLR_TEXT,
-                                                   "marginBottom": "8px", "display": "block"}),
-            dcc.Upload(
-                id="upload-data",
-                children=html.Div([
-                    html.I(className="fas fa-cloud-upload-alt",
-                           style={"fontSize": "40px", "color": CLR_ACCENT, "marginBottom": "8px"}),
-                    html.Br(),
-                    html.Span("Drag & Drop or ", style={"color": CLR_MUTED}),
-                    html.A("Browse Files", style={"color": CLR_ACCENT, "cursor": "pointer",
-                                                   "textDecoration": "underline"}),
-                    html.Br(),
-                    html.Small("Supports .csv, .txt, .xlsx", style={"color": CLR_MUTED}),
-                ], style={"textAlign": "center", "padding": "30px 20px"}),
-                style={
-                    "border": f"2px dashed {CLR_ACCENT}",
-                    "borderRadius": "12px",
-                    "background": CLR_BG,
-                    "cursor": "pointer",
-                },
-                multiple=False,
-            ),
-            html.Div(id="upload-status", style={"marginTop": "12px", "textAlign": "center"}),
-
-            html.Hr(style={"borderColor": f"{CLR_MUTED}33", "margin": "20px 0"}),
-
-            # ─── Ground truth file upload ───
-            html.Label("Ground Truth File (Optional)",
-                       style={"fontWeight": "600", "color": CLR_TEXT,
-                              "marginBottom": "4px", "display": "block"}),
-            html.Small("CSV with DEPTH and ZONE columns (Gas / Oil / Water). "
-                       "Used to compute accuracy metrics.",
-                       style={"color": CLR_MUTED, "display": "block", "marginBottom": "8px"}),
-            dcc.Upload(
-                id="upload-truth",
-                children=html.Div([
-                    html.I(className="fas fa-check-circle",
-                           style={"fontSize": "32px", "color": CLR_SUCCESS, "marginBottom": "6px"}),
-                    html.Br(),
-                    html.Span("Drag & Drop or ", style={"color": CLR_MUTED}),
-                    html.A("Browse", style={"color": CLR_SUCCESS, "cursor": "pointer",
-                                            "textDecoration": "underline"}),
-                    html.Br(),
-                    html.Small(".csv format", style={"color": CLR_MUTED}),
-                ], style={"textAlign": "center", "padding": "20px"}),
-                style={
-                    "border": f"2px dashed {CLR_SUCCESS}66",
-                    "borderRadius": "12px",
-                    "background": CLR_BG,
-                    "cursor": "pointer",
-                },
-                multiple=False,
-            ),
-            html.Div(id="truth-upload-status", style={"marginTop": "12px", "textAlign": "center"}),
-        ]),
+            html.Div([
+                html.Label("Mudlog Well Log Data File", style={"fontWeight": "600", "color": CLR_TEXT, "fontSize": "13px", "marginBottom": "6px", "display": "block"}),
+                dcc.Upload(
+                    id="upload-data",
+                    children=html.Div([
+                        html.I(className="fas fa-file-waveform", style={"fontSize": "32px", "color": CLR_CYAN, "marginBottom": "6px"}),
+                        html.Br(),
+                        html.Span("Drag & Drop or ", style={"color": CLR_MUTED, "fontSize": "13px"}),
+                        html.A("Browse File", style={"color": CLR_CYAN, "fontWeight": "600", "cursor": "pointer", "textDecoration": "underline"}),
+                        html.Br(),
+                        html.Small("Supports .csv, .txt, .xlsx with DEPTH, C1, C2, C3, iC4, nC4, iC5, nC5", style={"color": CLR_DARK_MUTED, "fontSize": "11px"}),
+                    ], style={"textAlign": "center", "padding": "26px 16px"}),
+                    style={
+                        "border": f"2px dashed {CLR_CYAN}",
+                        "borderRadius": "12px",
+                        "background": CLR_BG,
+                        "cursor": "pointer",
+                        "marginBottom": "10px",
+                    },
+                    multiple=False,
+                ),
+                html.Div(id="upload-status"),
+            ]),
+        ], style={"background": CLR_SURFACE, "padding": "20px"}),
     ],
     id="upload-modal",
     is_open=False,
@@ -144,493 +256,214 @@ upload_modal = dbc.Modal(
     style={"backdropFilter": "blur(8px)"},
 )
 
-navbar = dbc.Navbar(
-    dbc.Container([
-        dbc.Row([
-            dbc.Col(
-                html.Div([
-                    html.Span("⛽", style={"fontSize": "28px", "marginRight": "10px"}),
-                    html.Span("MudLog", style={"fontWeight": "800", "fontSize": "22px",
-                                                "color": CLR_TEXT}),
-                    html.Span("Analyzer", style={"fontWeight": "300", "fontSize": "22px",
-                                                  "color": CLR_ACCENT}),
-                    html.Span(" v1.0", style={"fontWeight": "300", "fontSize": "14px",
-                                               "color": CLR_MUTED, "marginLeft": "6px",
-                                               "alignSelf": "flex-end", "paddingBottom": "2px"}),
-                ], style={"display": "flex", "alignItems": "center"}),
-                width="auto",
-            ),
-            dbc.Col(
-                html.Div([
-                    dbc.Button(
-                        [html.I(className="fas fa-upload", style={"marginRight": "8px"}),
-                         "Upload"],
-                        id="btn-open-upload",
-                        color="info",
-                        outline=True,
-                        size="sm",
-                        className="me-2",
-                        style={"borderRadius": "8px"},
-                    ),
 
-                    dbc.Button(
-                        [html.I(className="fas fa-download", style={"marginRight": "8px"}),
-                         "Export Report"],
-                        id="btn-export",
-                        color="warning",
-                        outline=True,
-                        size="sm",
-                        disabled=True,
-                        style={"borderRadius": "8px"},
+# ──────────────────────────────────────────────────────────────────────
+#  Top Navbar
+# ──────────────────────────────────────────────────────────────────────
+navbar = html.Header(
+    html.Div([
+        # Brand
+        html.Div([
+            html.Div([
+                html.I(className="fa-solid fa-gas-pump", style={"fontSize": "18px", "color": "#ffffff"}),
+            ], style={
+                "width": "38px", "height": "38px", "borderRadius": "10px",
+                "background": "linear-gradient(135deg, #6366f1 0%, #10b981 100%)",
+                "display": "flex", "alignItems": "center", "justifyContent": "center",
+                "boxShadow": "0 4px 12px rgba(99, 102, 241, 0.35)", "marginRight": "12px"
+            }),
+            html.Div([
+                html.Div([
+                    html.Span("MudLog ", style={"fontWeight": "800", "fontSize": "18px", "color": CLR_TEXT, "letterSpacing": "-0.5px"}),
+                    html.Span("Pro", style={"fontWeight": "800", "fontSize": "18px", "color": "#818cf8"}),
+                    html.Span(
+                        [html.I(className="fa-solid fa-bolt me-1", style={"fontSize": "10px"}), "Live Connected"],
+                        id="status-badge",
+                        className="ms-2 px-2 py-0.5 rounded-pill",
+                        style={
+                            "fontSize": "10px", "fontWeight": "600",
+                            "background": "rgba(16, 185, 129, 0.12)", "color": "#10b981",
+                            "border": "1px solid rgba(16, 185, 129, 0.3)"
+                        }
                     ),
                 ], style={"display": "flex", "alignItems": "center"}),
-                width="auto",
+                html.P("Synchronized Gas While Drilling (GWD) Full Continuous Multi-Track Well Log", style={"margin": "0", "fontSize": "11px", "color": CLR_MUTED}),
+            ]),
+        ], style={"display": "flex", "alignItems": "center"}),
+
+        # Controls (Depth Filter + Upload Modal Button + Export CSV)
+        html.Div([
+            dcc.Dropdown(
+                id="depth-filter-select",
+                options=[
+                    {"label": "🌐 Full Well Interval (All Depths)", "value": "all"},
+                    {"label": "🎯 Target Reservoir (2,100m – 2,450m)", "value": "target"},
+                    {"label": "⬆️ Upper Overburden (< 2,100m)", "value": "upper"},
+                    {"label": "⬇️ Lower Sub-reservoir (> 2,450m)", "value": "lower"},
+                ],
+                value="all",
+                clearable=False,
+                searchable=False,
+                style={
+                    "width": "260px",
+                    "fontSize": "12px",
+                    "fontWeight": "500",
+                    "color": "#000",
+                },
+                className="me-2",
             ),
-        ], align="center", className="g-0 w-100", justify="between"),
-    ], fluid=True),
-    color=CLR_CARD,
-    dark=True,
-    style={"borderBottom": f"1px solid {CLR_MUTED}33", "padding": "10px 0"},
+            dbc.Button(
+                [html.I(className="fa-solid fa-upload me-2"), "Upload File"],
+                id="btn-open-upload",
+                color="info",
+                outline=True,
+                size="sm",
+                className="me-2 px-3",
+                style={"borderRadius": "8px", "fontSize": "12px", "fontWeight": "600", "borderColor": "rgba(56, 189, 248, 0.5)"},
+            ),
+            dbc.Button(
+                [html.I(className="fa-solid fa-download me-2"), "Export CSV"],
+                id="btn-export",
+                color="primary",
+                size="sm",
+                className="px-3",
+                style={"borderRadius": "8px", "fontSize": "12px", "fontWeight": "600", "background": "#6366f1", "border": "none"},
+            ),
+        ], style={"display": "flex", "alignItems": "center"}),
+    ], className="d-flex align-items-center justify-content-between",
+       style={"maxWidth": "100%", "padding": "10px 20px"}),
+    style={"background": "rgba(15, 23, 42, 0.95)", "borderBottom": f"1px solid {CLR_BORDER}", "position": "sticky", "top": "0", "zIndex": "100", "backdropFilter": "blur(12px)"},
 )
 
-stats_row = dbc.Row(id="stats-row", className="g-3 mb-3", style={"display": "none"})
 
-charts_area = html.Div(
-    id="charts-container",
-    children=html.Div([
-        html.Div(style={"height": "200px"}),
-        html.P("⛏️", style={"fontSize": "64px", "textAlign": "center", "margin": "0"}),
-        html.H4("Ready to Analyze", style={"textAlign": "center", "color": CLR_TEXT,
-                                            "fontWeight": "300"}),
-        html.P("Upload a mudlogging CSV file to begin — analysis runs automatically.",
-               style={"textAlign": "center", "color": CLR_MUTED, "maxWidth": "400px",
-                       "margin": "12px auto"}),
-    ]),
-)
-
-# ─── Evaluation results area ───
-eval_area = html.Div(id="eval-container", children=[], style={"marginTop": "24px"})
-
-
+# ──────────────────────────────────────────────────────────────────────
+#  App Layout
+# ──────────────────────────────────────────────────────────────────────
 app.layout = html.Div([
-    # Font Awesome for icons
-    html.Link(
-        rel="stylesheet",
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
-    ),
-    # Google Font
-    html.Link(
-        rel="stylesheet",
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
-    ),
-
     upload_modal,
     navbar,
 
-    dbc.Container([
-        html.Div(style={"height": "20px"}),
-        stats_row,
-        charts_area,
-        eval_area,
-        dcc.Download(id="download-report"),
-    ], fluid=True, style={"padding": "0 24px 40px 24px"}),
-
-    # Hidden stores
-    dcc.Store(id="store-parsed",   data=None),
-    dcc.Store(id="store-computed", data=None),
-    dcc.Store(id="store-truth",    data=None),
-
-], style={
-    "background": CLR_BG,
-    "minHeight": "100vh",
-    "fontFamily": "'Inter', sans-serif",
-    "color": CLR_TEXT,
-})
-
-
-# ──────────────────────────────────────────────────────────────────────
-#  Callbacks
-# ──────────────────────────────────────────────────────────────────────
-
-# --- Toggle upload modal ---
-@app.callback(
-    Output("upload-modal", "is_open"),
-    [Input("btn-open-upload", "n_clicks")],
-    [State("upload-modal", "is_open")],
-    prevent_initial_call=True,
-)
-def toggle_modal(n, is_open):
-    return not is_open
-
-
-# --- Parse uploaded mudlog file ---
-@app.callback(
-    [Output("store-parsed", "data"),
-     Output("upload-status", "children"),
-     Output("upload-modal", "is_open", allow_duplicate=True)],
-    [Input("upload-data", "contents")],
-    [State("upload-data", "filename")],
-    prevent_initial_call=True,
-)
-def parse_upload(contents, filename):
-    if contents is None:
-        return no_update, no_update, no_update
-
-    try:
-        content_type, content_string = contents.split(",")
-        decoded = base64.b64decode(content_string)
-
-        if filename.lower().endswith((".xlsx", ".xls")):
-            df = pd.read_excel(io.BytesIO(decoded))
-            # Apply same cleaning as parser
-            df.columns = [str(c).strip().upper() for c in df.columns]
-        else:
-            text = decoded.decode("utf-8", errors="ignore")
-            buf = io.StringIO(text)
-            df = parse_mudlog_file(buf)
-
-        # If parser wasn't used (xlsx), do minimal cleaning
-        if 'DEPTH' not in df.columns:
-            col_map = {'DEP': 'DEPTH', 'DEPTH_M': 'DEPTH'}
-            df = df.rename(columns=col_map)
-
-        required = ['DEPTH', 'C1', 'C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5']
-        for c in required:
-            if c not in df.columns:
-                df[c] = 0.0
-
-        for c in required:
-            df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0.0)
-        if 'TG' in df.columns:
-            df['TG'] = pd.to_numeric(df['TG'], errors='coerce').fillna(0.0)
-
-        df = df.sort_values('DEPTH').reset_index(drop=True)
-
-        status = dbc.Alert(
-            f"✅ Loaded {filename} — {len(df)} depth rows. Running analysis…",
-            color="success",
-            style={"borderRadius": "8px"},
-        )
-        return df.to_json(date_format="iso", orient="split"), status, False
-
-    except Exception as e:
-        status = dbc.Alert(
-            f"❌ Error: {str(e)}", color="danger", style={"borderRadius": "8px"}
-        )
-        return no_update, status, no_update
-
-
-# --- Parse uploaded ground truth file ---
-@app.callback(
-    [Output("store-truth", "data"),
-     Output("truth-upload-status", "children")],
-    [Input("upload-truth", "contents")],
-    [State("upload-truth", "filename")],
-    prevent_initial_call=True,
-)
-def parse_truth(contents, filename):
-    if contents is None:
-        return no_update, no_update
-
-    try:
-        content_type, content_string = contents.split(",")
-        decoded = base64.b64decode(content_string)
-        text = decoded.decode("utf-8", errors="ignore")
-        df = pd.read_csv(io.StringIO(text))
-
-        df.columns = [str(c).strip().upper() for c in df.columns]
-
-        if 'DEPTH' not in df.columns or 'ZONE' not in df.columns:
-            raise ValueError("Ground truth CSV must have 'DEPTH' and 'ZONE' columns.")
-
-        df['DEPTH'] = pd.to_numeric(df['DEPTH'], errors='coerce')
-        df = df.dropna(subset=['DEPTH']).reset_index(drop=True)
-
-        # Normalise zone labels
-        zone_map = {
-            'GAS': 'Gas', 'OIL': 'Oil', 'WATER': 'Water',
-            'NO SHOW': 'No Show', 'NOSHOW': 'No Show',
-            'NO_SHOW': 'No Show', 'DRY': 'No Show',
-        }
-        df['ZONE'] = df['ZONE'].str.strip().str.upper().map(zone_map).fillna('No Show')
-        df = df.sort_values('DEPTH').reset_index(drop=True)
-
-        status = dbc.Alert(
-            f"✅ Ground truth: {filename} — {len(df)} labelled intervals",
-            color="success",
-            style={"borderRadius": "8px"},
-        )
-        return df.to_json(date_format="iso", orient="split"), status
-
-    except Exception as e:
-        status = dbc.Alert(
-            f"❌ Error: {str(e)}", color="danger", style={"borderRadius": "8px"}
-        )
-        return no_update, status
-
-
-# --- Show summary stats on file upload ---
-@app.callback(
-    [Output("stats-row", "children"),
-     Output("stats-row", "style")],
-    [Input("store-parsed", "data")],
-    prevent_initial_call=True,
-)
-def show_stats(json_raw):
-    if json_raw is None:
-        return no_update, {"display": "none"}
-
-    df_raw = pd.read_json(io.StringIO(json_raw), orient="split")
-    depth_min = df_raw['DEPTH'].min()
-    depth_max = df_raw['DEPTH'].max()
-    c1_max    = df_raw['C1'].max()
-    has_heavy = (df_raw[['C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5']].sum().sum()) > 0
-
-    stats = [
-        _stat_card("Depth Range", f"{depth_min:.0f} – {depth_max:.0f} m", "fas fa-ruler-vertical", CLR_ACCENT),
-        _stat_card("Data Points", f"{len(df_raw):,}", "fas fa-database", CLR_ACCENT2),
-        _stat_card("Peak C1", f"{c1_max:,.0f} ppm", "fas fa-fire", CLR_WARNING),
-        _stat_card("Heavy Gases", "Present" if has_heavy else "None detected",
-                   "fas fa-flask", CLR_SUCCESS if has_heavy else CLR_MUTED),
-    ]
-
-    return stats, {"display": "flex"}
-
-
-def _stat_card(label, value, icon, color):
-    return dbc.Col(
-        dbc.Card(
-            dbc.CardBody(
-                html.Div([
-                    html.Div([
-                        html.I(className=icon, style={"fontSize": "20px", "color": color}),
-                    ], style={"marginBottom": "8px"}),
-                    html.P(value, style={"fontSize": "20px", "fontWeight": "700",
-                                         "color": CLR_TEXT, "margin": "0", "lineHeight": "1.2"}),
-                    html.Small(label, style={"color": CLR_MUTED, "fontSize": "12px"}),
-                ]),
-                style={"padding": "16px"},
-            ),
-            style={
-                "background": CLR_CARD,
-                "border": f"1px solid {CLR_MUTED}22",
-                "borderRadius": "12px",
-                "borderLeft": f"3px solid {color}",
-            },
-        ),
-        xs=12, sm=6, md=3,
-    )
-
-
-# --- Run analysis (auto-triggered on upload) ---
-@app.callback(
-    [Output("store-computed", "data"),
-     Output("charts-container", "children"),
-     Output("btn-export", "disabled")],
-    [Input("store-parsed", "data")],
-    prevent_initial_call=True,
-)
-def run_analysis(json_data):
-    if json_data is None:
-        return no_update, no_update, no_update
-
-    df = pd.read_json(io.StringIO(json_data), orient="split")
-    computed = compute_all(df)
-
-    # Build charts panel with side-by-side track row as default
-    charts = _build_charts_panel(computed, mode="side_by_side")
-
-    return computed.to_json(date_format="iso", orient="split"), charts, False
-
-
-# --- Switch Chart View (Side-by-Side Track Row vs Separate Cards vs Grouped) ---
-@app.callback(
-    Output("charts-wrapper", "children"),
-    [Input("chart-view-mode", "value")],
-    [State("store-computed", "data")],
-    prevent_initial_call=True,
-)
-def switch_chart_view(mode, json_computed):
-    if not json_computed:
-        return no_update
-    df = pd.read_json(io.StringIO(json_computed), orient="split")
-    if mode == "grouped":
-        return _build_log_charts(df)
-    elif mode == "separate":
-        return _build_separate_column_charts(df)
-    else:
-        return _build_side_by_side_row_charts(df)
-
-
-# --- Evaluation panel ---
-@app.callback(
-    Output("eval-container", "children"),
-    [Input("store-computed", "data")],
-    [State("store-truth", "data")],
-    prevent_initial_call=True,
-)
-def show_evaluation(json_computed, json_truth):
-    if json_computed is None or json_truth is None:
-        return []
-
-    computed_df = pd.read_json(io.StringIO(json_computed), orient="split")
-    truth_df = pd.read_json(io.StringIO(json_truth), orient="split")
-
-    results = compute_evaluation(computed_df, truth_df)
-
-    if results['matched_count'] == 0:
-        return dbc.Alert(
-            "⚠️ No depth intervals matched between predictions and ground truth. "
-            "Ensure both files share overlapping DEPTH values.",
-            color="warning",
-            style={"borderRadius": "12px", "marginTop": "16px"},
-        )
-
-    return _build_eval_panel(results)
-
-
-# --- Export CSV ---
-@app.callback(
-    Output("download-report", "data"),
-    [Input("btn-export", "n_clicks")],
-    [State("store-computed", "data")],
-    prevent_initial_call=True,
-)
-def export_report(n_clicks, json_data):
-    if not n_clicks or json_data is None:
-        return no_update
-
-    df = pd.read_json(io.StringIO(json_data), orient="split")
-    return dcc.send_data_frame(df.to_csv, "mudlog_analysis_report.csv", index=False)
-
-
-# ──────────────────────────────────────────────────────────────────────
-#  Chart builder
-# ──────────────────────────────────────────────────────────────────────
-
-def _hex_to_rgba(hex_color, alpha=0.08):
-    hex_color = hex_color.lstrip('#')
-    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-    return f"rgba({r}, {g}, {b}, {alpha})"
-
-
-
-def _build_charts_panel(df, mode="side_by_side"):
-    view_selector = dbc.RadioItems(
-        id="chart-view-mode",
-        options=[
-            {"label": "📐 Side-by-Side Track Row", "value": "side_by_side"},
-            {"label": "📊 Separate Column Cards", "value": "separate"},
-            {"label": "📑 Grouped Category Tracks", "value": "grouped"},
-        ],
-        value=mode,
-        inline=True,
-        className="btn-group",
-        inputClassName="btn-check",
-        labelClassName="btn btn-outline-info btn-sm",
-        labelCheckedClassName="active",
-    )
-
-    header = dbc.CardHeader(
+    # Main Body Container (Full Width Responsive with Padding)
+    html.Div([
+        # 1. Legend and Depth Header Bar
         html.Div([
             html.Div([
-                html.Span("📈 Depth Log Visualization",
-                          style={"fontWeight": "600", "color": CLR_TEXT, "fontSize": "15px"}),
-                html.Small(" — Side-by-side multi-track row view & interactive zone analysis",
-                           style={"color": CLR_MUTED, "marginLeft": "8px"}),
-            ]),
-            view_selector,
-        ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between"}),
-        style={"background": CLR_CARD, "borderBottom": f"1px solid {CLR_MUTED}33", "padding": "12px 16px"},
-    )
+                html.Span("Fluid Zone Overlay:", style={"fontSize": "11px", "fontWeight": "600", "color": CLR_MUTED, "marginRight": "10px"}),
+                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#10b981", "display": "inline-block", "marginRight": "4px"}), "Gas"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#10b981"}),
+                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#f43f5e", "display": "inline-block", "marginRight": "4px"}), "Oil"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#f43f5e"}),
+                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#0284c7", "display": "inline-block", "marginRight": "4px"}), "Water"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#38bdf8"}),
+                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#475569", "display": "inline-block", "marginRight": "4px"}), "No Show"], style={"fontSize": "11px", "fontWeight": "600", "color": "#94a3b8"}),
+            ], className="d-flex align-items-center flex-wrap"),
 
-    if mode == "grouped":
-        chart_content = _build_log_charts(df)
-    elif mode == "separate":
-        chart_content = _build_separate_column_charts(df)
-    else:
-        chart_content = _build_side_by_side_row_charts(df)
+            html.Div(id="track-header-info", className="d-none d-md-flex align-items-center text-muted", style={"fontSize": "11px"}),
+        ], className="glass-card px-3 py-2 mb-2 d-flex align-items-center justify-content-between flex-wrap gap-2"),
 
-    return dbc.Card(
-        [
-            header,
-            dbc.CardBody(
-                html.Div(id="charts-wrapper", children=chart_content),
-                style={"background": CLR_BG, "padding": "16px"},
-            ),
-        ],
-        style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22",
-               "borderRadius": "12px", "marginBottom": "24px"},
-    )
+        # 2. Dedicated Full-Screen Continuous Multi-Track Well Log
+        html.Div(id="tracks-container"),
+
+        # 3. Hidden Data Stores & Download Component
+        dcc.Store(id="store-raw", data=INIT_RAW_DF.to_json(orient="split", date_format="iso")),
+        dcc.Store(id="store-computed", data=INIT_COMPUTED_DF.to_json(orient="split", date_format="iso")),
+        dcc.Download(id="download-report"),
+
+    ], style={"width": "100%", "padding": "10px 18px 30px 18px"}),
+], style={"background": CLR_BG, "minHeight": "100vh", "color": CLR_TEXT, "overflowX": "hidden"})
 
 
-def _build_side_by_side_row_charts(df):
-    """
-    Side-by-side mud-log track layout using a single make_subplots figure
-    with explicit column_widths, matching the proven view_sbs.py approach.
-    """
-    depth = df["DEPTH"].values
-    grid_clr = _hex_to_rgba(CLR_MUTED, 0.18)
+# ──────────────────────────────────────────────────────────────────────
+#  Data Filtering Utility
+# ──────────────────────────────────────────────────────────────────────
+def filter_df_by_depth(df: pd.DataFrame, depth_filter: str) -> pd.DataFrame:
+    if df is None or len(df) == 0:
+        return df
+    if depth_filter == "target":
+        return df[(df["DEPTH"] >= 2100) & (df["DEPTH"] <= 2450)].reset_index(drop=True)
+    elif depth_filter == "upper":
+        return df[df["DEPTH"] < 2100].reset_index(drop=True)
+    elif depth_filter == "lower":
+        return df[df["DEPTH"] > 2450].reset_index(drop=True)
+    return df
 
-    total_depth  = max(depth) - min(depth) if len(depth) > 1 else 100
-    chart_height = max(700, min(int(total_depth * 0.55), 2200))
 
-    column_specs = [
-        ("C1",           "C1",        "#38bdf8", "log"),
-        ("C2",           "C2",        "#818cf8", "log"),
-        ("C3",           "C3",        "#f472b6", "log"),
-        ("IC4",          "iC4",       "#fb923c", "log"),
-        ("NC4",          "nC4",       "#facc15", "log"),
-        ("IC5",          "iC5",       "#34d399", "log"),
-        ("NC5",          "nC5",       "#a78bfa", "log"),
-        ("TG_USED",      "Total Gas", "#e2e8f0", "log"),
-        ("R1_C1_C2",     "C1/C2",     "#38bdf8", "log"),
-        ("R2_C1_C3",     "C1/C3",     "#818cf8", "log"),
-        ("R3_C2_C3",     "C2/C3",     "#f472b6", "log"),
-        ("R4_C1_IC4",    "C1/iC4",    "#fb923c", "log"),
-        ("R5_C1_NC4",    "C1/nC4",    "#facc15", "log"),
-        ("WH",           "Wh%",       "#22c55e", "linear"),
-        ("BH",           "Bh",        "#f59e0b", "linear"),
-        ("CH",           "Ch",        "#ef4444", "linear"),
-        ("DRYNESS",      "Dryness",   "#38bdf8", "linear"),
-        ("CARBON_INDEX", "Ci",        "#818cf8", "linear"),
-        ("WBS",          "WBS",       "#f59e0b", "linear"),
-        ("GOW",          "GOW",       "#a78bfa", "log"),
-        ("GOW_NOTG",     "GOW/TG",    "#ef4444", "linear"),
-        ("GOR",          "GOR",       "#34d399", "linear"),
+# ──────────────────────────────────────────────────────────────────────
+#  Header Info Callback
+# ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    Output("track-header-info", "children"),
+    [Input("store-computed", "data"),
+     Input("depth-filter-select", "value")]
+)
+def update_header_info(json_computed, depth_filter):
+    if not json_computed:
+        return ""
+    df = pd.read_json(io.StringIO(json_computed), orient="split")
+    filtered_df = filter_df_by_depth(df, depth_filter)
+    if len(filtered_df) == 0:
+        filtered_df = df
+    d_min = filtered_df["DEPTH"].min()
+    d_max = filtered_df["DEPTH"].max()
+    pts = len(filtered_df)
+    return [
+        html.I(className="fa-solid fa-ruler-vertical text-info me-1"),
+        f"Depth: {d_min:.0f}m – {d_max:.0f}m ({d_max - d_min:.0f}m span • {pts} intervals) • All 23 individual tracks fitted to screen width",
     ]
 
-    active = [(k, t, c, s) for (k, t, c, s) in column_specs if k in df.columns]
-    has_zone = "ZONE" in df.columns
-    total_cols = len(active) + (1 if has_zone else 0)
+
+# ──────────────────────────────────────────────────────────────────────
+#  Full Continuous Multi-Track Well Log Builder (Fits 100% Screen Width)
+# ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    Output("tracks-container", "children"),
+    [Input("store-computed", "data"),
+     Input("depth-filter-select", "value")]
+)
+def render_full_continuous_tracks(json_computed, depth_filter):
+    if not json_computed:
+        return html.Div("No data loaded.", style={"color": CLR_MUTED, "padding": "40px", "textAlign": "center"})
+
+    df = pd.read_json(io.StringIO(json_computed), orient="split")
+    filtered_df = filter_df_by_depth(df, depth_filter)
+    if len(filtered_df) == 0:
+        filtered_df = df
+
+    depth = filtered_df["DEPTH"].values
+    grid_clr = "rgba(51, 65, 85, 0.22)"
+    chart_height = 840
+
+    active_specs = [s for s in CONTINUOUS_TRACK_SPECS if s[0] in filtered_df.columns]
+    has_zone = "ZONE" in filtered_df.columns
+    total_cols = len(active_specs) + (1 if has_zone else 0)
 
     if total_cols == 0:
-        return html.Div("No valid data columns found.", style={"color": CLR_MUTED})
+        return html.Div("No valid track data available.", style={"color": CLR_MUTED, "padding": "20px"})
 
-    titles      = [t for _, t, _, _ in active] + (["Zone"] if has_zone else [])
-    col_widths  = [130] * len(active) + ([55] if has_zone else [])
-    chart_width = sum(col_widths) + 80
+    titles = [s[1] for s in active_specs] + (["Zone"] if has_zone else [])
+
+    # Proportional column widths totaling 1.0 (fitting 100% of the screen width)
+    raw_widths = [1.0] * len(active_specs) + ([0.7] if has_zone else [])
+    w_sum = sum(raw_widths)
+    norm_widths = [w / w_sum for w in raw_widths]
 
     fig = make_subplots(
         rows=1,
         cols=total_cols,
         shared_yaxes=True,
-        horizontal_spacing=0.003,
+        horizontal_spacing=0.0035,
         subplot_titles=titles,
-        column_widths=col_widths,
+        column_widths=norm_widths,
     )
 
-    for i, (col_key, title, color, scale_type) in enumerate(active, start=1):
-        vals   = df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
+    for i, (col_key, title, color, scale_type) in enumerate(active_specs, start=1):
+        vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
         x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
 
         fig.add_trace(
             go.Scatter(
                 x=x_plot, y=depth, mode="lines", name=title,
-                line=dict(color=color, width=1.3),
-                fill="tozerox", fillcolor=_hex_to_rgba(color, 0.22),
+                line=dict(color=color, width=1.4),
+                fill="tozerox", fillcolor=f"rgba({int(color[1:3],16)}, {int(color[3:5],16)}, {int(color[5:7],16)}, 0.18)",
                 showlegend=False,
-                hovertemplate=f"Depth: %{{y:.1f}} m<br>{title}: %{{x:.4g}}<extra></extra>",
+                hovertemplate=f"Depth: %{{y:.1f}}m<br>{title}: %{{x:.3g}}<extra></extra>",
             ),
             row=1, col=i,
         )
@@ -645,654 +478,149 @@ def _build_side_by_side_row_charts(df):
         )})
 
     if has_zone:
-        ci   = total_cols
-        zv   = df["ZONE"].values
-        znr  = [3 if z=="Gas" else 2 if z=="Oil" else 1 if z=="Water" else 0 for z in zv]
+        ci = total_cols
+        zv = filtered_df["ZONE"].values
+        znr = [3 if z == "Gas" else 2 if z == "Oil" else 1 if z == "Water" else 0 for z in zv]
         zclr = [ZONE_COLORS.get(z, ZONE_COLORS["No Show"]) for z in zv]
         fig.add_trace(
-            go.Bar(x=znr, y=depth, orientation="h",
-                   marker=dict(color=zclr),
-                   hovertext=zv, hoverinfo="text+y",
-                   showlegend=False, width=0.9),
+            go.Bar(
+                x=znr, y=depth, orientation="h",
+                marker=dict(color=zclr),
+                hovertext=zv, hoverinfo="text+y",
+                showlegend=False, width=0.9
+            ),
             row=1, col=ci,
         )
-        fig.update_layout(**{f"xaxis{ci}": dict(showticklabels=False, zeroline=False)})
+        fig.update_layout(**{f"xaxis{ci}": dict(showticklabels=False, zeroline=False, gridcolor=grid_clr)})
 
-    fig.update_layout(
-        height        = chart_height,
-        width         = chart_width,
-        autosize      = False,
-        template      = "plotly_dark",
-        paper_bgcolor = CLR_BG,
-        plot_bgcolor  = "#070c18",
-        font          = dict(family="Inter, sans-serif", size=9, color=CLR_TEXT),
-        margin        = dict(l=60, r=20, t=60, b=30),
-    )
-
-    for i in range(1, total_cols + 1):
-        yk = "yaxis" if i == 1 else f"yaxis{i}"
-        fig.update_layout(**{yk: dict(
-            autorange="reversed",
-            gridcolor=grid_clr,
-            showgrid=True,
-            zeroline=False,
-            tickfont=dict(size=8, color=CLR_MUTED),
-        )})
-
-    fig.update_yaxes(title_text="Depth (m)", row=1, col=1)
-
-    for ann in fig.layout.annotations:
-        ann.font = dict(size=9, color=CLR_ACCENT, family="Inter, sans-serif")
-
-    return html.Div(
-        dcc.Graph(
-            figure=fig,
-            responsive=False,
-            config={"scrollZoom": True, "displayModeBar": True},
-            style={"minWidth": f"{chart_width}px"},
-        ),
-        style={
-            "overflowX":       "auto",
-            "overflowY":       "hidden",
-            "backgroundColor": "#070c18",
-            "borderRadius":    "8px",
-            "border":          f"1px solid {_hex_to_rgba(CLR_MUTED, 0.2)}",
-        }
-    )
-
-
-
-
-
-
-def _build_separate_column_charts(df):
-    """Creates a responsive multi-card grid where every single column is an individual graph that wraps cleanly."""
-    depth = df['DEPTH'].values
-    grid_clr = _hex_to_rgba(CLR_MUTED, 0.15)
-
-    column_specs = [
-        # (col_key, title, color, scale_type)
-        ("C1",           "C1 (Methane)",   "#38bdf8", "log"),
-        ("C2",           "C2 (Ethane)",    "#818cf8", "log"),
-        ("C3",           "C3 (Propane)",   "#f472b6", "log"),
-        ("IC4",          "iC4",            "#fb923c", "log"),
-        ("NC4",          "nC4",            "#facc15", "log"),
-        ("IC5",          "iC5",            "#34d399", "log"),
-        ("NC5",          "nC5",            "#a78bfa", "log"),
-        ("TG_USED",      "Total Gas",      "#e2e8f0", "log"),
-        ("R1_C1_C2",     "C1/C2 Ratio",    "#38bdf8", "log"),
-        ("R2_C1_C3",     "C1/C3 Ratio",    "#818cf8", "log"),
-        ("R3_C2_C3",     "C2/C3 Ratio",    "#f472b6", "log"),
-        ("R4_C1_IC4",    "C1/iC4 Ratio",   "#fb923c", "log"),
-        ("R5_C1_NC4",    "C1/nC4 Ratio",   "#facc15", "log"),
-        ("WH",           "Wh (Wetness)",   "#22c55e", "linear"),
-        ("BH",           "Bh (Balance)",   "#f59e0b", "linear"),
-        ("CH",           "Ch (Character)", "#ef4444", "linear"),
-        ("DRYNESS",      "Dryness",        "#38bdf8", "linear"),
-        ("CARBON_INDEX", "Carbon Index",   "#818cf8", "linear"),
-        ("WBS",          "WBS Score",      "#f59e0b", "linear"),
-        ("GOW",          "GOW Indicator",  "#a78bfa", "log"),
-        ("GOW_NOTG",     "GOW / TG Ratio", "#ef4444", "linear"),
-        ("GOR",          "GOR Index",      "#34d399", "linear"),
-    ]
-
-    cols = []
-    for col_key, title, color, scale_type in column_specs:
-        if col_key not in df.columns:
-            continue
-
-        vals = df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
-        x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=x_plot, y=depth, mode="lines", name=title,
-            line=dict(color=color, width=1.8),
-            fill="tozerox", fillcolor=_hex_to_rgba(color, 0.12),
-            hovertemplate=f"Depth: %{{y:.1f}}m<br>{title}: %{{x:.3f}}<extra></extra>",
-        ))
-
-        fig.update_layout(
-            title=dict(text=title, font=dict(size=12, color=CLR_ACCENT, family="Inter, sans-serif")),
-            height=380,
-            autosize=True,
-            template="plotly_dark",
-            paper_bgcolor=CLR_BG,
-            plot_bgcolor="#0f172a",
-            font=dict(family="Inter, sans-serif", size=10, color=CLR_TEXT),
-            showlegend=False,
-            margin=dict(l=50, r=15, t=35, b=35),
-            xaxis=dict(type="log" if scale_type == "log" else "linear", gridcolor=grid_clr, tickfont=dict(size=9)),
-            yaxis=dict(autorange="reversed", title=dict(text="Depth (m)", font=dict(size=10)), gridcolor=grid_clr, tickfont=dict(size=9)),
-            uirevision="depth_sync",
-        )
-
-        card = dbc.Card([
-            dbc.CardHeader(
-                html.Span(title, style={"fontWeight": "600", "fontSize": "13px", "color": CLR_TEXT}),
-                style={"background": CLR_CARD, "borderBottom": f"1px solid {CLR_MUTED}33", "padding": "8px 12px", "borderLeft": f"3px solid {color}"}
-            ),
-            dbc.CardBody(
-                dcc.Graph(
-                    figure=fig,
-                    responsive=True,
-                    config={"scrollZoom": True, "displayModeBar": False},
-                    style={"width": "100%", "height": "380px"}
-                ),
-                style={"background": CLR_BG, "padding": "0"}
-            )
-        ], style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22", "borderRadius": "10px", "height": "100%"})
-
-        cols.append(dbc.Col(card, xs=12, sm=6, md=4, lg=3, className="mb-3"))
-
-    # Zone classification card
-    zone_vals = df['ZONE'].values if 'ZONE' in df.columns else np.array(["No Show"] * len(df))
-    zone_numeric, zone_colors_list = [], []
-    for z in zone_vals:
-        if z == "Gas":
-            zone_numeric.append(3); zone_colors_list.append(ZONE_COLORS["Gas"])
-        elif z == "Oil":
-            zone_numeric.append(2); zone_colors_list.append(ZONE_COLORS["Oil"])
-        elif z == "Water":
-            zone_numeric.append(1); zone_colors_list.append(ZONE_COLORS["Water"])
-        else:
-            zone_numeric.append(0); zone_colors_list.append(ZONE_COLORS["No Show"])
-
-    zone_fig = go.Figure(go.Bar(
-        x=zone_numeric, y=depth, orientation="h",
-        marker=dict(color=zone_colors_list),
-        name="Zone", hovertext=zone_vals, hoverinfo="text+y",
-        showlegend=False, width=0.8
-    ))
-    zone_fig.update_xaxes(showticklabels=False, gridcolor=grid_clr)
-    zone_fig.update_yaxes(autorange="reversed", title=dict(text="Depth (m)", font=dict(size=10)), gridcolor=grid_clr)
-    zone_fig.update_layout(
-        title=dict(text="Zone Classification", font=dict(size=12, color=CLR_WARNING, family="Inter, sans-serif")),
-        height=380,
-        autosize=True,
-        template="plotly_dark",
-        paper_bgcolor=CLR_BG,
-        plot_bgcolor="#0f172a",
-        font=dict(family="Inter, sans-serif", size=10, color=CLR_TEXT),
-        margin=dict(l=50, r=15, t=35, b=35),
-    )
-
-    zone_card = dbc.Card([
-        dbc.CardHeader(
-            html.Span("Zone Classification Log", style={"fontWeight": "600", "fontSize": "13px", "color": CLR_TEXT}),
-            style={"background": CLR_CARD, "borderBottom": f"1px solid {CLR_MUTED}33", "padding": "8px 12px", "borderLeft": f"3px solid {CLR_WARNING}"}
-        ),
-        dbc.CardBody(
-            dcc.Graph(
-                figure=zone_fig,
-                responsive=True,
-                config={"scrollZoom": True, "displayModeBar": False},
-                style={"width": "100%", "height": "380px"}
-            ),
-            style={"background": CLR_BG, "padding": "0"}
-        )
-    ], style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22", "borderRadius": "10px", "height": "100%"})
-
-    cols.append(dbc.Col(zone_card, xs=12, sm=6, md=4, lg=3, className="mb-3"))
-
-    return dbc.Row(cols, className="g-3")
-
-
-
-
-def _build_log_charts(df):
-    """Creates the 5-track well-log style chart."""
-    depth = df['DEPTH'].values
-
-    fig = make_subplots(
-        rows=1, cols=5,
-        shared_yaxes=True,
-        horizontal_spacing=0.02,
-        column_widths=[0.25, 0.2, 0.2, 0.2, 0.15],
-        subplot_titles=[
-            "Raw Gas Components",
-            "Pixler Ratios",
-            "Haworth Ratios",
-            "Composite Indicators",
-            "Zone Classification",
-        ],
-    )
-
-    # ── Track 1: Raw gases ──
-    gas_traces = [
-        ("C1",  "#38bdf8", "C1 (Methane)"),
-        ("C2",  "#818cf8", "C2 (Ethane)"),
-        ("C3",  "#f472b6", "C3 (Propane)"),
-        ("IC4", "#fb923c", "iC4"),
-        ("NC4", "#facc15", "nC4"),
-        ("IC5", "#34d399", "iC5"),
-        ("NC5", "#a78bfa", "nC5"),
-    ]
-    for col, color, name in gas_traces:
-        vals = df[col].values
-        if np.nanmax(vals) > 0 if len(vals) > 0 else False:
-            fig.add_trace(
-                go.Scatter(x=vals, y=depth, mode="lines", name=name,
-                           line=dict(color=color, width=1.2),
-                           fill="tozerox", fillcolor=_hex_to_rgba(color, 0.08)),
-                row=1, col=1,
-            )
-
-    # Also add TG_USED as a thicker overlay
-    fig.add_trace(
-        go.Scatter(x=df['TG_USED'].values, y=depth, mode="lines",
-                   name="TG (used)", line=dict(color="#e2e8f0", width=2, dash="dot")),
-        row=1, col=1,
-    )
-
-    # ── Track 2: Pixler Ratios ──
-    pixler_traces = [
-        ("R1_C1_C2",  "#38bdf8", "C1/C2"),
-        ("R2_C1_C3",  "#818cf8", "C1/C3"),
-        ("R3_C2_C3",  "#f472b6", "C2/C3"),
-    ]
-    for col, color, name in pixler_traces:
-        vals = df[col].replace([np.inf, -np.inf], np.nan).values
-        fig.add_trace(
-            go.Scatter(x=vals, y=depth, mode="lines", name=name,
-                       line=dict(color=color, width=1.5)),
-            row=1, col=2,
-        )
-
-    # ── Track 3: Haworth Ratios ──
-    haworth_traces = [
-        ("WH", "#22c55e", "Wetness (Wh%)"),
-        ("BH", "#f59e0b", "Balance (Bh)"),
-        ("CH", "#ef4444", "Character (Ch)"),
-    ]
-    for col, color, name in haworth_traces:
-        vals = df[col].replace([np.inf, -np.inf], np.nan).values
-        fig.add_trace(
-            go.Scatter(x=vals, y=depth, mode="lines", name=name,
-                       line=dict(color=color, width=1.5)),
-            row=1, col=3,
-        )
-
-    # ── Track 4: Composite Indicators ──
-    composite_traces = [
-        ("DRYNESS",      "#38bdf8", "Dryness"),
-        ("CARBON_INDEX", "#818cf8", "Carbon Index"),
-        ("WBS",          "#f59e0b", "WBS"),
-        ("GOW_NOTG",     "#ef4444", "GOW/TG"),
-    ]
-    for col, color, name in composite_traces:
-        vals = df[col].replace([np.inf, -np.inf], np.nan).values
-        fig.add_trace(
-            go.Scatter(x=vals, y=depth, mode="lines", name=name,
-                       line=dict(color=color, width=1.5)),
-            row=1, col=4,
-        )
-
-    # ── Track 5: Zone classification colour band ──
-    zone_vals = df['ZONE'].values
-    zone_numeric = []
-    zone_colors_list = []
-    for z in zone_vals:
-        if z == "Gas":
-            zone_numeric.append(3)
-            zone_colors_list.append(ZONE_COLORS["Gas"])
-        elif z == "Oil":
-            zone_numeric.append(2)
-            zone_colors_list.append(ZONE_COLORS["Oil"])
-        elif z == "Water":
-            zone_numeric.append(1)
-            zone_colors_list.append(ZONE_COLORS["Water"])
-        else:
-            zone_numeric.append(0)
-            zone_colors_list.append(ZONE_COLORS["No Show"])
-
-    # Use bar chart for zone bands
-    fig.add_trace(
-        go.Bar(
-            x=zone_numeric,
-            y=depth,
-            orientation="h",
-            marker=dict(color=zone_colors_list),
-            name="Zone",
-            hovertext=zone_vals,
-            hoverinfo="text+y",
-            showlegend=False,
-            width=0.8,
-        ),
-        row=1, col=5,
-    )
-
-    # ── Layout styling ──
-    total_depth = max(depth) - min(depth) if len(depth) > 1 else 100
-    chart_height = max(800, int(total_depth * 0.6))
-    chart_height = min(chart_height, 3000)
+    # Invert Y-axis for well depth on all subplots
+    fig.update_yaxes(autorange="reversed", gridcolor=grid_clr, title_text="Depth (m)", row=1, col=1, tickfont=dict(size=8.5, color=CLR_TEXT))
+    for c_idx in range(2, total_cols + 1):
+        fig.update_layout(**{f"yaxis{c_idx}": dict(autorange="reversed", gridcolor=grid_clr, showgrid=True, zeroline=False, tickfont=dict(size=7.5, color=CLR_MUTED))})
 
     fig.update_layout(
         height=chart_height,
         autosize=True,
         template="plotly_dark",
         paper_bgcolor=CLR_BG,
-        plot_bgcolor="#0f172a",
-        font=dict(family="Inter, sans-serif", size=11, color=CLR_TEXT),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=10),
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        margin=dict(l=60, r=20, t=80, b=40),
+        plot_bgcolor="#070c18",
+        font=dict(family="Inter, sans-serif", size=8.5, color=CLR_TEXT),
+        margin=dict(l=55, r=15, t=40, b=25),
+        hovermode="y unified",
     )
 
-    # Invert Y-axis (depth increases downward) on all subplots
-    for i in range(1, 6):
-        yaxis = f"yaxis{i}" if i > 1 else "yaxis"
-        fig.update_layout(**{yaxis: dict(autorange="reversed")})
-
-    # Clean up x-axis labels
-    grid_clr = _hex_to_rgba(CLR_MUTED, 0.15)
-    fig.update_xaxes(title_text="PPM", row=1, col=1, type="log",
-                     gridcolor=grid_clr)
-    fig.update_xaxes(title_text="Ratio", row=1, col=2, type="log",
-                     gridcolor=grid_clr)
-    fig.update_xaxes(title_text="Value", row=1, col=3, type="log",
-                     gridcolor=grid_clr)
-    fig.update_xaxes(title_text="Value", row=1, col=4,
-                     gridcolor=grid_clr)
-    fig.update_xaxes(title_text="Zone", row=1, col=5,
-                     showticklabels=False, gridcolor=grid_clr)
-
-    fig.update_yaxes(title_text="Depth (m)", row=1, col=1,
-                     gridcolor=grid_clr)
-
-    # Add annotations for subplot titles (restyle)
     for ann in fig.layout.annotations:
-        ann.font = dict(size=13, color=CLR_ACCENT, family="Inter, sans-serif")
-
-    # Zone legend card
-    zone_legend = html.Div([
-        html.Div([
-            html.Div(style={"width": "14px", "height": "14px", "borderRadius": "3px",
-                            "backgroundColor": ZONE_COLORS["Gas"], "display": "inline-block",
-                            "marginRight": "6px", "verticalAlign": "middle"}),
-            html.Span("Gas", style={"fontSize": "12px", "marginRight": "16px"}),
-            html.Div(style={"width": "14px", "height": "14px", "borderRadius": "3px",
-                            "backgroundColor": ZONE_COLORS["Oil"], "display": "inline-block",
-                            "marginRight": "6px", "verticalAlign": "middle"}),
-            html.Span("Oil", style={"fontSize": "12px", "marginRight": "16px"}),
-            html.Div(style={"width": "14px", "height": "14px", "borderRadius": "3px",
-                            "backgroundColor": ZONE_COLORS["Water"], "display": "inline-block",
-                            "marginRight": "6px", "verticalAlign": "middle"}),
-            html.Span("Water", style={"fontSize": "12px", "marginRight": "16px"}),
-            html.Div(style={"width": "14px", "height": "14px", "borderRadius": "3px",
-                            "backgroundColor": ZONE_COLORS["No Show"], "display": "inline-block",
-                            "marginRight": "6px", "verticalAlign": "middle"}),
-            html.Span("No Show", style={"fontSize": "12px"}),
-        ], style={"display": "flex", "alignItems": "center", "justifyContent": "center",
-                  "padding": "12px", "background": CLR_CARD, "borderRadius": "8px",
-                  "border": f"1px solid {CLR_MUTED}22", "marginBottom": "12px"}),
-    ])
-
-    # Zone summary stats
-    zone_counts = pd.Series(zone_vals).value_counts()
-    summary_items = []
-    for zone_name in ["Gas", "Oil", "Water", "No Show"]:
-        count = zone_counts.get(zone_name, 0)
-        pct = (count / len(zone_vals) * 100) if len(zone_vals) > 0 else 0
-        if count > 0:
-            summary_items.append(
-                dbc.Col(
-                    dbc.Card(
-                        dbc.CardBody([
-                            html.Div(style={
-                                "width": "8px", "height": "8px", "borderRadius": "50%",
-                                "backgroundColor": ZONE_COLORS.get(zone_name, CLR_MUTED),
-                                "display": "inline-block", "marginRight": "8px",
-                            }),
-                            html.Span(f"{zone_name}: ", style={"fontWeight": "600", "fontSize": "14px"}),
-                            html.Span(f"{count} intervals ({pct:.1f}%)",
-                                      style={"color": CLR_MUTED, "fontSize": "13px"}),
-                        ], style={"padding": "10px 16px"}),
-                        style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22",
-                               "borderRadius": "8px"},
-                    ),
-                    width="auto",
-                )
-            )
+        ann.font = dict(size=9.5, color="#818cf8", family="Inter, sans-serif", weight="bold")
 
     return html.Div([
-        zone_legend,
-        dbc.Row(summary_items, className="g-2 mb-3", justify="center"),
         dcc.Graph(
             figure=fig,
             responsive=True,
             config={"scrollZoom": True, "displayModeBar": True},
-            style={"borderRadius": "12px", "width": "100%", "height": f"{chart_height}px"},
+            style={"width": "100%", "height": f"{chart_height}px"},
         ),
-    ])
+    ], className="glass-card p-3")
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Evaluation panel builder
+#  Callbacks: Upload Modal & File Parsing
 # ──────────────────────────────────────────────────────────────────────
-
-def _build_eval_panel(results):
-    """Builds the evaluation metrics UI: confusion matrix heatmap + metrics cards."""
-
-    labels = results['labels']
-    cm = results['confusion_matrix']
-
-    # ─── Confusion Matrix Heatmap ───
-    # Annotate cells with counts
-    annotations = []
-    for i in range(len(labels)):
-        for j in range(len(labels)):
-            annotations.append(
-                dict(
-                    x=labels[j], y=labels[i],
-                    text=str(cm[i][j]),
-                    showarrow=False,
-                    font=dict(color="white" if cm[i][j] > cm.max() * 0.5 else CLR_TEXT,
-                              size=16, family="Inter, sans-serif"),
-                )
-            )
-
-    cm_fig = go.Figure(data=go.Heatmap(
-        z=cm,
-        x=labels,
-        y=labels,
-        colorscale=[
-            [0.0, "#1e293b"],
-            [0.25, "#1e40af"],
-            [0.5, "#3b82f6"],
-            [0.75, "#38bdf8"],
-            [1.0, "#22d3ee"],
-        ],
-        showscale=True,
-        colorbar=dict(
-            title="Count",
-            titlefont=dict(color=CLR_TEXT, size=12),
-            tickfont=dict(color=CLR_MUTED, size=10),
-        ),
-        hovertemplate="True: %{y}<br>Predicted: %{x}<br>Count: %{z}<extra></extra>",
-    ))
-
-    cm_fig.update_layout(
-        title=dict(
-            text="Confusion Matrix",
-            font=dict(size=16, color=CLR_ACCENT, family="Inter, sans-serif"),
-        ),
-        xaxis=dict(title="Predicted Zone", side="bottom", color=CLR_TEXT,
-                    tickfont=dict(size=12), titlefont=dict(size=13)),
-        yaxis=dict(title="True Zone", autorange="reversed", color=CLR_TEXT,
-                    tickfont=dict(size=12), titlefont=dict(size=13)),
-        template="plotly_dark",
-        paper_bgcolor=CLR_BG,
-        plot_bgcolor=CLR_BG,
-        font=dict(family="Inter, sans-serif"),
-        height=400,
-        margin=dict(l=80, r=40, t=60, b=80),
-        annotations=annotations,
-    )
-
-    # ─── Per-class metrics table ───
-    per_class = results['per_class']
-    table_rows = []
-    for label in labels:
-        if label in per_class:
-            m = per_class[label]
-            table_rows.append({
-                "Class": label,
-                "Precision": f"{m['precision']:.4f}",
-                "Recall": f"{m['recall']:.4f}",
-                "F1-Score": f"{m['f1']:.4f}",
-            })
-
-    # Add macro average row
-    table_rows.append({
-        "Class": "Macro Average",
-        "Precision": f"{results['macro_precision']:.4f}",
-        "Recall": f"{results['macro_recall']:.4f}",
-        "F1-Score": f"{results['macro_f1']:.4f}",
-    })
-
-    metrics_table = dash_table.DataTable(
-        data=table_rows,
-        columns=[
-            {"name": "Class", "id": "Class"},
-            {"name": "Precision", "id": "Precision"},
-            {"name": "Recall", "id": "Recall"},
-            {"name": "F1-Score", "id": "F1-Score"},
-        ],
-        style_table={"overflowX": "auto"},
-        style_header={
-            "backgroundColor": CLR_CARD,
-            "color": CLR_ACCENT,
-            "fontWeight": "700",
-            "border": f"1px solid {CLR_MUTED}33",
-            "fontSize": "13px",
-            "textAlign": "center",
-        },
-        style_cell={
-            "backgroundColor": CLR_BG,
-            "color": CLR_TEXT,
-            "border": f"1px solid {CLR_MUTED}22",
-            "padding": "10px 16px",
-            "fontSize": "14px",
-            "fontFamily": "'Inter', monospace",
-            "textAlign": "center",
-        },
-        style_data_conditional=[
-            {"if": {"row_index": "odd"}, "backgroundColor": "#0f172a"},
-            # Bold the macro average row
-            {"if": {"filter_query": '{Class} = "Macro Average"'},
-             "fontWeight": "700", "backgroundColor": f"{CLR_ACCENT}11",
-             "borderTop": f"2px solid {CLR_ACCENT}44"},
-        ],
-    )
-
-    # ─── Summary metric cards ───
-    metric_cards = dbc.Row([
-        _eval_metric_card("Accuracy", f"{results['accuracy']:.2%}",
-                          "fas fa-bullseye", CLR_SUCCESS),
-        _eval_metric_card("Macro Precision", f"{results['macro_precision']:.2%}",
-                          "fas fa-crosshairs", CLR_ACCENT),
-        _eval_metric_card("Macro Recall", f"{results['macro_recall']:.2%}",
-                          "fas fa-search", CLR_WARNING),
-        _eval_metric_card("Macro F1-Score", f"{results['macro_f1']:.2%}",
-                          "fas fa-star", CLR_ACCENT2),
-    ], className="g-3 mb-3")
-
-    # ─── Assemble panel ───
-    return html.Div([
-        html.Hr(style={"borderColor": f"{CLR_MUTED}33", "margin": "24px 0"}),
-
-        html.Div([
-            html.I(className="fas fa-chart-bar",
-                   style={"fontSize": "24px", "color": CLR_ACCENT, "marginRight": "12px"}),
-            html.H5("Evaluation Metrics",
-                     style={"color": CLR_TEXT, "fontWeight": "600", "margin": "0"}),
-            html.Small(f"  •  {results['matched_count']} depth intervals compared",
-                       style={"color": CLR_MUTED, "marginLeft": "12px"}),
-        ], style={"display": "flex", "alignItems": "center", "marginBottom": "16px"}),
-
-        metric_cards,
-
-        dbc.Row([
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        dcc.Graph(figure=cm_fig,
-                                  config={"displayModeBar": False},
-                                  style={"borderRadius": "8px"}),
-                        style={"padding": "8px"},
-                    ),
-                    style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22",
-                           "borderRadius": "12px"},
-                ),
-                md=6,
-            ),
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardHeader(
-                        html.Span("Per-Class Performance",
-                                  style={"fontWeight": "600", "color": CLR_TEXT}),
-                        style={"background": CLR_CARD,
-                               "borderBottom": f"1px solid {CLR_MUTED}33"},
-                    ),
-                    dbc.CardBody(
-                        metrics_table,
-                        style={"background": CLR_BG, "padding": "0"},
-                    ),
-                ], style={"background": CLR_CARD, "border": f"1px solid {CLR_MUTED}22",
-                          "borderRadius": "12px"}),
-                md=6,
-            ),
-        ], className="g-3"),
-    ])
+@app.callback(
+    Output("upload-modal", "is_open"),
+    [Input("btn-open-upload", "n_clicks")],
+    [State("upload-modal", "is_open")],
+    prevent_initial_call=True
+)
+def toggle_upload_modal(n_clicks, is_open):
+    return not is_open
 
 
-def _eval_metric_card(label, value, icon, color):
-    return dbc.Col(
-        dbc.Card(
-            dbc.CardBody(
-                html.Div([
-                    html.Div([
-                        html.I(className=icon, style={"fontSize": "18px", "color": color}),
-                    ], style={"marginBottom": "6px"}),
-                    html.P(value, style={"fontSize": "24px", "fontWeight": "800",
-                                         "color": CLR_TEXT, "margin": "0",
-                                         "lineHeight": "1.2"}),
-                    html.Small(label, style={"color": CLR_MUTED, "fontSize": "11px"}),
-                ]),
-                style={"padding": "14px"},
-            ),
-            style={
-                "background": CLR_CARD,
-                "border": f"1px solid {CLR_MUTED}22",
-                "borderRadius": "12px",
-                "borderLeft": f"3px solid {color}",
-            },
-        ),
-        xs=6, sm=3,
-    )
+@app.callback(
+    [Output("store-raw", "data"),
+     Output("store-computed", "data"),
+     Output("upload-status", "children"),
+     Output("status-badge", "children"),
+     Output("upload-modal", "is_open", allow_duplicate=True)],
+    [Input("upload-data", "contents")],
+    [State("upload-data", "filename")],
+    prevent_initial_call=True
+)
+def handle_mudlog_upload(contents, filename):
+    if not contents:
+        return no_update, no_update, no_update, no_update, no_update
+
+    try:
+        content_type, content_string = contents.split(",")
+        decoded = base64.b64decode(content_string)
+
+        if filename.lower().endswith((".xlsx", ".xls")):
+            df = pd.read_excel(io.BytesIO(decoded))
+            df.columns = [str(c).strip().upper() for c in df.columns]
+        else:
+            text = decoded.decode("utf-8", errors="ignore")
+            buf = io.StringIO(text)
+            df = parse_mudlog_file(buf)
+
+        if "DEPTH" not in df.columns:
+            for alias in ["DEP", "DEPTH_M", "DEPT"]:
+                if alias in df.columns:
+                    df = df.rename(columns={alias: "DEPTH"})
+                    break
+
+        required = ["DEPTH", "C1", "C2", "C3", "IC4", "NC4", "IC5", "NC5"]
+        for c in required:
+            if c not in df.columns:
+                df[c] = 0.0
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
+
+        if "TG" in df.columns:
+            df["TG"] = pd.to_numeric(df["TG"], errors="coerce").fillna(0.0)
+
+        df = df.sort_values("DEPTH").reset_index(drop=True)
+        computed_df = compute_all(df)
+
+        status_msg = dbc.Alert(f"✅ Successfully loaded {filename} ({len(df)} depth intervals).", color="success", style={"fontSize": "12px", "borderRadius": "8px"})
+        badge_text = [html.I(className="fa-solid fa-check me-1", style={"fontSize": "10px"}), f"{filename} ({len(df)} pts)"]
+
+        return (
+            df.to_json(orient="split", date_format="iso"),
+            computed_df.to_json(orient="split", date_format="iso"),
+            status_msg,
+            badge_text,
+            False
+        )
+    except Exception as e:
+        status_msg = dbc.Alert(f"❌ Error loading file: {str(e)}", color="danger", style={"fontSize": "12px", "borderRadius": "8px"})
+        return no_update, no_update, status_msg, no_update, no_update
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Entry point
+#  Callback: Export CSV Report
 # ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    Output("download-report", "data"),
+    [Input("btn-export", "n_clicks")],
+    [State("store-computed", "data")],
+    prevent_initial_call=True
+)
+def export_csv_report(n_clicks, json_computed):
+    if not n_clicks or not json_computed:
+        return no_update
 
+    df = pd.read_json(io.StringIO(json_computed), orient="split")
+    return dcc.send_data_frame(df.to_csv, "mudlog_depth_track_report.csv", index=False)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Entry Point
+# ──────────────────────────────────────────────────────────────────────
 def open_browser():
-    """Open the default browser after a short delay."""
+    """Auto open browser on startup."""
     import time
-    time.sleep(1.5)
+    time.sleep(1.2)
     webbrowser.open("http://127.0.0.1:8051")
 
 
 if __name__ == "__main__":
-    # Auto-open browser in a background thread
     threading.Thread(target=open_browser, daemon=True).start()
-
     app.run(debug=False, port=8051)

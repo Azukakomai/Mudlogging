@@ -51,6 +51,8 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     out['R3_C2_C3']  = _safe_div(C2, C3)
     out['R4_C1_IC4'] = _safe_div(C1, IC4)
     out['R5_C1_NC4'] = _safe_div(C1, NC4)
+    out['C2_C1']     = _safe_div(C2, C1)
+    out['C3_C1']     = _safe_div(C3, C1)
 
     # ------------------------------------------------------------------
     #  6. Total Gas Volume — use uploaded TG if available, else derive
