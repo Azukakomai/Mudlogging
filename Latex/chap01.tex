@@ -1,0 +1,47 @@
+\chapter{INTRODUCTION}
+
+\section{Background}
+
+In the oil and gas industry, subsurface exploration carries immense capital risk \citep{ref3, ref9}. Drilling a single exploration or development well costs millions of dollars; thus, asset teams rely on continuous diagnostic tools to evaluate subsurface formations as drilling advances \citep{ref3}. Globally, rotary drilling is a high-frequency, continuous operation, with thousands of active wells being drilled around the clock across international basins \citep{ref9, ref14, bakerhughes2024}. Because drilling occurs continuously on such a massive operational scale, Gas While Drilling (GWD) analysis has become one of the most essential and widely deployed formation evaluation techniques \citep{ref9, ref12}. GWD measures light-to-heavy hydrocarbon gas fractions ($C_1$ through $C_5$) released into the drilling mud stream as the drill bit cuts through rock layers, providing wellsite geologists with immediate indicators of reservoir fluid content \citep{ref12, haworth1985}. Accurate GWD interpretation enables engineers to confirm hydrocarbon-bearing pay zones quickly or make the critical decision to halt drilling early, thereby saving millions of dollars by avoiding non-productive "dry holes" \citep{ref3, ref9}.
+
+Despite the critical necessity of GWD evaluation during active operations, standard field interpretation workflows remain overly constrained \citep{ref9, ref11}. In prevailing operational practices, wellsite engineers and petrophysicists typically rely on only two basic parameters—the classical Haworth Wetness Ratio ($W_h$) and Balance Ratio ($B_h$)—to evaluate gas shows and classify fluid boundaries \citep{ref12, haworth1985}. Relying solely on this narrow two-ratio pair frequently produces ambiguous or incomplete fluid characterizations, particularly in complex reservoirs with mixed fluid contacts, fluctuating penetration rates, or heavier hydrocarbon components ($C_4$ and $C_5$) that are ignored in simple two-variable evaluations \citep{ref8, ref12, haworth1985}. By restricting evaluation to just $W_h$ and $B_h$, operators miss out on the valuable diagnostic depth offered by modern multi-ratio models, including Pixler ratios, Character ratios, and composite gas-oil indicators \citep{ref13, whittaker1991, spe2020}.
+
+To expand beyond this restricted evaluation and automate multi-parameter log analysis, exploration teams typically look to modern digital platforms \citep{ref1, ref8}. While data-driven machine learning (ML) architectures have been explored for petrophysical prediction \citep{ref4, ref5, ref6}, they act as opaque "black boxes" that fail to expose their internal reasoning \citep{ref1}. Strict industry guidelines, such as \citet{ref3} reserve estimation standards, require step-by-step physical documentation to certify petroleum reserves, meaning non-transparent AI models fail regulatory safety audits and cannot be accepted for official reporting \citep{ref1, ref3}. Conversely, commercial enterprise software suites—such as SLB Techlog or AspenTech Geolog—offer comprehensive, physically grounded formation evaluation tools \citep{ref8, wood2020}. However, these enterprise suites are burdened by cost-prohibitive licensing fees (frequently exceeding tens of thousands of dollars per annual seat license) \citep{ref8, wood2020}. For smaller independent operators, field consultants, wellsite service companies, and academic institutions that specifically require multi-ratio GWD visualization and hydrocarbon fluid typing, purchasing an entire multi-thousand-dollar enterprise suite just to access that specific functionality is financially unfeasible \citep{ref8, ref11, wood2020}.
+
+This situation creates an operational gap: because drilling is conducted frequently and continuously, asset teams urgently need a lightweight, cost-effective tool built specifically for comprehensive GWD visualization and deterministic hydrocarbon classification \citep{ref8, ref11, ref12}. To address this need, this study proposes an open-source, web-based decision support system developed using Python (Dash and Plotly) \citep{ref8}. By integrating classic Haworth wetness and balance ratios with expanded modern formulas into an automated deterministic pipeline, the system rapidly ingests raw mud logs, computes 16 derived gas ratios, classifies fluid zones, and renders interactive vertical area charts in seconds—providing multi-ratio cross-comparison without the financial burden of enterprise software licenses \citep{ref3, ref8, ref11, ref12}.
+
+\subsection{Problem Statement}
+
+Because drilling operations are conducted continuously on a massive global scale, Gas While Drilling (GWD) log evaluation is an essential diagnostic requirement; however, current field practices predominantly depend on a limited two-ratio framework (Haworth Wetness and Balance ratios) that yields ambiguous fluid predictions, while modern alternatives force engineers to choose between non-auditable "black-box" machine learning models or purchasing cost-prohibitive enterprise software suites (such as SLB Techlog or Aspen Geolog) simply to access multi-ratio GWD plotting and evaluation features. Consequently, there is an urgent need for a dedicated, open-source decision support platform that automates multi-ratio GWD data visualization and deterministic hydrocarbon classification in seconds, delivering full mathematical transparency and multi-parameter comparative insights without the burden of expensive corporate software licenses.
+
+\section{Research Objectives}
+
+To design, develop, and deploy an open-source, web-based deterministic decision support application specifically tailored for Gas While Drilling (GWD) log visualization and automated hydrocarbon fluid classification, eliminating the necessity for costly commercial software licenses, non-transparent machine learning models, or oversimplified two-ratio evaluation practices.
+
+To systematically resolve the challenges outlined in the problem statement, the specific research objectives are formulated as follows:
+
+To overcome the diagnostic limitations of relying solely on an oversimplified two-ratio baseline, the first objective is to program a fully auditable deterministic calculation engine in Python. This engine directly ingests raw chromatographic gas fractions ($C_1$ through $C_5$) and automates the calculation of 16 derived petrophysical indicators, expanding beyond standard Wetness and Balance ratios to incorporate classic Pixler ratios, expanded Haworth Character ratios, and composite fluid indicators.
+
+To address the barrier of expensive enterprise software suites and provide comprehensive curve analysis, the second objective is to develop a dedicated, high-fidelity interactive dashboard using Dash and Plotly. That allow users to visually cross-compare legacy two-ratio curves with modern expanded ratio curves side-by-side without needing multi-thousand-dollar commercial licenses.
+
+To satisfy the operational urgency of active, drilling environments, the third objective is to optimize the software pipeline for high computational throughput. The system is engineered to execute the entire end-to-end processing pipeline—spanning file ingestion, data normalization, 16-parameter ratio computation, and multi-track visual rendering—in under 5 seconds across continuous well trajectories spanning thousands of meters of depth.
+
+\section{Research Benefits}
+
+The development of a dedicated, open-source GWD petrophysical application provides direct contributions to active field operations, independent energy entities, and academic environments.
+
+\subsection{Industrial and Operational Impact}
+
+\subsubsection{Cost Reduction and Targeted Feature Access}
+By providing a free, web-accessible tool dedicated specifically to comprehensive GWD processing and multi-ratio visual display, this software eliminates the requirement for smaller operators and field consultants to purchase multi-thousand-dollar enterprise licenses (such as SLB Techlog or Aspen Geolog) merely to execute routine GWD interpretations.
+
+\subsubsection{Capital Risk Mitigation and Multi-Ratio Accuracy}
+Expanding standard formation evaluation from an oversimplified two-ratio baseline to an integrated 16-parameter deterministic framework provides wellsite teams with significantly sharper fluid differentiation. Hard-coding proven physical equations directly into the software core ensures that every meter drilled is evaluated against consistent mathematical criteria, helping companies protect capital by avoiding non-productive "dry holes".
+
+\subsection{Academic and Educational Contributions}
+
+\subsubsection{Democratization of Petrophysical Tools}
+Due to extreme licensing costs associated with enterprise software platforms, university departments and independent researchers are frequently locked out of modern digital log evaluation tools. Deploying an open-source platform democratizes access to multi-ratio petrophysical evaluation tools for classrooms and students.
+
+\subsubsection{Enhancement of Geoscience Education}
+In academic settings, students often struggle to connect theoretical gas ratio formulas with actual visual log curves. This application provides a modern, interactive visual platform where students can observe log curve shifts across multiple vintage and modern ratio methods simultaneously as underlying gas parameters change.

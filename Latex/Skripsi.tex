@@ -1,0 +1,97 @@
+\documentclass[proposal]{ugmskripsi}
+\usepackage[left=2.5cm, right=2.5cm, top=3cm, bottom=2cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{comment}
+\usepackage[T1]{fontenc}
+\usepackage{pgfgantt}
+\usepackage{float}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstset{
+  numbers = left, stepnumber=2,
+  keywordstyle=\color{blue}\bfseries ,
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  basicstyle=\ttfamily\footnotesize,
+  linewidth = 0.8\textwidth,
+  frame=single,
+  commentstyle=\color{codegreen}
+}
+
+\usepackage[section]{placeins}
+\usepackage[colorlinks=true,linkcolor=blue,
+            urlcolor=blue,
+            citecolor=blue,
+            anchorcolor=blue]{hyperref}
+
+\usepackage{makeidx}
+\makeindex
+\bibpunct{(}{)}{;}{a}{,}{,}
+
+%-----------------------------------------------------------------
+% Data Proposal
+%-----------------------------------------------------------------
+\titleind{Aplikasi Visualisasi Data \textit{Gas While Drilling} untuk Prediksi Tipe Hidrokarbon Menggunakan Algoritma Deterministik}
+
+\titleeng{Gas While Drilling Data Visualization Application for Hydrocarbon Type Prediction Using Deterministic Algorithms}
+
+\fullname{Mohammad Azka Khairur Rahman}
+
+\idnum{23/511608/PA/21830}
+
+\examdate{05 June 2026}
+
+\yearsubmit{2026}
+
+\program{Ilmu Komputer}
+
+\headprogram{Azhari SN}
+
+\dept{Ilmu Komputer dan Elektronika}
+
+\firstsupervisor{Dr. Techn. Khabib Mustofa, S.Si., M.Kom.}
+
+%\secondsupervisor{}
+
+\firstexaminer{}
+\secondexaminer{}
+\thirdexaminer{}
+%-----------------------------------------------------------------
+
+\begin{document}
+
+%-----------------------------------------------------------------
+% Bagian Depan
+%-----------------------------------------------------------------
+\input{bagiandepan.tex}
+
+%-----------------------------------------------------------------
+% Abstract
+%-----------------------------------------------------------------
+\input{abstract.tex}
+
+\printindex
+\pagenumbering{arabic}
+
+%-----------------------------------------------------------------
+% Bab-bab
+%-----------------------------------------------------------------
+\input{chap01.tex}
+\input{chap02.tex}
+\input{chap03.tex}
+\input{chap04.tex}
+
+%-----------------------------------------------------------------
+% Daftar Pustaka
+%-----------------------------------------------------------------
+\renewcommand{\harvardand}{dan}
+\bibliography{pustaka}
+
+\end{document}

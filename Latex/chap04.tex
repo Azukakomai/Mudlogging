@@ -1,0 +1,110 @@
+\chapter{Research Timeline}
+
+This chapter presents the planned schedule for the development and evaluation
+of the hydrocarbon zone classification system, spanning five months from July
+to November. The work is organized into eight phases that follow the
+structure established in the methodology: literature consolidation, data
+preparation, algorithmic development, interface construction, testing, and
+final documentation.
+
+\section{Phase Descriptions}
+
+\subsection*{Literature Review \& Finalization (July)}
+The opening phase consolidates the theoretical grounding of the research.
+This includes a final review of the Pixler ratio framework \cite{ref13},
+the Haworth--Whittaker composite indicators \cite{haworth1984, haworth1985},
+and existing mud logging interpretation workflows. Any gaps identified in
+the literature, particularly regarding the GOW, WBS, and GOR indicators are addressed before development begins. Deliverable: annotated bibliography and finalized Chapter 2.
+
+\subsection*{Schema Definition (July--August)}
+The structural architecture of the data is formally established by defining the expected column schema. This schema explicitly specifies the depth index alongside the seven required alkane components: Methane ($C_1$), Ethane ($C_2$), Propane ($C_3$), Iso-Butane ($iC_4$), Normal-Butane ($nC_4$), Iso-Pentane ($iC_5$), and Normal-Pentane ($nC_5$). Deliverable: Defined Schema Architecture
+
+\subsection*{System Architecture Design (July--August)}
+Before implementation begins, the three-layer architecture (parsing layer,
+logic layer, UI layer) is designed in detail. This includes specifying the
+data flow between layers, the callback structure for the Dash application,
+and the classification threshold table for the majority-vote engine.
+Deliverable: architecture document and pseudocode for the classification
+pipeline.
+
+\subsection*{Data Parsing \& Standardization Module (August)}
+The first implementation phase covers the ingestion pipeline described in
+Section~3.1: file upload handling, column validation, null filtering, and
+z-score normalization.
+Deliverable: working parsing module.
+
+\subsection*{Algorithm \& Classification Logic (August--September)}
+All fourteen hydrocarbon indicators (Pixler ratios, Haworth--Whittaker
+ratios, TG, GOW, GOW No TG, WBS, GOR) are implemented and verified against
+hand-computed reference values. The majority-vote classification engine is
+then built on top of the indicator outputs, along with the tie-breaking
+priority rule.
+Deliverable: fully tested indicator and classification modules.
+
+\subsection*{UI \& Visualization Development (September)}
+The Dash application shell, upload modal, and results dashboard are built.
+Area charts of each indicator trace and the colour-coded zone overlay are
+implemented in Plotly. The interface is validated against the parsed dataset
+from Phase 4.
+Deliverable: integrated Dash application with end-to-end data flow.
+
+\subsection*{System Testing \& Evaluation (October)}
+The complete system is evaluated against the ground-truth well-test labels
+using the classification metrics defined in Chapter~3: macro-averaged
+Accuracy, Precision, Recall, and F1-Score. The confusion matrix per zone
+class is computed, and performance on minority classes (e.g.\ oil-bearing
+intervals) is examined in detail. Any misclassification patterns identified
+are traced back to individual indicators for potential threshold adjustment.
+Deliverable: evaluation results and performance tables for Chapter 4.
+
+\subsection*{Writing, Revision \& Submission (October--November)}
+Concurrent with testing in October, revisions are done in response
+to supervisor feedback. Chapter 4 (Results) and Chapter 5 (Discussion and
+Conclusion) are drafted once evaluation results are available. A full
+manuscript review is conducted in early November, followed by final
+proofreading and submission by the end of November.
+Deliverable: submitted thesis manuscript.
+
+% ------------------------------------------------------------------
+\section{Gantt Chart}
+
+Table~\ref{tab:gantt} presents the Gantt chart summarizing the timeline
+described above. The horizontal axis spans twenty weeks divided into five
+monthly blocks (July through November). Each bar represents the planned
+active duration of its corresponding phase; overlapping bars indicate
+concurrent work.
+
+\bigskip
+
+\begin{figure}[H]
+\centering
+\begin{ganttchart}[
+    hgrid,
+    vgrid,
+    x unit=2.2cm,
+    y unit title=0.65cm,
+    y unit chart=0.7cm,
+    title height=1,
+    bar height=0.5,
+    bar/.append style={fill=blue!25, rounded corners=2pt},
+    title label font=\small\bfseries,
+    bar label font=\small,
+    bar label node/.append style={text width=5.2cm, align=left},
+]{1}{5}
+  \gantttitle{July}{1}
+  \gantttitle{August}{1}
+  \gantttitle{September}{1}
+  \gantttitle{October}{1}
+  \gantttitle{November}{1} \\
+  \ganttbar{1.\ Literature Review}{1}{1} \\
+  \ganttbar{2.\ Schema Definition}{1}{2} \\
+  \ganttbar{3.\ Architecture Design}{1}{2} \\
+  \ganttbar{4.\ Parsing Module}{2}{2} \\
+  \ganttbar{5.\ Algorithm \& Classification}{2}{3} \\
+  \ganttbar{6.\ UI \& Visualization}{3}{3} \\
+  \ganttbar{7.\ Testing \& Evaluation}{4}{4} \\
+  \ganttbar{8.\ Writing \& Submission}{4}{5}
+\end{ganttchart}
+\caption{Planned research timeline, July--November 2025.}
+\label{tab:gantt}
+\end{figure}

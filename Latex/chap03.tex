@@ -1,0 +1,161 @@
+\chapter{RESEARCH METHODOLOGY}
+
+\section{Research Design}
+
+This research develops a dedicated web-based decision support system to automate the processing, multi-ratio comparative analysis, and visualization of Gas While Drilling (GWD) data, as well as deterministic hydrocarbon fluid classification. Because the system is delivered as an interactive software application, the development follows a standard Software Development Life Cycle (SDLC) adapted for scientific computing, structured across four consecutive phases:
+
+\begin{enumerate}
+    \item \textbf{Requirements Gathering:} Identifying end-user needs, essential mud log data formats, and workflow pain points by distributing structured requirements questionnaires (via Google Forms) to practicing geoscientists, wellsite engineers, and academic researchers.
+    
+    \item \textbf{System Architecture and UI/UX Design:} Specifying the three-tier modular software architecture (Data Ingestion, Deterministic Logic Engine, and Interactive Plotly Dashboard) and planning modal-based user workflows in Dash.
+    
+    \item \textbf{Deterministic Implementation (Data-Free Build Phase):} Developing the data parsers, mathematical ratio pipelines, and decision-tree logic. Because the engine is purely deterministic—operating strictly on closed-form petrophysical formulas and explicit boundary thresholds—the system development requires no empirical training data or machine learning model fitting during construction. The algorithms are programmed and verified against exact mathematical benchmarks.
+    
+    \item \textbf{User-Driven Testing and Evaluation:} Once the application build is complete, external validation is conducted by distributing the deployed platform to industry contacts, peer networks, and professional platform connections (e.g., LinkedIn). Evaluators run their own real-world well datasets through the software, compare the predicted fluid zones against their established well-test ground truth, and record the classification results using structured evaluation forms.
+\end{enumerate}
+
+\section{Software Structure}
+
+A primary objective of this application is to provide geoscientists with a comprehensive comparative suite within a single dashboard. Different eras and regional standards in petroleum geology rely on varying interpretation methods. To allow users to cross-compare results from legacy frameworks with modern expanded indicators, the system integrates a wide array of both classical and updated formulas. The data pipeline takes parsed hydrocarbon gas curves ($C_1$ through $C_5$) and automatically computes 16 derived parameters alongside automated fluid-zone predictions.
+
+\subsection{Data Parsing \& Ingestion Layer}
+
+The ingestion layer handles raw mud logging text files (\texttt{.txt}), spreadsheets (\texttt{.xlsx}), and comma-separated values (\texttt{.csv}). It isolates data matrices through the following steps:
+
+\begin{enumerate}
+    \item \textbf{Metadata and Header Isolation:} The parser scans the file line-by-line using keyword triggers (such as \texttt{\char`~A} or \texttt{Depth}) to bypass unstructured company metadata headers and locate the column index.
+    \item \textbf{Data Normalization and Type Casting:} Delimited text lines (tabs, commas, or spaces) are stripped of non-numeric formatting characters and converted into structured float matrices indexed continuously by measured depth ($MD$). Missing or null entries are handled systematically to prevent pipeline interrupts.
+\end{enumerate}
+
+\subsection{Petrophysical Indicators \& System Decision Logic}
+
+\subsubsection{Pixler Hydrocarbon Ratios}
+The system evaluates light hydrocarbon fractions using the classic ratio framework established by \citet{ref13} to distinguish dry gas intervals from productive oil-bearing formations:
+
+\begin{equation}
+    \text{Ratio}_1 = \frac{C_1}{C_2}
+\end{equation}
+
+\begin{equation}
+    \text{Ratio}_2 = \frac{C_1}{C_3}
+\end{equation}
+
+\begin{equation}
+    \text{Ratio}_3 = \frac{C_2}{C_3}
+\end{equation}
+
+A very high $C_1/C_2$ ratio indicates dry methane gas, while lower values reflect increasing concentrations of heavier, liquid-associated hydrocarbons \citep{ref13}.
+
+\subsubsection{Expanded Light-to-Heavy Butane Multipliers}
+To utilize modern chromatographic logs that split butane into individual isomers, the engine tracks methane against specific butane paths:
+
+\begin{equation}
+    \text{Ratio}_4 = \frac{C_1}{iC_4}
+\end{equation}
+
+\begin{equation}
+    \text{Ratio}_5 = \frac{C_1}{nC_4}
+\end{equation}
+
+Tracking isobutane ($iC_4$) and normal butane ($nC_4$) separately provides heightened sensitivity to heavy, liquid-rich reservoir boundaries.
+
+\subsubsection{Total Gas Volume ($TG$) and Dryness Ratio}
+When Total Gas ($TG$) is not pre-recorded in the uploaded log, the baseline is computed by summing all recorded hydrocarbon fractions \citep{ref14}:
+
+\begin{equation}
+    TG = C_1 + C_2 + C_3 + iC_4 + nC_4 + iC_5 + nC_5
+\end{equation}
+
+The Dryness Ratio is then computed to isolate the methane purity of the gas mixture:
+
+\begin{equation}
+    \text{Dryness} = \frac{C_1}{TG}
+\end{equation}
+
+\subsubsection{Carbon-Weighted Density Index ($I_{\text{carbon}}$)}
+To quantify carbon density across the gas stream, the system implements a weighted index where each alkane fraction is scaled by its carbon atom count:
+
+\begin{equation}
+    I_{\text{carbon}} = \frac{TG}{C_1 + 2C_2 + 3C_3 + 4iC_4 + 4nC_4 + 5iC_5 + 5nC_5}
+\end{equation}
+
+Because liquid hydrocarbons contain longer carbon chains, a lower $I_{\text{carbon}}$ value indicates a shift toward heavier petroleum fluids.
+
+\subsubsection{Expanded Haworth Gas Ratios}
+The system implements both standard and expanded forms of the Show Evaluation framework established by \citet{haworth1985} and \citet{ref12}, incorporating modern $C_4$ and $C_5$ fractions:
+
+\begin{equation}
+    W_h = \left( \frac{C_2 + C_3 + iC_4 + nC_4 + iC_5 + nC_5}{TG} \right) \times 100
+\end{equation}
+
+\begin{equation}
+    B_h = \frac{C_1 + C_2}{C_3 + iC_4 + nC_4 + iC_5 + nC_5}
+\end{equation}
+
+\begin{equation}
+    C_h = \frac{iC_4 + nC_4 + iC_5 + nC_5}{C_3}
+\end{equation}
+
+These three expanded parameters form the core fluid-typing decision framework: Wetness ($W_h$) evaluates fluid richness, Balance ($B_h$) delineates gas-liquid contacts, and Character ($C_h$) confirms fluid typing \citep{haworth1985, ref12}.
+
+\subsubsection{Composite Fluid and Gas-Oil Ratio (GOR) Indicators}
+To automate zone classification, the engine utilizes composite indicators that isolate heavy fractions \citep{whittaker1991, spe2020}:
+
+\begin{equation}
+    GOW = (C_3 + iC_4 + nC_4 + iC_5 + nC_5) \times TG
+\end{equation}
+
+\begin{equation}
+    GOW_{\text{noTG}} = \frac{GOW}{TG^2}
+\end{equation}
+
+The $GOW_{\text{noTG}}$ indicator decouples heavy gas composition from total gas fluctuations caused by drilling mud weight changes or penetration rate variations. Additionally, the system calculates the combined Wetness-Balance Score ($WBS$):
+
+\begin{equation}
+    WBS = \frac{\log(B_h) - 0.903}{2.097} - \frac{\log(W_h)}{2}
+\end{equation}
+
+A conditional Gas-Oil Ratio ($GOR$) screening index is applied based on established engineering thresholds \citep{ref14, spe2020}:
+
+\begin{equation}
+    GOR = \begin{cases} 0 & \text{if } 0.8 < TG < 1.2 \text{ and } C_1 > 2000 \text{ ppm} \\ 1 & \text{otherwise} \end{cases}
+\end{equation}
+
+These multi-ratio outputs feed into a deterministic rule matrix \citep{ref1} that classifies every depth increment into categorical zones: "Gas Zone," "Oil Zone," or "Water/Non-Productive Zone."
+
+\section{User Interface \& Visualization Architecture}
+
+The frontend is constructed using the \textit{Dash Python Framework} with \textit{dash-bootstrap-components} (\texttt{dbc}) to replace legacy, complex desktop interfaces with a responsive web dashboard.
+
+\begin{itemize}
+    \item \textbf{Reactive Pipeline (\texttt{app.callback}):} Callbacks detect file uploads or threshold changes, executing the deterministic calculation engine in memory and updating visual graphs instantaneously without full page reloads.
+    \item \textbf{Modal File Ingestion (\texttt{dcc.Upload} \& \texttt{dbc.Modal}):} File parsing controls are containerized inside modal dialogs to maintain a clean workspace.
+    \item \textbf{Multi-Track Plotly Visualizations:} Processed indicators and zone classification flags are mapped to continuous vertical area tracks locked to measured depth ($MD$), replicating standardized wellsite mud logging templates.
+\end{itemize}
+
+\section{System Validation and Performance Benchmarks}
+
+Because the core processing engine is strictly deterministic and operates on established mathematical laws rather than stochastic machine learning models, validation focuses on three core software performance criteria: mathematical fidelity, computational throughput, and user system usability.
+
+\subsection{End-to-End Computational Throughput ($< 5$ Seconds)}
+In active drilling operations, operational decision windows are narrow. System efficiency is evaluated by measuring the total latency ($\Delta t_{\text{total}}$) spanning the entire automated pipeline:
+\begin{equation}
+    \Delta t_{\text{total}} = t_{\text{ingest}} + t_{\text{compute}} + t_{\text{render}}
+\end{equation}
+The benchmark target requires $\Delta t_{\text{total}} \le 5.0\text{ seconds}$ when processing dense mud logging datasets spanning thousands of meters of depth ($> 3000\text{ m}$ trajectories).
+
+\subsection{User Usability Evaluation}
+
+To validate the practical utility, interface clarity, and user satisfaction of the deployed platform, system usability is evaluated through structured feedback sessions with practicing geoscientists, wellsite engineers, and peer researchers. After testing the application with real-world well logging datasets, each evaluator completes a structured evaluation form via Google Forms. The questionnaire consists of 10 targeted usability and functionality questions, with each item rated on a standard linear scale from 1 (poor) to 10 (excellent). An evaluator's total usability score ($S_{\text{user}}$) is calculated by summing their ratings across all 10 items, yielding a possible total score ranging from 10 to 100 points:
+
+\begin{equation}
+    S_{\text{user}} = \sum_{i=1}^{10} q_i
+\end{equation}
+
+where $q_i \in [1, 10]$ represents the individual score assigned to question $i$. The overall system usability performance is measured by computing the average total score ($\overline{S}$) across all $N$ evaluators:
+
+\begin{equation}
+    \overline{S} = \frac{1}{N} \sum_{k=1}^{N} S_{\text{user}, k}
+\end{equation}
+
+To confirm that the software delivers a highly intuitive and acceptable user experience, the benchmark target for this research is established at a mean total usability score of $\overline{S} > 68.0$ out of 100.
