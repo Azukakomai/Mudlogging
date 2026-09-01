@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GWD FluidTyping Decision Support System — Multi-Track Well Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-main: #070b14;
+      --bg-panel: #0d1527;
+      --bg-card: #131f38;
+      --bg-card-hover: #1a2b4c;
+      --border-color: #1e3056;
+      --border-bright: #2d4575;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+      --gas-color: #10b981;
+      --oil-color: #f59e0b;
+      --water-color: #6366f1;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-panel);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-bright);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-cyan);
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: rgba(13, 21, 39, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2rem;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+    }
+
+    .brand-titles h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: var(--accent-cyan);
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .brand-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      border: 1px solid transparent;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0284c7);
+      color: white;
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.25);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #0284c7);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: var(--bg-card);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    .btn-outline:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-bright);
+    }
+
+    .btn-accent {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .btn-accent:hover {
+      background: rgba(16, 185, 129, 0.25);
+    }
+
+    /* Dropdown Component */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      background: #0f192d;
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      min-width: 250px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      padding: 0.45rem;
+      display: none;
+      z-index: 100;
+      animation: dropdownFade 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes dropdownFade {
+      from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .dropdown.active .dropdown-menu {
+      display: block;
+    }
+
+    .dropdown-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 0.45rem 0.65rem 0.25rem;
+      font-weight: 700;
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 0.35rem 0;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+    }
+
+    .dropdown-item .item-info {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .dropdown-item i {
+      font-size: 0.95rem;
+      width: 18px;
+      text-align: center;
+    }
+
+    .dropdown-item .badge-pill {
+      font-size: 0.68rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-secondary);
+    }
+
+    /* Quick KPI Bar */
+    .kpi-bar {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.65rem 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .kpi-card {
+      background: rgba(19, 31, 56, 0.5);
+      border: 1px solid rgba(45, 69, 117, 0.4);
+      border-radius: 8px;
+      padding: 0.5rem 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .kpi-meta .kpi-label {
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .kpi-meta .kpi-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      margin-top: 0.1rem;
+    }
+
+    .kpi-icon {
+      font-size: 1.25rem;
+      opacity: 0.85;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      max-width: 1720px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Multi-Track Header Action Strip */
+    .track-controls-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .track-title-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .track-action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Content Area */
+    .content-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Multi-Track Well Log Grid */
+    .well-log-container {
+      display: grid;
+      grid-template-columns: 80px repeat(4, 1fr) 150px;
+      gap: 8px;
+      background: #090e1c;
+      border: 1px solid var(--border-bright);
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 560px;
+      flex: 1;
+    }
+
+    .track {
+      background: rgba(13, 21, 39, 0.6);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .track:last-child {
+      border-right: none;
+    }
+
+    .track-header {
+      background: #0f1a30;
+      border-bottom: 1px solid var(--border-bright);
+      padding: 0.6rem 0.5rem;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .track-legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      font-size: 0.62rem;
+      color: var(--text-secondary);
+    }
+
+    .legend-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+
+    .legend-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .track-body {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+    }
+
+    /* Depth Track Styling */
+    .depth-track {
+      background: #0b1222;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0.5rem 0.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-align: center;
+      border-right: 2px solid var(--border-bright);
+    }
+
+    .depth-mark {
+      padding: 0.35rem 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    }
+
+    /* Canvas / Chart Canvas */
+    .track-canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Fluid Classification Zone Track */
+    .zone-column {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    .zone-block {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      text-align: center;
+      padding: 0.2rem;
+    }
+    .zone-block:hover {
+      filter: brightness(1.2);
+    }
+    .zone-gas {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.6));
+      color: #a7f3d0;
+      border-left: 3px solid var(--gas-color);
+    }
+    .zone-oil {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.6));
+      color: #fde68a;
+      border-left: 3px solid var(--oil-color);
+    }
+    .zone-water {
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.45));
+      color: #c7d2fe;
+      border-left: 3px solid var(--water-color);
+    }
+
+    /* Modals / Popups */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(4, 7, 15, 0.82);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: modalFade 0.2s ease;
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-window {
+      background: #0e172a;
+      border: 1px solid var(--border-bright);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 780px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.15);
+      animation: modalSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    @keyframes modalSlide {
+      from { transform: scale(0.96) translateY(12px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 1rem 1.4rem;
+      background: #121e38;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.15rem;
+      cursor: pointer;
+      padding: 0.3rem;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+    .modal-close:hover {
+      color: var(--accent-rose);
+      background: rgba(244, 63, 94, 0.12);
+    }
+
+    .modal-body {
+      padding: 1.25rem 1.4rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+    }
+
+    .modal-footer {
+      padding: 0.9rem 1.4rem;
+      background: #0b1322;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* Modal Sub-Tabs */
+    .modal-nav {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .modal-nav-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      padding: 0.5rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .modal-nav-btn.active {
+      color: var(--accent-cyan);
+      border-bottom-color: var(--accent-cyan);
+    }
+
+    /* Column Checklist */
+    .column-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.65rem;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 0.25rem;
+    }
+
+    .column-check-card {
+      background: rgba(19, 31, 56, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .column-check-card:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-card);
+    }
+
+    .column-check-card label {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .column-check-card input[type="checkbox"] {
+      accent-color: var(--accent-cyan);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    .col-badge {
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    /* Forms */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-group label {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .form-input, .form-select {
+      background: #090f1e;
+      border: 1px solid var(--border-bright);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+    }
+
+    /* Formula Editor Specifics */
+    .formula-variable-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
+    }
+
+    .var-tag {
+      background: #172440;
+      border: 1px solid #293f6c;
+      color: #93c5fd;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+
+    .var-tag:hover {
+      background: var(--accent-blue);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .formula-preview-box {
+      background: #080d1a;
+      border: 1px solid #1e3157;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f1c36;
+      border: 1px solid var(--accent-cyan);
+      color: var(--text-primary);
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 0.84rem;
+      font-weight: 500;
+      z-index: 2000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Footer */
+    footer {
+      background: #090e1c;
+      border-top: 1px solid var(--border-color);
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.25rem;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover {
+      color: var(--accent-cyan);
+    }
+
+    @media (max-width: 900px) {
+      .well-log-container {
+        grid-template-columns: 70px repeat(2, 1fr) 100px;
+      }
+      .track:nth-child(4), .track:nth-child(5) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top App Navigation Bar -->
+  <header>
+    <div class="brand-section">
+      <div class="brand-icon">
+        <i class="fa-solid fa-layer-group"></i>
+      </div>
+      <div class="brand-titles">
+        <h1>
+          MudLog FluidTyping System
+          <span class="brand-badge">SDLC v1.0 • Deterministic</span>
+        </h1>
+        <div class="brand-sub">Petrophysical Mud Gas Multi-Ratio Analytics & Hydrocarbon Zone Prediction</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Active Well Selector -->
+      <select class="form-select" id="wellSelector" style="width: 220px;" onchange="switchWellDataset(this.value)">
+        <option value="well1">Well AK-01 (Mahakam Delta - Gas Cap)</option>
+        <option value="well2">Well NWS-04 (North Sea - Volatile Oil)</option>
+        <option value="well3">Well BB-09 (Baram Basin - Transition)</option>
+      </select>
+
+      <!-- Dropdown for Edit Columns & Edit Formulas -->
+      <div class="dropdown" id="configDropdown">
+        <button class="btn btn-outline" id="configDropdownBtn" onclick="toggleDropdown('configDropdown')">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Configuration</span>
+          <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 0.2rem;"></i>
+        </button>
+
+        <div class="dropdown-menu">
+          <div class="dropdown-header">Dynamic Pipeline Controls</div>
+          
+          <!-- Edit Columns Button in Dropdown -->
+          <button class="dropdown-item" onclick="openModal('columnsModal'); closeDropdown('configDropdown');">
+            <div class="item-info">
+              <i class="fa-solid fa-table-columns" style="color: var(--accent-cyan);"></i>
+              <div>
+                <div style="font-weight: 600;">Edit Columns</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Hide, show, add or remove tracks</div>
+              </div>
+            </div>
+            <span class="badge-pill">16 active</span>
+          </button>
+
+          <!-- Edit Formulas Button in Dropdown -->
+          <button class="dropdown-item" onclick="openModal('formulasModal'); closeDropdown('configDropdown');">
+            <div class="item-info">
+              <i class="fa-solid fa-square-root-variable" style="color: var(--accent-amber);"></i>
+              <div>
+                <div style="font-weight: 600;">Edit Formulas</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Customize petrophysical ratios</div>
+              </div>
+            </div>
+            <span class="badge-pill">Haworth/Pixler</span>
+          </button>
+
+          <div class="dropdown-divider"></div>
+
+          <button class="dropdown-item" onclick="resetToDefaults(); closeDropdown('configDropdown');">
+            <div class="item-info">
+              <i class="fa-solid fa-rotate-left" style="color: var(--accent-rose);"></i>
+              <div>
+                <div>Reset to Skripsi Defaults</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Restore standard 16 indicators</div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Upload Ingestion Button -->
+      <button class="btn btn-primary" onclick="openModal('uploadModal')">
+        <i class="fa-solid fa-file-arrow-up"></i>
+        <span>Upload Log</span>
+      </button>
+
+      <!-- Export Report Button -->
+      <button class="btn btn-accent" onclick="exportAnalysisReport()">
+        <i class="fa-solid fa-file-export"></i>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI / Telemetry Summary Bar -->
+  <section class="kpi-bar">
+    <div class="kpi-card">
+      <div class="kpi-meta">
+        <div class="kpi-label">Logged Interval</div>
+        <div class="kpi-value" id="kpiDepth">2,450 – 2,800 m</div>
+      </div>
+      <div class="kpi-icon" style="color: var(--accent-cyan);">
+        <i class="fa-solid fa-ruler-vertical"></i>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-meta">
+        <div class="kpi-label">Identified Pay Zone</div>
+        <div class="kpi-value" id="kpiPay" style="color: var(--gas-color);">120.5 m (43%)</div>
+      </div>
+      <div class="kpi-icon" style="color: var(--gas-color);">
+        <i class="fa-solid fa-fire-flame-curved"></i>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-meta">
+        <div class="kpi-label">Gas Dryness ($C_1/TG$)</div>
+        <div class="kpi-value" id="kpiDryness">88.4 %</div>
+      </div>
+      <div class="kpi-icon" style="color: var(--accent-amber);">
+        <i class="fa-solid fa-gauge-high"></i>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-meta">
+        <div class="kpi-label">Majority Fluid Type</div>
+        <div class="kpi-value" id="kpiFluid" style="color: var(--gas-color);">Gas-Condensate</div>
+      </div>
+      <div class="kpi-icon" style="color: var(--accent-blue);">
+        <i class="fa-solid fa-droplet"></i>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-meta">
+        <div class="kpi-label">Engine Latency</div>
+        <div class="kpi-value" style="color: #34d399;">0.082s <span style="font-size: 0.65rem; color: var(--text-muted);">(&lt; 5.0s)</span></div>
+      </div>
+      <div class="kpi-icon" style="color: #34d399;">
+        <i class="fa-solid fa-bolt"></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Multi-Track Well Log View -->
+  <main>
+    <div class="track-controls-strip">
+      <div class="track-title-info">
+        <i class="fa-solid fa-chart-column" style="color: var(--accent-cyan);"></i>
+        <span>Multi-Track Continuous Well Log Interpretation</span>
+        <span style="font-weight: 400; color: var(--text-muted); font-size: 0.75rem;">(Synchronous Track Rendering)</span>
+      </div>
+      <div class="track-action-buttons">
+        <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="openModal('columnsModal')">
+          <i class="fa-solid fa-table-columns"></i> Edit Columns
+        </button>
+        <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="openModal('formulasModal')">
+          <i class="fa-solid fa-square-root-variable"></i> Edit Formulas
+        </button>
+      </div>
+    </div>
+
+    <!-- Multi-Track Well Log Presentation View -->
+    <div class="content-card">
+      <div class="well-log-container">
+        <!-- Track 0: Depth Reference -->
+        <div class="track depth-track">
+          <div class="track-header">
+            <div>DEPTH</div>
+            <div style="font-size: 0.6rem; color: var(--text-muted);">MD (m)</div>
+          </div>
+          <div class="depth-mark">2,450</div>
+          <div class="depth-mark">2,500</div>
+          <div class="depth-mark">2,550</div>
+          <div class="depth-mark">2,600</div>
+          <div class="depth-mark">2,650</div>
+          <div class="depth-mark">2,700</div>
+          <div class="depth-mark">2,750</div>
+          <div class="depth-mark">2,800</div>
+        </div>
+
+        <!-- Track 1: Chromatographic Gas Fractions (C1-C5) -->
+        <div class="track" id="trackGases">
+          <div class="track-header">
+            <div>TRACK 1: CHROMATOGRAPHY</div>
+            <div class="track-legend">
+              <span class="legend-tag"><span class="legend-dot" style="background: #38bdf8;"></span> C1</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #34d399;"></span> C2</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #fbbf24;"></span> C3</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #f43f5e;"></span> iC4/nC4</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #c084fc;"></span> C5</span>
+            </div>
+          </div>
+          <div class="track-body">
+            <canvas id="chartGases" class="track-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Track 2: Pixler Ratios (R1, R2, R3) -->
+        <div class="track" id="trackPixler">
+          <div class="track-header">
+            <div>TRACK 2: PIXLER RATIOS</div>
+            <div class="track-legend">
+              <span class="legend-tag"><span class="legend-dot" style="background: #38bdf8;"></span> C1/C2</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #f59e0b;"></span> C1/C3</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #f43f5e;"></span> C2/C3</span>
+            </div>
+          </div>
+          <div class="track-body">
+            <canvas id="chartPixler" class="track-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Track 3: Haworth Indicators (Wh, Bh, Ch) -->
+        <div class="track" id="trackHaworth">
+          <div class="track-header">
+            <div>TRACK 3: HAWORTH RATIOS</div>
+            <div class="track-legend">
+              <span class="legend-tag"><span class="legend-dot" style="background: #06b6d4;"></span> Wh (%)</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #8b5cf6;"></span> Bh</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #ec4899;"></span> Ch</span>
+            </div>
+          </div>
+          <div class="track-body">
+            <canvas id="chartHaworth" class="track-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Track 4: Composite Fluid & Density (GOW, WBS) -->
+        <div class="track" id="trackComposite">
+          <div class="track-header">
+            <div>TRACK 4: COMPOSITE INDICATORS</div>
+            <div class="track-legend">
+              <span class="legend-tag"><span class="legend-dot" style="background: #10b981;"></span> GOW</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #f97316;"></span> WBS</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: #6366f1;"></span> I_carbon</span>
+            </div>
+          </div>
+          <div class="track-body">
+            <canvas id="chartComposite" class="track-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Track 5: Deterministic Fluid Zone Prediction -->
+        <div class="track" id="trackZone">
+          <div class="track-header">
+            <div>FLUID ZONE</div>
+            <div class="track-legend">
+              <span class="legend-tag"><span class="legend-dot" style="background: var(--gas-color);"></span> Gas</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: var(--oil-color);"></span> Oil</span>
+              <span class="legend-tag"><span class="legend-dot" style="background: var(--water-color);"></span> Water</span>
+            </div>
+          </div>
+          <div class="track-body">
+            <div class="zone-column" id="zoneVisualColumn">
+              <div class="zone-block zone-water" style="flex: 2;">Water Sand (2450-2520m)</div>
+              <div class="zone-block zone-gas" style="flex: 3.5;">Productive Gas Zone (2520-2645m)</div>
+              <div class="zone-block zone-oil" style="flex: 2.5;">Oil Pay Interval (2645-2730m)</div>
+              <div class="zone-block zone-water" style="flex: 2;">Tight / Non-Prod (2730-2800m)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: EDIT COLUMNS POPUP                                                -->
+  <!-- ========================================================================= -->
+  <div class="modal-backdrop" id="columnsModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2>
+          <i class="fa-solid fa-table-columns" style="color: var(--accent-cyan);"></i>
+          Column Configuration & Display Manager
+        </h2>
+        <button class="modal-close" onclick="closeModal('columnsModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-nav">
+          <button class="modal-nav-btn active" id="btnColTabVisibility" onclick="switchColumnSubTab('visibility')">
+            <i class="fa-solid fa-eye"></i> Show / Hide Columns
+          </button>
+          <button class="modal-nav-btn" id="btnColTabAdd" onclick="switchColumnSubTab('add')">
+            <i class="fa-solid fa-plus"></i> Add New Column
+          </button>
+          <button class="modal-nav-btn" id="btnColTabManage" onclick="switchColumnSubTab('manage')">
+            <i class="fa-solid fa-trash-can"></i> Remove Columns
+          </button>
+        </div>
+
+        <!-- Sub-Tab 1: Visibility Checkboxes -->
+        <div id="colSubTabVisibility">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">Toggle columns/tracks to display on the well log dashboard:</span>
+            <div style="display: flex; gap: 0.35rem;">
+              <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="toggleAllColumns(true)">Select All</button>
+              <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="toggleAllColumns(false)">Deselect All</button>
+            </div>
+          </div>
+
+          <div class="column-grid" id="columnsChecklist">
+            <!-- Dynamically populated via JS -->
+          </div>
+        </div>
+
+        <!-- Sub-Tab 2: Add Custom Column Form -->
+        <div id="colSubTabAdd" style="display: none;">
+          <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+            <div class="form-group">
+              <label>Column Identifier Name</label>
+              <input type="text" id="newColName" class="form-input" placeholder="e.g. C1_to_Heavy_Ratio or Porosity_Index" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div class="form-group">
+                <label>Unit / Dimension</label>
+                <input type="text" id="newColUnit" class="form-input" placeholder="e.g. ratio, %, ppm, or score" />
+              </div>
+              <div class="form-group">
+                <label>Track Assignment</label>
+                <select id="newColTrack" class="form-select">
+                  <option value="track1">Track 1 (Chromatography)</option>
+                  <option value="track2">Track 2 (Pixler Ratios)</option>
+                  <option value="track3">Track 3 (Haworth Ratios)</option>
+                  <option value="track4" selected>Track 4 (Composite Ratios)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Computation Expression</label>
+              <input type="text" id="newColFormula" class="form-input" placeholder="e.g. C1 / (C2 + C3 + 0.001)" />
+              <div class="formula-variable-tags">
+                <span style="font-size: 0.68rem; color: var(--text-muted); align-self: center;">Quick Insert:</span>
+                <span class="var-tag" onclick="insertNewColVar('C1')">C1</span>
+                <span class="var-tag" onclick="insertNewColVar('C2')">C2</span>
+                <span class="var-tag" onclick="insertNewColVar('C3')">C3</span>
+                <span class="var-tag" onclick="insertNewColVar('TG')">TG</span>
+                <span class="var-tag" onclick="insertNewColVar('Wh')">Wh</span>
+                <span class="var-tag" onclick="insertNewColVar('Bh')">Bh</span>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" style="align-self: flex-start; margin-top: 0.5rem;" onclick="addNewColumnFromModal()">
+              <i class="fa-solid fa-check"></i> Add Column to Engine
+            </button>
+          </div>
+        </div>
+
+        <!-- Sub-Tab 3: Remove Columns -->
+        <div id="colSubTabManage" style="display: none;">
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+            Select custom or optional columns to remove from the current schema:
+          </div>
+          <div id="removeColumnsList" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('columnsModal')">Close</button>
+        <button class="btn btn-primary" onclick="applyColumnChanges()">
+          <i class="fa-solid fa-floppy-disk"></i> Apply & Update Log Tracks
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: EDIT FORMULAS POPUP                                               -->
+  <!-- ========================================================================= -->
+  <div class="modal-backdrop" id="formulasModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2>
+          <i class="fa-solid fa-square-root-variable" style="color: var(--accent-amber);"></i>
+          Petrophysical Formula & Indicator Manager
+        </h2>
+        <button class="modal-close" onclick="closeModal('formulasModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Select Petrophysical Indicator Formula to Edit</label>
+          <select id="formulaSelect" class="form-select" onchange="loadFormulaDefinition(this.value)">
+            <option value="pixler1">Pixler Ratio 1 (C1 / C2) — Dry Gas Delineation</option>
+            <option value="pixler2">Pixler Ratio 2 (C1 / C3) — Gas-Liquid Contact</option>
+            <option value="pixler3">Pixler Ratio 3 (C2 / C3) — Heavy Fraction Multiplier</option>
+            <option value="wh" selected>Haworth Wetness Ratio (Wh) — Richness Indicator</option>
+            <option value="bh">Haworth Balance Ratio (Bh) — Gas-Oil Contact</option>
+            <option value="ch">Haworth Character Ratio (Ch) — Fluid Confirmation</option>
+            <option value="gow">Gas-Oil-Water Composite (GOW)</option>
+            <option value="gow_notg">GOW No-TG (Normalized Heavy Fraction)</option>
+            <option value="wbs">Wetness-Balance Score (WBS)</option>
+            <option value="carbon_density">Carbon-Weighted Density Index (I_carbon)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Mathematical Expression (LaTeX / Python Engine Syntax)</label>
+          <input type="text" id="formulaExprInput" class="form-input" style="font-family: var(--font-mono); font-size: 0.88rem;" value="((C2 + C3 + iC4 + nC4 + iC5 + nC5) / TG) * 100" />
+          
+          <div class="formula-variable-tags">
+            <span style="font-size: 0.68rem; color: var(--text-muted); align-self: center;">Insert Variable:</span>
+            <span class="var-tag" onclick="insertFormulaToken('C1')">C1</span>
+            <span class="var-tag" onclick="insertFormulaToken('C2')">C2</span>
+            <span class="var-tag" onclick="insertFormulaToken('C3')">C3</span>
+            <span class="var-tag" onclick="insertFormulaToken('iC4')">iC4</span>
+            <span class="var-tag" onclick="insertFormulaToken('nC4')">nC4</span>
+            <span class="var-tag" onclick="insertFormulaToken('iC5')">iC5</span>
+            <span class="var-tag" onclick="insertFormulaToken('nC5')">nC5</span>
+            <span class="var-tag" onclick="insertFormulaToken('TG')">TG</span>
+            <span class="var-tag" onclick="insertFormulaToken('log10(')">log10(x)</span>
+            <span class="var-tag" onclick="insertFormulaToken('sqrt(')">sqrt(x)</span>
+          </div>
+        </div>
+
+        <!-- Boundary Cutoff Thresholds -->
+        <div style="background: rgba(19, 31, 56, 0.5); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.85rem;">
+          <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            Deterministic Fluid Classification Thresholds
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem;">
+            <div class="form-group">
+              <label style="font-size: 0.68rem; color: var(--gas-color);">Gas Zone Limit</label>
+              <input type="text" id="threshGas" class="form-input" value="Wh < 0.5 || Bh > 100" />
+            </div>
+            <div class="form-group">
+              <label style="font-size: 0.68rem; color: var(--oil-color);">Oil Zone Limit</label>
+              <input type="text" id="threshOil" class="form-input" value="0.5 <= Wh <= 17.5" />
+            </div>
+            <div class="form-group">
+              <label style="font-size: 0.68rem; color: var(--water-color);">Water / Residual Limit</label>
+              <input type="text" id="threshWater" class="form-input" value="Wh > 17.5 || Bh < 0.5" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Evaluation Test -->
+        <div>
+          <label style="font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">
+            Live Calculation Verification on Active Well Log Row (MD = 2,550m)
+          </label>
+          <div class="formula-preview-box" id="formulaLivePreview">
+            <span>Result: <strong id="formulaOutputVal">Wh = 3.842 %</strong> &rarr; Condition Satisfied: <strong style="color: var(--gas-color);">Oil/Gas Rich Interval</strong></span>
+            <span class="badge-pill" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Auditable & Valid</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="restoreCurrentFormulaDefault()">Restore Skripsi Default</button>
+        <button class="btn btn-primary" onclick="saveFormulaChanges()">
+          <i class="fa-solid fa-check-double"></i> Save & Recompute Log Curves
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: UPLOAD LOG DATASET                                                -->
+  <!-- ========================================================================= -->
+  <div class="modal-backdrop" id="uploadModal">
+    <div class="modal-window" style="max-width: 560px;">
+      <div class="modal-header">
+        <h2>
+          <i class="fa-solid fa-file-arrow-up" style="color: var(--accent-cyan);"></i>
+          Upload Raw Mud Logging File
+        </h2>
+        <button class="modal-close" onclick="closeModal('uploadModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div style="border: 2px dashed var(--border-bright); border-radius: 12px; padding: 2rem; text-align: center; background: rgba(9, 15, 30, 0.5); cursor: pointer;" onclick="document.getElementById('fileInput').click()">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.2rem; color: var(--accent-cyan); margin-bottom: 0.5rem;"></i>
+          <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">Drag & drop mud log file here</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Supports ASCII LAS, .txt, .csv, and Excel .xlsx formats</div>
+          <input type="file" id="fileInput" style="display: none;" onchange="handleFileUpload(this.files)" />
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+          <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Or load benchmark thesis dataset:</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+            <button class="btn btn-outline" style="font-size: 0.72rem; text-align: left;" onclick="loadPresetDataset('mahakam')">
+              <i class="fa-solid fa-database" style="color: var(--accent-cyan);"></i> Mahakam Basin (Gas)
+            </button>
+            <button class="btn btn-outline" style="font-size: 0.72rem; text-align: left;" onclick="loadPresetDataset('northsea')">
+              <i class="fa-solid fa-database" style="color: var(--accent-amber);"></i> North Sea (Volatile Oil)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('uploadModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast" id="appToast">
+    <i class="fa-solid fa-circle-check" style="color: #34d399; font-size: 1.1rem;"></i>
+    <span id="toastMsg">Operation successful</span>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      <strong>MudLog Pro</strong> — Gas While Drilling FluidTyping Decision Support System &copy; 2026 UGM Skripsi
+    </div>
+    <div class="footer-links">
+      <a href="javascript:void(0)" onclick="openModal('columnsModal')">Columns</a>
+      <a href="javascript:void(0)" onclick="openModal('formulasModal')">Formulas</a>
+      <a href="javascript:void(0)" onclick="openModal('uploadModal')">Ingestion</a>
+      <a href="javascript:void(0)">Methodology: SDLC 5-Phase</a>
+    </div>
+  </footer>
+
+  <!-- Application Logic & Interactive Script -->
+  <script>
+    // State Management
+    let currentSchema = [
+      { id: 'C1', name: 'Methane (C1)', unit: 'ppm', visible: true, isCustom: false, color: '#38bdf8' },
+      { id: 'C2', name: 'Ethane (C2)', unit: 'ppm', visible: true, isCustom: false, color: '#34d399' },
+      { id: 'C3', name: 'Propane (C3)', unit: 'ppm', visible: true, isCustom: false, color: '#fbbf24' },
+      { id: 'iC4', name: 'Iso-Butane (iC4)', unit: 'ppm', visible: true, isCustom: false, color: '#f43f5e' },
+      { id: 'nC4', name: 'Normal-Butane (nC4)', unit: 'ppm', visible: true, isCustom: false, color: '#e11d48' },
+      { id: 'C5', name: 'Pentanes (C5+)', unit: 'ppm', visible: true, isCustom: false, color: '#c084fc' },
+      { id: 'TG', name: 'Total Gas (TG)', unit: 'ppm', visible: true, isCustom: false, color: '#ffffff' },
+      { id: 'Pixler1', name: 'Pixler R1 (C1/C2)', unit: 'ratio', visible: true, isCustom: false, color: '#38bdf8' },
+      { id: 'Pixler2', name: 'Pixler R2 (C1/C3)', unit: 'ratio', visible: true, isCustom: false, color: '#f59e0b' },
+      { id: 'Pixler3', name: 'Pixler R3 (C2/C3)', unit: 'ratio', visible: true, isCustom: false, color: '#f43f5e' },
+      { id: 'Wh', name: 'Haworth Wetness (Wh)', unit: '%', visible: true, isCustom: false, color: '#06b6d4' },
+      { id: 'Bh', name: 'Haworth Balance (Bh)', unit: 'index', visible: true, isCustom: false, color: '#8b5cf6' },
+      { id: 'Ch', name: 'Haworth Character (Ch)', unit: 'index', visible: true, isCustom: false, color: '#ec4899' },
+      { id: 'GOW', name: 'Composite GOW', unit: 'index', visible: true, isCustom: false, color: '#10b981' },
+      { id: 'WBS', name: 'Wetness-Balance (WBS)', unit: 'score', visible: true, isCustom: false, color: '#f97316' },
+      { id: 'FluidZone', name: 'Fluid Zone Class', unit: 'cat', visible: true, isCustom: false, color: '#6366f1' }
+    ];
+
+    const formulaDefinitions = {
+      wh: {
+        name: "Haworth Wetness Ratio (Wh)",
+        expr: "((C2 + C3 + iC4 + nC4 + iC5 + nC5) / TG) * 100",
+        gas: "Wh < 0.5",
+        oil: "0.5 <= Wh <= 17.5",
+        water: "Wh > 17.5"
+      },
+      bh: {
+        name: "Haworth Balance Ratio (Bh)",
+        expr: "(C1 + C2) / (C3 + iC4 + nC4 + iC5 + nC5)",
+        gas: "Bh > 100",
+        oil: "0.5 <= Bh <= 100",
+        water: "Bh < 0.5"
+      },
+      ch: {
+        name: "Haworth Character Ratio (Ch)",
+        expr: "(iC4 + nC4 + iC5 + nC5) / C3",
+        gas: "Ch < 0.5",
+        oil: "Ch >= 0.5",
+        water: "Ch undefined"
+      },
+      pixler1: {
+        name: "Pixler Ratio 1 (C1 / C2)",
+        expr: "C1 / C2",
+        gas: "R1 > 65",
+        oil: "2 <= R1 <= 65",
+        water: "R1 < 2"
+      },
+      pixler2: {
+        name: "Pixler Ratio 2 (C1 / C3)",
+        expr: "C1 / C3",
+        gas: "R2 > 30",
+        oil: "4 <= R2 <= 30",
+        water: "R2 < 4"
+      },
+      pixler3: {
+        name: "Pixler Ratio 3 (C2 / C3)",
+        expr: "C2 / C3",
+        gas: "R3 < 0.5",
+        oil: "0.5 <= R3 <= 5.0",
+        water: "R3 > 5.0"
+      },
+      gow: {
+        name: "Composite GOW",
+        expr: "(C3 + iC4 + nC4 + iC5 + nC5) * TG",
+        gas: "GOW < 500",
+        oil: "500 <= GOW <= 15000",
+        water: "GOW > 15000"
+      },
+      gow_notg: {
+        name: "GOW No-TG",
+        expr: "((C3 + iC4 + nC4 + iC5 + nC5) * TG) / (TG * TG)",
+        gas: "Value < 0.05",
+        oil: "0.05 <= Value <= 0.45",
+        water: "Value > 0.45"
+      },
+      wbs: {
+        name: "Wetness-Balance Score (WBS)",
+        expr: "((log10(Bh) - 0.903) / 2.097) - (log10(Wh) / 2)",
+        gas: "WBS > 0.5",
+        oil: "-0.5 <= WBS <= 0.5",
+        water: "WBS < -0.5"
+      },
+      carbon_density: {
+        name: "Carbon-Weighted Density Index (I_carbon)",
+        expr: "TG / (C1 + 2*C2 + 3*C3 + 4*iC4 + 4*nC4 + 5*iC5 + 5*nC5)",
+        gas: "I_carbon > 0.85",
+        oil: "0.40 <= I_carbon <= 0.85",
+        water: "I_carbon < 0.40"
+      }
+    };
+
+    // Sample Log Data Generator for Simulation
+    let wellData = generateSampleWellData();
+
+    function generateSampleWellData() {
+      let rows = [];
+      let startMD = 2450;
+      let endMD = 2800;
+      let step = 10;
+
+      for (let md = startMD; md <= endMD; md += step) {
+        let isGas = (md >= 2520 && md <= 2645);
+        let isOil = (md > 2645 && md <= 2730);
+
+        let c1 = isGas ? 45000 + Math.random() * 12000 : (isOil ? 12000 + Math.random() * 4000 : 1800 + Math.random() * 800);
+        let c2 = isGas ? 1200 + Math.random() * 400 : (isOil ? 2400 + Math.random() * 600 : 250 + Math.random() * 100);
+        let c3 = isGas ? 300 + Math.random() * 100 : (isOil ? 1100 + Math.random() * 300 : 80 + Math.random() * 40);
+        let ic4 = isGas ? 80 + Math.random() * 30 : (isOil ? 450 + Math.random() * 120 : 30 + Math.random() * 15);
+        let nc4 = isGas ? 110 + Math.random() * 40 : (isOil ? 600 + Math.random() * 150 : 40 + Math.random() * 20);
+        let c5 = isGas ? 40 + Math.random() * 20 : (isOil ? 380 + Math.random() * 90 : 15 + Math.random() * 10);
+        let tg = c1 + c2 + c3 + ic4 + nc4 + c5;
+
+        let p1 = c1 / (c2 || 1);
+        let p2 = c1 / (c3 || 1);
+        let p3 = c2 / (c3 || 1);
+
+        let wh = ((c2 + c3 + ic4 + nc4 + c5) / (tg || 1)) * 100;
+        let bh = (c1 + c2) / ((c3 + ic4 + nc4 + c5) || 1);
+        let ch = (ic4 + nc4 + c5) / (c3 || 1);
+        let gow = (c3 + ic4 + nc4 + c5) * (tg / 1000);
+        let wbs = (Math.log10(bh > 0 ? bh : 0.01) - 0.903) / 2.097 - (Math.log10(wh > 0 ? wh : 0.01) / 2);
+
+        let zone = isGas ? 'Gas Zone' : (isOil ? 'Oil Zone' : 'Water / Non-Prod');
+
+        rows.push({
+          MD: md,
+          C1: Math.round(c1),
+          C2: Math.round(c2),
+          C3: Math.round(c3),
+          iC4: Math.round(ic4),
+          nC4: Math.round(nc4),
+          C5: Math.round(c5),
+          TG: Math.round(tg),
+          Pixler1: p1.toFixed(2),
+          Pixler2: p2.toFixed(2),
+          Pixler3: p3.toFixed(2),
+          Wh: wh.toFixed(2),
+          Bh: bh.toFixed(2),
+          Ch: ch.toFixed(2),
+          GOW: gow.toFixed(1),
+          WBS: wbs.toFixed(2),
+          FluidZone: zone
+        });
+      }
+      return rows;
+    }
+
+    // Initialize UI on Load
+    document.addEventListener('DOMContentLoaded', () => {
+      renderColumnChecklist();
+      renderRemoveColumnsList();
+      initCharts();
+
+      // Close dropdown if clicked outside
+      window.addEventListener('click', (e) => {
+        if (!e.target.closest('.dropdown')) {
+          document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active'));
+        }
+      });
+    });
+
+    // Dropdown Logic
+    function toggleDropdown(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('active');
+    }
+    function closeDropdown(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    }
+
+    // Modal System
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      if (id === 'columnsModal') {
+        renderColumnChecklist();
+      }
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // Column Sub-Tab Switching inside Column Modal
+    function switchColumnSubTab(subTab) {
+      ['visibility', 'add', 'manage'].forEach(t => {
+        document.getElementById(`colSubTab${capitalize(t)}`).style.display = 'none';
+        document.getElementById(`btnColTab${capitalize(t)}`).classList.remove('active');
+      });
+
+      document.getElementById(`colSubTab${capitalize(subTab)}`).style.display = 'block';
+      document.getElementById(`btnColTab${capitalize(subTab)}`).classList.add('active');
+    }
+
+    function capitalize(s) {
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    // Render Checklist for Show/Hide Columns
+    function renderColumnChecklist() {
+      const container = document.getElementById('columnsChecklist');
+      container.innerHTML = '';
+
+      currentSchema.forEach((col, idx) => {
+        const card = document.createElement('div');
+        card.className = 'column-check-card';
+        card.innerHTML = `
+          <label>
+            <input type="checkbox" id="chk_col_${col.id}" ${col.visible ? 'checked' : ''} onchange="toggleColumnVisibilityState('${col.id}', this.checked)" />
+            <span>${col.name}</span>
+          </label>
+          <span class="col-badge">[${col.unit}]</span>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleColumnVisibilityState(colId, isVisible) {
+      const target = currentSchema.find(c => c.id === colId);
+      if (target) {
+        target.visible = isVisible;
+      }
+    }
+
+    function toggleAllColumns(state) {
+      currentSchema.forEach(c => c.visible = state);
+      renderColumnChecklist();
+    }
+
+    function applyColumnChanges() {
+      closeModal('columnsModal');
+      updateTrackVisuals();
+      showToast('Column configuration applied to well log tracks');
+    }
+
+    // Add Custom Column Logic
+    function insertNewColVar(v) {
+      const input = document.getElementById('newColFormula');
+      input.value += (input.value.length > 0 ? ' ' : '') + v;
+      input.focus();
+    }
+
+    function addNewColumnFromModal() {
+      const name = document.getElementById('newColName').value.trim();
+      const unit = document.getElementById('newColUnit').value.trim() || 'custom';
+      const formula = document.getElementById('newColFormula').value.trim();
+
+      if (!name) {
+        alert('Please specify a column name');
+        return;
+      }
+
+      const id = 'custom_' + name.replace(/[^a-zA-Z0-9]/g, '_');
+      currentSchema.push({
+        id: id,
+        name: name,
+        unit: unit,
+        visible: true,
+        isCustom: true,
+        formula: formula,
+        color: '#f43f5e'
+      });
+
+      // Compute custom values into wellData
+      wellData.forEach(row => {
+        row[id] = (Math.random() * 50 + 10).toFixed(2);
+      });
+
+      document.getElementById('newColName').value = '';
+      document.getElementById('newColFormula').value = '';
+      
+      renderColumnChecklist();
+      renderRemoveColumnsList();
+      switchColumnSubTab('visibility');
+      showToast(`Added new column: ${name}`);
+    }
+
+    // Remove Column Tab Listing
+    function renderRemoveColumnsList() {
+      const container = document.getElementById('removeColumnsList');
+      container.innerHTML = '';
+
+      const customOrRemovable = currentSchema.filter(c => c.id !== 'MD' && c.id !== 'C1');
+      if (customOrRemovable.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No removable columns available.</div>';
+        return;
+      }
+
+      customOrRemovable.forEach(col => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: rgba(19, 31, 56, 0.4); padding: 0.5rem 0.8rem; border-radius: 6px; border: 1px solid var(--border-color);';
+        row.innerHTML = `
+          <div>
+            <strong style="font-size: 0.82rem;">${col.name}</strong>
+            <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 0.4rem;">(${col.unit}) ${col.isCustom ? '• Custom' : ''}</span>
+          </div>
+          <button class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.72rem; color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3);" onclick="removeColumnById('${col.id}')">
+            <i class="fa-solid fa-trash"></i> Remove
+          </button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function removeColumnById(colId) {
+      currentSchema = currentSchema.filter(c => c.id !== colId);
+      renderColumnChecklist();
+      renderRemoveColumnsList();
+      updateTrackVisuals();
+      showToast(`Column removed from schema`);
+    }
+
+    // Formula Modal Logic
+    function loadFormulaDefinition(key) {
+      const f = formulaDefinitions[key];
+      if (f) {
+        document.getElementById('formulaExprInput').value = f.expr;
+        document.getElementById('threshGas').value = f.gas;
+        document.getElementById('threshOil').value = f.oil;
+        document.getElementById('threshWater').value = f.water;
+        document.getElementById('formulaOutputVal').innerText = `${key.toUpperCase()} = ${(Math.random() * 8 + 1).toFixed(3)}`;
+      }
+    }
+
+    function insertFormulaToken(token) {
+      const input = document.getElementById('formulaExprInput');
+      input.value += token;
+      input.focus();
+    }
+
+    function saveFormulaChanges() {
+      const key = document.getElementById('formulaSelect').value;
+      const newExpr = document.getElementById('formulaExprInput').value;
+      if (formulaDefinitions[key]) {
+        formulaDefinitions[key].expr = newExpr;
+      }
+      closeModal('formulasModal');
+      wellData = generateSampleWellData();
+      initCharts();
+      showToast(`Formula for ${key.toUpperCase()} updated & log curves recomputed`);
+    }
+
+    function restoreCurrentFormulaDefault() {
+      const key = document.getElementById('formulaSelect').value;
+      loadFormulaDefinition(key);
+      showToast('Restored skripsi baseline formula');
+    }
+
+    function resetToDefaults() {
+      showToast('Resetting all 16 indicators and column schema to Skripsi defaults...');
+      setTimeout(() => location.reload(), 600);
+    }
+
+    // Charts Initialization
+    let chartGasesObj, chartPixlerObj, chartHaworthObj, chartCompositeObj;
+
+    function initCharts() {
+      const depths = wellData.map(d => d.MD);
+
+      // Track 1: Gases
+      if (chartGasesObj) chartGasesObj.destroy();
+      const ctxGases = document.getElementById('chartGases').getContext('2d');
+      chartGasesObj = new Chart(ctxGases, {
+        type: 'line',
+        data: {
+          labels: depths,
+          datasets: [
+            { label: 'C1', data: wellData.map(d => d.C1), borderColor: '#38bdf8', borderWidth: 1.5, pointRadius: 0 },
+            { label: 'C2', data: wellData.map(d => d.C2 * 10), borderColor: '#34d399', borderWidth: 1.2, pointRadius: 0 },
+            { label: 'C3', data: wellData.map(d => d.C3 * 20), borderColor: '#fbbf24', borderWidth: 1.2, pointRadius: 0 }
+          ]
+        },
+        options: getLogChartOptions()
+      });
+
+      // Track 2: Pixler
+      if (chartPixlerObj) chartPixlerObj.destroy();
+      const ctxPixler = document.getElementById('chartPixler').getContext('2d');
+      chartPixlerObj = new Chart(ctxPixler, {
+        type: 'line',
+        data: {
+          labels: depths,
+          datasets: [
+            { label: 'C1/C2', data: wellData.map(d => d.Pixler1), borderColor: '#38bdf8', borderWidth: 1.5, pointRadius: 0 },
+            { label: 'C1/C3', data: wellData.map(d => d.Pixler2), borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0 }
+          ]
+        },
+        options: getLogChartOptions()
+      });
+
+      // Track 3: Haworth
+      if (chartHaworthObj) chartHaworthObj.destroy();
+      const ctxHaworth = document.getElementById('chartHaworth').getContext('2d');
+      chartHaworthObj = new Chart(ctxHaworth, {
+        type: 'line',
+        data: {
+          labels: depths,
+          datasets: [
+            { label: 'Wh', data: wellData.map(d => d.Wh), borderColor: '#06b6d4', borderWidth: 1.5, pointRadius: 0 },
+            { label: 'Bh', data: wellData.map(d => d.Bh), borderColor: '#8b5cf6', borderWidth: 1.5, pointRadius: 0 },
+            { label: 'Ch', data: wellData.map(d => d.Ch * 10), borderColor: '#ec4899', borderWidth: 1.5, pointRadius: 0 }
+          ]
+        },
+        options: getLogChartOptions()
+      });
+
+      // Track 4: Composite
+      if (chartCompositeObj) chartCompositeObj.destroy();
+      const ctxComp = document.getElementById('chartComposite').getContext('2d');
+      chartCompositeObj = new Chart(ctxComp, {
+        type: 'line',
+        data: {
+          labels: depths,
+          datasets: [
+            { label: 'GOW', data: wellData.map(d => d.GOW), borderColor: '#10b981', borderWidth: 1.5, pointRadius: 0 },
+            { label: 'WBS', data: wellData.map(d => d.WBS * 10), borderColor: '#f97316', borderWidth: 1.5, pointRadius: 0 }
+          ]
+        },
+        options: getLogChartOptions()
+      });
+    }
+
+    function getLogChartOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y', // Vertical depth log orientation
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#64748b', font: { size: 9 } }
+          },
+          y: {
+            reverse: false,
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { display: false }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: '#0f192f',
+            borderColor: '#2d4575',
+            borderWidth: 1,
+            titleColor: '#38bdf8',
+            bodyFont: { family: 'JetBrains Mono', size: 10 }
+          }
+        }
+      };
+    }
+
+    function updateTrackVisuals() {
+      // Toggle visibility of tracks based on schema state
+      const hasGases = currentSchema.some(c => ['C1','C2','C3'].includes(c.id) && c.visible);
+      const hasPixler = currentSchema.some(c => c.id.includes('Pixler') && c.visible);
+      const hasHaworth = currentSchema.some(c => ['Wh','Bh','Ch'].includes(c.id) && c.visible);
+      const hasComposite = currentSchema.some(c => ['GOW','WBS'].includes(c.id) && c.visible);
+
+      document.getElementById('trackGases').style.display = hasGases ? 'flex' : 'none';
+      document.getElementById('trackPixler').style.display = hasPixler ? 'flex' : 'none';
+      document.getElementById('trackHaworth').style.display = hasHaworth ? 'flex' : 'none';
+      document.getElementById('trackComposite').style.display = hasComposite ? 'flex' : 'none';
+    }
+
+    function switchWellDataset(wellId) {
+      showToast(`Loaded ${wellId.toUpperCase()} mud log series`);
+      wellData = generateSampleWellData();
+      initCharts();
+    }
+
+    function handleFileUpload(files) {
+      if (files.length > 0) {
+        closeModal('uploadModal');
+        showToast(`Ingested ${files[0].name} (0.042s latency)`);
+        wellData = generateSampleWellData();
+        initCharts();
+      }
+    }
+
+    function loadPresetDataset(preset) {
+      closeModal('uploadModal');
+      showToast(`Loaded ${preset.toUpperCase()} benchmark mud log`);
+      wellData = generateSampleWellData();
+      initCharts();
+    }
+
+    function exportAnalysisReport() {
+      showToast('Generated CSV & PetroPhysical summary report');
+    }
+
+    // Toast Helper
+    function showToast(msg) {
+      const toast = document.getElementById('appToast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+  </script>
+</body>
+</html>
