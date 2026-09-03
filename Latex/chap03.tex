@@ -69,7 +69,7 @@ The ingestion module isolates valid numeric data matrices from raw well logs thr
 
 To ensure flexibility across diverse geological basins without requiring code-level modifications, the computation engine represents petrophysical variables, mathematical formulas, and decision boundaries as a \textbf{declarative directed acyclic graph (DAG)}. In this structural representation:
 \begin{itemize}
-    \item \textbf{Vertices} represent physical data channels, encompassing measured gas curves ($C_1, C_2, C_3, iC_4, nC_4, iC_5, nC_5$), derived ratio parameters ($W_h, B_h, C_h, R_1 \dots R_5, DR, I_{\text{carbon}}$), composite indicators ($GOW, WBS, GOR$), and categorical fluid classification states.
+    \item \textbf{Vertices} represent physical data channels, encompassing measured gas curves ($C_1$, $C_2$, $C_3$, $iC_4$, $nC_4$, $iC_5$, $nC_5$), derived ratio parameters ($W_h$, $B_h$, $C_h$, $R_1 \dots R_5$, $DR$, $I_{\text{carbon}}$), composite indicators ($GOW, WBS, GOR$), and categorical fluid classification states.
     \item \textbf{Edges} define mathematical dependencies, functional transformations, and boundary decision logic connecting parent curves to downstream petrophysical indicators.
 \end{itemize}
 
@@ -88,12 +88,6 @@ Evaluates light-to-medium hydrocarbon fractions to delineate gas from oil regime
 Tracks methane against separated butane isomers to capture sensitivity to heavier, liquid-associated hydrocarbon fractions:
 \begin{equation}
     \text{Ratio}_{\text{iC4}} = \frac{C_1}{iC_4}, \quad \text{Ratio}_{\text{nC4}} = \frac{C_1}{nC_4}
-\end{equation}
-
-\paragraph{8--9. Expanded Pentane Isomer Multipliers:}
-Provides heightened resolution for identifying condensate and volatile oil transitions:
-\begin{equation}
-    \text{Ratio}_{\text{iC5}} = \frac{C_1}{iC_5}, \quad \text{Ratio}_{\text{nC5}} = \frac{C_1}{nC_5}
 \end{equation}
 
 \paragraph{10. Total Gas Volume ($TG$) \citep{ref14}:}
@@ -129,7 +123,10 @@ These three expanded parameters form the core fluid-typing decision framework (W
 \paragraph{16. Composite Screening Indicators ($GOW, WBS, GOR$) \citep{whittaker1991, spe2020}:}
 Continuous composite indicators isolate heavy fluid concentrations and decouple total gas fluctuations:
 \begin{equation}
-    GOW = (C_3 + iC_4 + nC_4 + iC_5 + nC_5) \times TG, \quad GOW_{\text{noTG}} = \frac{GOW}{TG^2}
+\begin{aligned}
+    \text{GOW} &= \frac{(\text{C}_3 + \text{iC}_4 + \text{iC}_5 + \text{nC}_4 + \text{nC}_5) \cdot \text{TG}}{\text{C}_1 + \text{C}_2 + \text{C}_3 + \text{iC}_4 + \text{iC}_5 + \text{nC}_4 + \text{nC}_5}, \\[1ex]
+    \text{GOW}_{\text{noTG}} &= \frac{\text{C}_3 + \text{iC}_4 + \text{iC}_5 + \text{nC}_4 + \text{nC}_5}{\text{C}_1 + \text{C}_2 + \text{C}_3 + \text{iC}_4 + \text{iC}_5 + \text{nC}_4 + \text{nC}_5}
+\end{aligned}
 \end{equation}
 \begin{equation}
     WBS = \frac{\log(B_h) - 0.903}{2.097} - \frac{\log(W_h)}{2}
