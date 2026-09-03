@@ -9,13 +9,13 @@ In enterprise petroleum operations, several dominant software platforms are wide
 \begin{enumerate}
     \item \textbf{Schlumberger (SLB) Techlog and AspenTech Geolog:} These platforms represent the high-end enterprise standard for integrated petrophysics, borehole geology, and geomechanics \citep{wood2020}.
     \begin{itemize}
-        \item \textit{Strengths:} They provide robust graphical rendering engines capable of displaying hundreds of synchronous curve tracks alongside high-resolution borehole images, full support for industry LAS/DLIS formats, and deep integration with geological modeling databases.
+        \item \textit{Capabilities:} They provide robust graphical rendering engines capable of displaying hundreds of synchronous curve tracks alongside high-resolution borehole images, full support for industry standard LAS/DLIS formats, and deep integration with geological modeling databases.
         \item \textit{Limitations:} They are massive, heavyweight workstation applications burdened by cost-prohibitive licensing fees (frequently exceeding \$20,000 to \$50,000 per annual seat license) \citep{wood2020}. Crucially, regarding Gas While Drilling (GWD) data, they function primarily as passive visualizers; calculating expanded multi-ratio indicators or custom fluid predictions requires writing complex scripts in specialized proprietary consoles (e.g., Techlog Python Script Editor or Geolog Loglan macro language) or developing compiled C++ DLL plugins \citep{wood2020}.
     \end{itemize}
 
     \item \textbf{WellCAD (Advanced Logic Technology) and LogPlot (RockWare):} These tools are widely utilized industry standards for composite well log presentation and geotechnical strip log drafting.
     \begin{itemize}
-        \item \textit{Strengths:} Outstanding layout customization for lithological symbols, mud log visual tracks, and standardized PDF export formatting tailored for wellsite operational reports.
+        \item \textit{Capabilities:} Outstanding layout customization for lithological symbols, mud log visual tracks, and standardized PDF export formatting tailored for wellsite operational reports.
         \item \textit{Limitations:} They are strictly visual drafting and plotting engines with no built-in petrophysical calculation logic. They plot raw chromatographic gas values ($C_1 - C_5$) as static visual lines but possess no automated algorithms to derive ratio matrices or forecast hydrocarbon fluid regimes.
     \end{itemize}
 \end{enumerate}
@@ -23,7 +23,7 @@ In enterprise petroleum operations, several dominant software platforms are wide
 \subsection{Open-Source and Programmatic Log Plotters}
 In the open-source domain, several Python libraries (such as \texttt{lasio}, \texttt{welly}, and standard \texttt{matplotlib/plotly} scripts) have gained popularity for petrophysical data handling \citep{wood2020}.
 \begin{itemize}
-    \item \textit{Strengths:} They offer free, scriptable parsing of standard LAS files and flexible 2D line plotting without commercial licensing barriers.
+    \item \textit{Capabilities:} They offer free, scriptable parsing of standard LAS files and flexible 2D line plotting without commercial licensing barriers.
     \item \textit{Limitations:} They lack an integrated, user-friendly graphical user interface (GUI), requiring users to write manual Python code for every calculation and visual track setup. Furthermore, they contain no automated GWD multi-ratio interpretation pipelines or deterministic fluid-typing decision trees, leaving them as low-level programmatic drafting utilities.
 \end{itemize}
 
@@ -33,43 +33,37 @@ Parallel to classical formation evaluation techniques, the application of machin
 
 \subsection{In-Situ Parameter and Reservoir Property Prediction}
 Machine learning models have been widely investigated to predict physical and geomechanical parameters from conventional log suites where direct physical measurement is operationally difficult or cost-prohibitive. For instance, \citet{ref5} demonstrated that supervised machine learning algorithms trained on wireline log suites can predict in-situ rock stresses with high statistical accuracy. Similar architectures, including Support Vector Machines (SVM) and Multi-Layer Perceptrons (MLP), have been implemented to predict permeability, shear wave velocity ($V_s$), and total organic carbon (TOC) from standard gamma ray, resistivity, and density-neutron inputs.
+\begin{itemize}
+    \item \textit{Capabilities:} These models excel at approximating complex, non-linear relationships between multi-sensor wireline curves and continuous rock mechanical parameters without requiring explicit physical parameterization, providing rapid estimations when direct physical measurements are cost-prohibitive.
+    \item \textit{Limitations:} Supervised regressors depend heavily on vast volumes of historical calibration data. Their "black-box" nature obscures internal reasoning, rendering continuous parameter estimations non-auditable during formal regulatory and reserve audits \citep{ref1, ref3}. Furthermore, they are highly sensitive to geological distribution shift, frequently suffering severe extrapolation errors when transferred to different geological formations.
+\end{itemize}
 
 \subsection{Well-Log Reconstruction and Missing Curve Generation}
 A frequent operational challenge in legacy wells is the presence of incomplete or degraded log suites. Data-driven algorithms have emerged as powerful tools for curve synthesis and data completion. \citet{ref4} applied ensemble machine learning techniques, specifically gradient-boosted decision trees, for automatic well-log completion and generation across complex geological intervals in the Ordos Basin. Their findings demonstrated that ensemble regressors can effectively reconstruct missing curves by learning statistical correlations across adjacent, intact log tracks.
+\begin{itemize}
+    \item \textit{Capabilities:} Ensemble tree algorithms can effectively restore missing or corrupted log tracks by exploiting multivariate statistical correlations across intact adjacent channels, reducing the need for costly well re-logging.
+    \item \textit{Limitations:} In frontier exploration and wildcat drilling where offset well data is scarce or nonexistent, these models cannot be reliably trained or deployed \citep{ref1}. Moreover, because ensemble reconstructions rely on empirical correlations rather than explicit petrophysical causality, they risk generating physically unrealistic or hallucinated curve artifacts when encountering atypical lithologies, failing strict SOP verification standards \citep{ref3}.
+\end{itemize}
 
 \subsection{Deep Learning and Graph Neural Architectures}
 More recently, advanced deep learning architectures have been introduced to handle flexible and unstructured logging configurations. \citet{ref6} developed \textit{FlexLogNet}, a flexible graph-neural-network-based well-log completion method designed to adaptively utilize whatever log channels are available in a given borehole to predict missing curves. Such deep learning architectures capture complex spatial and inter-curve dependencies, providing high predictive performance across multi-well datasets.
+\begin{itemize}
+    \item \textit{Capabilities:} Graph neural networks and deep sequence models handle heterogeneous, missing, or irregular channel configurations dynamically, effectively capturing multi-scale depth dependencies and spatial variations across complex multi-well datasets.
+    \item \textit{Limitations:} These deep architectures introduce extreme algorithmic opacity and heavy computational/GPU training overheads, making them impractical for lightweight wellsite edge deployment. Furthermore, their latent representations cannot be audited or justified under standard petrophysical operating procedures, and they remain vulnerable to out-of-distribution geological shifts across differing depositional basins.
+\end{itemize}
 
 \subsection{Facies and Hydrocarbon Zone Classification}
 In the domain of automated classification, supervised classification algorithms (such as Random Forests, XGBoost, and deep convolutional networks) have been trained on historical petrophysical datasets to classify lithofacies boundaries and discriminate pay zones from non-productive intervals. These models learn decision boundaries directly from multi-dimensional log feature vectors, achieving high classification scores within targeted training fields.
-
-\section{Capabilities and Limitations}
-
-An objective synthesis of computational formation evaluation paradigms reveals distinct trade-offs between predictive capability, operational transparency, and practical deployment viability in active drilling environments.
-
-\subsection{Capabilities and Limitations of Existing Formation Evaluation Software}
-Existing commercial and open-source software platforms provide well-established capabilities alongside critical operational bottlenecks:
 \begin{itemize}
-    \item \textbf{Capabilities:} Commercial suites (e.g., SLB Techlog, AspenTech Geolog) offer exceptional rendering fidelity, scalable database management, and support for multi-sensor borehole data \citep{wood2020}. Drafting tools (e.g., WellCAD) provide standardized, publishable strip log templates.
-    \item \textbf{Limitations:} The extreme licensing cost of commercial suites (\$20,000--\$50,000 per seat annually) creates a prohibitive barrier for independent operators, wellsite consultants, and academic institutions \citep{wood2020}. Furthermore, existing software treats Gas While Drilling (GWD) data passively as simple visual tracks, lacking built-in automated multi-ratio calculation pipelines and immediate fluid-typing decision trees.
+    \item \textit{Capabilities:} Supervised classifiers can rapidly segment multi-dimensional log datasets and map non-linear decision boundaries between distinct lithologies and productive pay zones in well-characterized, mature fields with abundant labeled data.
+    \item \textit{Limitations:} Non-transparent decision boundaries violate SPE PRMS Chapter 4 deterministic auditability mandates, which strictly require physical, documented methodologies for hydrocarbon reserve certification \citep{ref2, ref3}. Additionally, supervised classifiers require extensive, pre-labeled ground-truth training datasets (such as core analyses or production tests) that are unavailable during initial first-drilling GWD operations in wildcat wells.
 \end{itemize}
 
-\subsection{Capabilities and Limitations of Machine Learning Approaches}
-Data-driven machine learning models offer substantial predictive capabilities but suffer from severe operational constraints in high-stakes drilling workflows:
-\begin{itemize}
-    \item \textbf{Capabilities:} ML and DL architectures excel at capturing complex, non-linear multivariate relationships without requiring explicit physical parameterization \citep{ref1, ref4}. In heterogeneous formations where classical equations degrade, well-trained models can deliver high predictive accuracy for curve reconstruction and facies mapping \citep{ref5, ref6}.
-    \item \textbf{Limitations:}
-    \begin{enumerate}
-        \item \textit{Black-Box Opacity and Lack of Interpretability:} Complex neural networks and ensemble models derive predictions through high-dimensional, non-linear transformations that are not human-auditable \citep{ref1}. In petroleum exploration, reserve estimation standards established by the \citet{ref3} (PRMS) strictly require documented, defensible physical methodology for resource certification. Non-transparent predictions fail regulatory audits and create severe operational distrust at the wellsite \citep{ref1, ref3}.
-        \item \textit{Training Data Scarcity in Frontier Wells:} Supervised ML models are heavily dependent on vast volumes of pre-labeled, high-quality historical training data. In frontier exploration and wildcat drilling, prior well data is scarce or nonexistent, rendering data-driven models unusable prior to drilling \citep{ref1}.
-        \item \textit{Geological Distribution Shift:} A model trained on a specific geological basin frequently fails when applied to a different basin with distinct depositional environments, fluid chemistries, or mineralogies, leading to unpredictable extrapolation errors.
-    \end{enumerate}
-\end{itemize}
+\section{The Deterministic Decision-Support Paradigm}
 
-\subsection{The Deterministic Decision-Support Paradigm}
-To address the limitations of both passive software plotters and non-auditable machine learning models, deterministic rule-based algorithms provide an optimal operational baseline for real-time Gas While Drilling interpretation \citep{ref11, haworth1985}:
+To overcome the operational bottlenecks of passive visualization software and the audit and data constraints of machine learning models, deterministic rule-based evaluation represents the optimal operational foundation for real-time Gas While Drilling interpretation \citep{ref11, haworth1985}:
 \begin{itemize}
-    \item \textbf{Full Mathematical Transparency:} Deterministic equations (e.g., Haworth ratios, Pixler ratios, and composite gas-oil indicators) are grounded in explicit physical and chemical laws \citep{ref13, haworth1985, whittaker1991}. Every intermediate calculation and classification boundary is completely auditable, fully compliant with PRMS certification standards \citep{ref3}.
-    \item \textbf{Zero Training Data Requirement:} Deterministic models execute closed-form analytical formulas instantaneously without requiring historical training datasets, making them immediately deployable in wildcat exploration wells \citep{ref11}.
-    \item \textbf{Overcoming Deterministic Rigidity via Dynamic Interfaces:} While classical deterministic rules can be sensitive to regional basin cutoffs \citep{ref9, ref11}, modern software architectures can overcome this rigidity by providing interactive threshold and formula managers, enabling geoscientists to calibrate physical boundary cutoffs dynamically while maintaining complete algorithmic auditability.
+    \item \textbf{Full Mathematical Transparency and Auditability:} Deterministic algorithms execute closed-form analytical formulas grounded in explicit physical and chemical laws (e.g., Haworth show ratios, Pixler ratio cutoffs, and Whittaker composite gas indicators) \citep{ref13, haworth1985, whittaker1991}. Every calculation step and classification boundary is 100\% mathematically traceable, ensuring full compliance with international SPE PRMS reserve certification standards \citep{ref2, ref3}.
+    \item \textbf{Zero Historical Training Data Dependency:} Deterministic models operate instantaneously on raw chromatographic gas inputs ($C_1 - C_5$) without requiring pre-existing training datasets, weights, or offset well logs, making them immediately deployable in wildcat exploration and frontier drilling environments \citep{ref11}.
+    \item \textbf{Resolution of Regional Sensitivity via Dynamic Interfaces:} While static deterministic cutoffs have historically exhibited sensitivity to regional basin variations \citep{ref9, ref11}, modern web-based software architectures overcome this rigidity by providing interactive threshold and formula management interfaces, enabling geoscientists to calibrate physical boundary cutoffs dynamically while preserving total mathematical auditability.
 \end{itemize}

@@ -5,26 +5,23 @@
 This research develops an open-source, web-based decision support system designed to automate the ingestion, multi-ratio petrophysical analysis, real-time visualization, and deterministic fluid forecasting of Gas While Drilling (GWD) data. Because the platform delivers an interactive computational tool for operational geoscience, the methodology follows a structured five-stage Software Development Life Cycle (SDLC) adapted for scientific computing:
 
 \begin{enumerate}
-    \item \textbf{Requirements Analysis and Specification:} Formulating functional requirements (multi-format mud log parsing, automated 16-parameter ratio computation, deterministic fluid classification, and 21-track depth-registered visualization) and non-functional requirements (sub-5-second processing latency, mathematical auditability, and open-source accessibility). Requirements were established through domain feedback from practicing petrophysicists, operations geologists, and wellsite engineers.
-    
-    \item \textbf{System and Architectural Design:} Structuring the platform using a decoupled three-tier software architecture comprising a Data Ingestion Layer, a Deterministic Logic Engine Layer, and a Reactive Presentation Layer. The core calculation pipeline models petrophysical dependencies as a declarative directed acyclic graph, supporting dynamic parameter customization and live schema management.
-    
-    \item \textbf{Software Implementation:} Implementing modular Python packages (\texttt{parser.py}, \texttt{engine.py}, \texttt{evaluator.py}, and \texttt{app.py}) using vectorized numerical routines (NumPy, Pandas) and reactive web components (Dash, Plotly). Because the calculation core operates strictly on closed-form petrophysical formulas and explicit boundary thresholds, the system undergoes a data-free deterministic build phase requiring no stochastic model training.
-    
-    \item \textbf{System Verification and Multi-Tier Evaluation:} Conducting comprehensive validation spanning algorithmic unit verification against analytical reference values, empirical classification benchmarking against ground-truth well tests using multi-class classification metrics (Accuracy, Precision, Recall, Macro-$F_1$) \citep{sokolova2009, powers2011}, computational latency profiling ($\Delta t_{\text{total}} \le 5.0\text{ s}$), and observational user testing ($S_{\text{user}} > 68.0$).
-    
-    \item \textbf{Packaging and Open-Source Deployment:} Assembling standardized environment manifests (\texttt{requirements.txt}) and releasing the source code on a public repository to facilitate reproducible formation evaluation and academic research.
+    \item \textbf{Requirements Analysis and Specification} 
+    \item \textbf{System and Architectural Design} 
+    \item \textbf{Software Implementation} 
+    \item \textbf{System Verification and Multi-Tier Evaluation}
+    \item \textbf{Packaging and Open-Source Deployment} 
 \end{enumerate}
+
+The subsequent sections provide an in-depth breakdown of each individual cycle, tracing the transition from initial data processing through to analytical verification and results.
 
 \section{Requirements Analysis and Specification}
 
-Establishing structured software specifications ensures that the developed application addresses operational challenges in formation evaluation while maintaining computational efficiency and system reliability.
+The following section outlines the initial system requirements, established through domain analysis and operational literature to model standard formation evaluation workflows prior to direct end-user elicitation.
 
 \subsection{Functional Requirements (FR)}
-The functional specifications define the operational capabilities delivered by the system:
 \begin{itemize}
-    \item \textbf{FR-01 (Multi-Format Ingestion):} Ingest raw mud logging files across standard tabular and delimited text formats (\texttt{.txt}, \texttt{.csv}, \texttt{.xlsx}, and \texttt{.las}), automatically isolating data records from variable company headers.
-    \item \textbf{FR-02 (Continuous Data Normalization):} Validate, align, and clean chromatographic gas curves ($C_1$ through $C_5$) against continuous Measured Depth ($MD$) indices, systematically handling missing or non-positive values.
+    \item \textbf{FR-01 (Multi-Format Ingestion):} Ingest mud logging files across standard tabular and delimited text formats (\texttt{.txt}, \texttt{.csv}, \texttt{.xlsx}, and \texttt{.las}), automatically isolating data records from variable company headers.
+    \item \textbf{FR-02 (Continuous Data Normalization):} Validate, align, and clean chromatographic gas curves ($C_1$ through $nC_5$) against continuous Measured Depth ($MD$) indices, systematically handling missing or non-positive values.
     \item \textbf{FR-03 (Automated Multi-Ratio Computation):} Automatically compute 16 derived petrophysical indicators from input gas curves upon file upload.
     \item \textbf{FR-04 (Deterministic Fluid Zone Forecasting):} Apply closed-form decision-tree logic to classify depth increments into categorical fluid regimes: Gas Zone, Oil Zone, or Water/Non-Productive Sand.
     \item \textbf{FR-05 (Multi-Track Depth-Synchronized Visualization):} Render continuous vertical area charts for all computed indicators and fluid zones across 21 dedicated tracks, featuring synchronized scrolling, depth zooming, and cursor tooltips.
@@ -33,7 +30,6 @@ The functional specifications define the operational capabilities delivered by t
 \end{itemize}
 
 \subsection{Non-Functional Requirements (NFR)}
-Non-functional specifications ensure software robustness, responsiveness, and professional auditability:
 \begin{itemize}
     \item \textbf{NFR-01 (Computational Latency):} The end-to-end execution pipeline (file ingestion, ratio calculation, and multi-track visual rendering) must complete in under 5.0 seconds for well trajectories exceeding 3,000 meters.
     \item \textbf{NFR-02 (Mathematical Auditability):} All calculations must operate on explicit, transparent formulas with zero non-traceable parameters, ensuring complete compliance with SPE PRMS reserve certification standards \citep{ref3}.
@@ -41,19 +37,16 @@ Non-functional specifications ensure software robustness, responsiveness, and pr
     \item \textbf{NFR-04 (Accessibility and Open Distribution):} The application must run on open-source Python technologies, eliminating multi-thousand-dollar annual commercial licensing constraints \citep{wood2020}.
 \end{itemize}
 
-\subsection{Requirements Elicitation}
-Requirements were synthesized through domain surveys and consultations with practicing wellsite engineers, operations geologists, and petrophysicists. The feedback highlighted operational preferences for instantaneous multi-ratio cross-comparison, customizable threshold cutoffs, and responsive multi-track visual layouts that mirror standardized wellsite strip log templates.
-
 \section{System Architecture and Design}
 
 To ensure separation of concerns, high maintainability, and low computational overhead, the software is structured as a decoupled three-tier architecture.
 
 \subsection{Three-Tier Architectural Overview}
-The system architecture separates data processing into three dedicated layers:
+\noindent The system architecture separates data processing into three dedicated layers:
 \begin{enumerate}
-    \item \textbf{Data Parsing \& Ingestion Layer (\texttt{parser.py}):} Handles file decoding, format identification, header stripping, data cleaning, and structured matrix generation.
-    \item \textbf{Deterministic Logic Engine Layer (\texttt{engine.py} \& \texttt{evaluator.py}):} Implements petrophysical formulas, maintains the declarative parameter dependency graph, vectorizes numerical operations, and executes zone classification logic.
-    \item \textbf{Presentation \& Dashboard Layer (\texttt{app.py}):} Provides an interactive, reactive web user interface built with Dash and Plotly, delivering responsive layout controls and synchronized multi-track visual rendering.
+    \item \textbf{Data Parsing \& Ingestion Layer:} Handles file decoding, format identification, header stripping, data cleaning, and structured matrix generation.
+    \item \textbf{Deterministic Logic Engine Layer:} Implements petrophysical formulas, maintains the declarative parameter dependency graph, vectorizes numerical operations, and executes zone classification logic.
+    \item \textbf{Presentation \& Dashboard Layer:} Provides an interactive, reactive web user interface built with Dash and Plotly, delivering responsive layout controls and synchronized multi-track visual rendering.
 \end{enumerate}
 
 \subsection{Data Parsing \& Ingestion Layer Design}
@@ -137,9 +130,9 @@ Continuous composite indicators isolate heavy fluid concentrations and decouple 
 
 These 16 multi-ratio outputs feed into a deterministic rule matrix \citep{ref1} that classifies every depth increment into categorical zones: "Gas Zone," "Oil Zone," or "Water/Non-Productive Zone."
 
-\subsection{User Interface \& Visualization Architecture Design}
+\subsection{Presentation Layer and User Interface Design}
 
-The presentation layer is built with the \textit{Dash Python Framework} and \textit{dash-bootstrap-components} (\texttt{dbc}) to deliver a responsive, web-based analytics environment:
+The presentation layer is built with the \textit{Dash Python Framework}, \textit{dash-bootstrap-components} (\texttt{dbc}), and \textit{Plotly} to deliver a responsive, web-based formation evaluation environment:
 
 \begin{itemize}
     \item \textbf{Reactive Pipeline (\texttt{app.callback}):} Asynchronous callbacks capture user interactions, triggering calculation pipelines in memory and updating visual tracks without full-page reloads.
@@ -147,12 +140,8 @@ The presentation layer is built with the \textit{Dash Python Framework} and \tex
     \item \textbf{Multi-Track Plotly Visualizations:} Processed indicators and fluid classification overlays are rendered across 21 dedicated vertical subplots synchronized along the Measured Depth ($MD$) axis.
 \end{itemize}
 
-\subsection{User Interface Architecture and Workflow Design}
-
-The interface is structured to streamline formation evaluation into a direct, visually intuitive workflow while providing flexible configuration options for operational geoscientists.
-
 \subsubsection{Visual Interface Design}
-The visual layout and interactive components of the application are shown in the following interface designs:
+The visual layout and interactive components of the application are structured across dedicated visualization panels and modal managers, as illustrated in the following interface designs:
 
 \begin{figure}[H]
     \centering
@@ -203,6 +192,8 @@ The application workflow is structured across four sequential stages designed to
     Through the \textit{Petrophysical Formula \& Indicator Manager} (Figure~\ref{fig:mockup_formulas}), users can modify indicator mathematical expressions using quick-insert variable tokens (e.g., $C_1 \dots C_5, TG, W_h, B_h, \log_{10}$), adjust classification cutoffs, and preview calculations live against active well log records.
 \end{enumerate}
 
+To evaluate and refine these interface workflows, user interaction and navigation behavior are examined by having domain practitioners operate the deployed prototype product while sharing their screens live in interactive remote sessions.
+
 \section{Software Implementation}
 
 The implementation translates the architectural design into modular, clean, and maintainable Python packages adhering to scientific software standards.
@@ -230,7 +221,9 @@ Validation follows a structured evaluation strategy covering four core dimension
 Algorithmic verification confirms that all coded formulas match their analytical mathematical definitions. Unit tests run against synthetic benchmark tensors with predefined inputs and outputs, ensuring zero floating-point drift or calculation errors across all 16 ratio indicators.
 
 \subsection{Empirical Classification Accuracy and Ground-Truth Validation}
-To evaluate the predictive correctness of the deterministic fluid classification engine, model predictions are benchmarked against ground-truth reservoir fluid contacts established by Wireline Formation Testers (RFT/MDT) and production well tests. The multi-class classification problem is evaluated across three primary reservoir fluid regimes:
+Due to strict petroleum industry data confidentiality, commercial asset protection policies, and non-disclosure agreements regarding proprietary subsurface well data, the researcher does not have direct access to the private field logs and well test datasets used for validation. Consequently, empirical benchmarking is conducted directly by the domain users (practicing petrophysicists and operations geologists). The evaluators upload their confidential field datasets into their local instances of the prototype system, benchmark the automated deterministic fluid predictions against their proprietary Wireline Formation Tester (RFT/MDT) and production test records, and report the resulting classification accuracy and validation metric values back to the researcher.
+
+The multi-class classification problem is evaluated across three primary reservoir fluid regimes:
 \begin{equation}
     C = \{\text{Gas Zone}, \text{Oil Zone}, \text{Water / Non-Productive Sand}\}
 \end{equation}
@@ -276,7 +269,7 @@ The target benchmark requires $\Delta t_{\text{total}} \le 5.0\text{ seconds}$ w
 To assess operational usability, navigation fluency, and interface clarity, evaluation combines observational analysis with standardized usability benchmarking:
 
 \subsubsection{Task-Oriented Behavioral Observation}
-Domain practitioners (petrophysicists, operations geologists, and wellsite engineers) are observed during structured interpretation sessions using direct observation, interaction telemetry, and concurrent \textit{Think-Aloud Protocols} across four core workflows:
+Domain practitioners (petrophysicists, operations geologists, and wellsite engineers) are observed during structured interactive evaluation sessions. To conduct this evaluation, participants live-share their screens while operating the deployed prototype application. During these live screen-sharing sessions, direct behavioral observation, interaction telemetry, and concurrent \textit{Think-Aloud Protocols} are recorded across four core workflows:
 \begin{enumerate}
     \item \textbf{Data Ingestion Workflow:} Uploading raw field mud logs and observing automated channel detection. Evaluators' time-to-first-render and initial navigation choices are tracked.
     \item \textbf{Multi-Track Interpretation Workflow:} Inspecting continuous vertical tracks, utilizing crosshair tooltips, and identifying predicted fluid contacts.
