@@ -1,0 +1,403 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1020" width="100%" height="100%" style="background-color: #060a14; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060a14"/>
+      <stop offset="50%" stop-color="#0a1224"/>
+      <stop offset="100%" stop-color="#04070d"/>
+    </linearGradient>
+
+    <!-- Card Gradients -->
+    <linearGradient id="cardGradSource" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f1f3d"/>
+      <stop offset="100%" stop-color="#0a152a"/>
+    </linearGradient>
+
+    <linearGradient id="cardGradIngest" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d2847"/>
+      <stop offset="100%" stop-color="#081b30"/>
+    </linearGradient>
+
+    <linearGradient id="cardGradEngine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d3326"/>
+      <stop offset="100%" stop-color="#082119"/>
+    </linearGradient>
+
+    <linearGradient id="cardGradClass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3d280d"/>
+      <stop offset="100%" stop-color="#241707"/>
+    </linearGradient>
+
+    <linearGradient id="cardGradUI" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2c1742"/>
+      <stop offset="100%" stop-color="#1b0e2b"/>
+    </linearGradient>
+
+    <!-- Glowing Filters -->
+    <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="glowEmerald" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="glowAmber" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+
+    <!-- Arrow Markers -->
+    <marker id="arrowCyan" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#38bdf8" />
+    </marker>
+    <marker id="arrowEmerald" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981" />
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a855f7" />
+    </marker>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="100%" height="100%" fill="url(#bgGrad)" />
+
+  <!-- Grid Pattern Overlay -->
+  <g opacity="0.04" stroke="#ffffff" stroke-width="1">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" />
+    </pattern>
+    <rect width="100%" height="100%" fill="url(#grid)" />
+  </g>
+
+  <!-- Title Header Block -->
+  <g transform="translate(80, 55)">
+    <!-- Title Tag Badge -->
+    <rect x="0" y="0" width="220" height="28" rx="6" fill="#0284c7" fill-opacity="0.18" stroke="#38bdf8" stroke-width="1.2" />
+    <text x="110" y="18" fill="#38bdf8" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="1.5">UGM SKRIPSI &bull; SDLC PIPELINE</text>
+
+    <!-- Main Heading -->
+    <text x="0" y="62" fill="#ffffff" font-size="28" font-weight="900" letter-spacing="-0.5">Gas While Drilling (GWD) End-to-End Data Workflow</text>
+    <text x="0" y="88" fill="#94a3b8" font-size="14" font-weight="500">Deterministic Multi-Ratio Derivations, Majority-Vote Fluid Classification &amp; 21-Track Real-Time Rendering</text>
+
+    <!-- Latency Target Pill -->
+    <g transform="translate(1180, 20)">
+      <rect x="0" y="0" width="260" height="48" rx="8" fill="#0e172a" stroke="#22c55e" stroke-width="1.5" />
+      <circle cx="24" cy="24" r="8" fill="#22c55e" />
+      <text x="42" y="22" fill="#94a3b8" font-size="10" font-weight="700" text-transform="uppercase" letter-spacing="1">Throughput Latency</text>
+      <text x="42" y="38" fill="#34d399" font-size="14" font-weight="800" font-family="'JetBrains Mono', monospace">&Delta;t total &lt; 5.0 s (Benchmark: 12.96 ms)</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- STEP 1: RAW DATA INGESTION & PARSING                                      -->
+  <!-- ========================================================================= -->
+  <g transform="translate(80, 180)" filter="url(#dropShadow)">
+    <rect x="0" y="0" width="260" height="740" rx="14" fill="url(#cardGradSource)" stroke="#38bdf8" stroke-width="1.8" />
+    
+    <!-- Step Header -->
+    <rect x="0" y="0" width="260" height="60" rx="14" fill="#0c1a33" />
+    <rect x="18" y="16" width="28" height="28" rx="6" fill="#38bdf8" />
+    <text x="32" y="35" fill="#060a14" font-size="15" font-weight="900" text-anchor="middle">1</text>
+    <text x="56" y="29" fill="#ffffff" font-size="15" font-weight="800">Data Ingestion</text>
+    <text x="56" y="47" fill="#38bdf8" font-size="11" font-weight="600">parser.py</text>
+
+    <!-- Step Content -->
+    <g transform="translate(18, 80)">
+      <!-- File Formats Subcard -->
+      <rect x="0" y="0" width="224" height="120" rx="8" fill="#081224" stroke="#1a2e56" stroke-width="1" />
+      <text x="14" y="24" fill="#94a3b8" font-size="11" font-weight="700" text-transform="uppercase">Supported File Formats</text>
+      <text x="14" y="48" fill="#ffffff" font-size="12" font-weight="600">&bull; ASCII LAS (.las 2.0 / 3.0)</text>
+      <text x="14" y="70" fill="#ffffff" font-size="12" font-weight="600">&bull; Raw Mud Logs (.csv / .txt)</text>
+      <text x="14" y="92" fill="#ffffff" font-size="12" font-weight="600">&bull; Excel Worksheets (.xlsx)</text>
+
+      <!-- Processing Operations -->
+      <g transform="translate(0, 140)">
+        <rect x="0" y="0" width="224" height="210" rx="8" fill="#081224" stroke="#1a2e56" stroke-width="1" />
+        <text x="14" y="24" fill="#38bdf8" font-size="11" font-weight="700" text-transform="uppercase">Sanitization Pipeline</text>
+        
+        <circle cx="20" cy="50" r="4" fill="#38bdf8" />
+        <text x="32" y="54" fill="#cbd5e1" font-size="11" font-weight="500">Strip Metadata Banner Lines</text>
+
+        <circle cx="20" cy="82" r="4" fill="#38bdf8" />
+        <text x="32" y="86" fill="#cbd5e1" font-size="11" font-weight="500">Header Normalization</text>
+        <text x="32" y="100" fill="#64748b" font-size="10" font-family="'JetBrains Mono', monospace">(CH4 &rarr; C1, DEP &rarr; DEPTH)</text>
+
+        <circle cx="20" cy="128" r="4" fill="#38bdf8" />
+        <text x="32" y="132" fill="#cbd5e1" font-size="11" font-weight="500">Numeric Coerce &amp; Imputation</text>
+        <text x="32" y="146" fill="#64748b" font-size="10" font-family="'JetBrains Mono', monospace">fillna(0.0) &bull; sort(DEPTH)</text>
+
+        <circle cx="20" cy="174" r="4" fill="#38bdf8" />
+        <text x="32" y="178" fill="#cbd5e1" font-size="11" font-weight="500">In-Memory Stream Buffer</text>
+        <text x="32" y="192" fill="#64748b" font-size="10" font-family="'JetBrains Mono', monospace">io.StringIO &bull; Zero Disk I/O</text>
+      </g>
+
+      <!-- Channels Output Box -->
+      <g transform="translate(0, 370)">
+        <rect x="0" y="0" width="224" height="250" rx="8" fill="#040a14" stroke="#2563eb" stroke-width="1.2" />
+        <text x="14" y="24" fill="#60a5fa" font-size="11" font-weight="800" text-transform="uppercase">Extracted 8 Raw Channels</text>
+        
+        <g transform="translate(14, 42)" font-family="'JetBrains Mono', monospace" font-size="11">
+          <text x="0" y="0" fill="#38bdf8">&bull; DEPTH (MD in meters)</text>
+          <text x="0" y="24" fill="#93c5fd">&bull; C1 (Methane, ppm)</text>
+          <text x="0" y="48" fill="#93c5fd">&bull; C2 (Ethane, ppm)</text>
+          <text x="0" y="72" fill="#93c5fd">&bull; C3 (Propane, ppm)</text>
+          <text x="0" y="96" fill="#93c5fd">&bull; iC4 (Iso-Butane, ppm)</text>
+          <text x="0" y="120" fill="#93c5fd">&bull; nC4 (Nor-Butane, ppm)</text>
+          <text x="0" y="144" fill="#93c5fd">&bull; iC5 (Iso-Pentane, ppm)</text>
+          <text x="0" y="168" fill="#93c5fd">&bull; nC5 (Nor-Pentane, ppm)</text>
+          <text x="0" y="192" fill="#ffffff" font-weight="700">&bull; Total Gas (TG, ppm)</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <path d="M 340 550 L 395 550" fill="none" stroke="#38bdf8" stroke-width="3.5" marker-end="url(#arrowCyan)" filter="url(#glowCyan)" />
+
+  <!-- ========================================================================= -->
+  <!-- STEP 2: DETERMINISTIC PETROPHYSICAL ENGINE                               -->
+  <!-- ========================================================================= -->
+  <g transform="translate(400, 180)" filter="url(#dropShadow)">
+    <rect x="0" y="0" width="370" height="740" rx="14" fill="url(#cardGradEngine)" stroke="#10b981" stroke-width="1.8" />
+    
+    <!-- Step Header -->
+    <rect x="0" y="0" width="370" height="60" rx="14" fill="#08241b" />
+    <rect x="18" y="16" width="28" height="28" rx="6" fill="#10b981" />
+    <text x="32" y="35" fill="#060a14" font-size="15" font-weight="900" text-anchor="middle">2</text>
+    <text x="56" y="29" fill="#ffffff" font-size="15" font-weight="800">Petrophysical Derivations</text>
+    <text x="56" y="47" fill="#34d399" font-size="11" font-weight="600">engine.py &bull; 16 Explicit Closed-Form Equations</text>
+
+    <!-- Step Content -->
+    <g transform="translate(18, 80)">
+      
+      <!-- Group 1: Pixler Ratios -->
+      <rect x="0" y="0" width="334" height="145" rx="8" fill="#051711" stroke="#134e3a" stroke-width="1" />
+      <text x="14" y="22" fill="#34d399" font-size="11" font-weight="800" text-transform="uppercase">1. Pixler Hydrocarbon Ratios (1969)</text>
+      <g transform="translate(14, 44)" font-family="'JetBrains Mono', monospace" font-size="11">
+        <text x="0" y="0" fill="#a7f3d0">R1 (C1/C2) = C1 / C2</text>
+        <text x="180" y="0" fill="#6ee7b7">[Gas Delineation]</text>
+        
+        <text x="0" y="22" fill="#a7f3d0">R2 (C1/C3) = C1 / C3</text>
+        <text x="180" y="22" fill="#6ee7b7">[Gas-Oil Contact]</text>
+        
+        <text x="0" y="44" fill="#a7f3d0">R3 (C2/C3) = C2 / C3</text>
+        <text x="180" y="44" fill="#6ee7b7">[Heavy Multiplier]</text>
+        
+        <text x="0" y="66" fill="#a7f3d0">R4 (C1/iC4) = C1 / iC4</text>
+        <text x="180" y="66" fill="#6ee7b7">[Iso-Butane Ratio]</text>
+        
+        <text x="0" y="88" fill="#a7f3d0">R5 (C1/nC4) = C1 / nC4</text>
+        <text x="180" y="88" fill="#6ee7b7">[Nor-Butane Ratio]</text>
+      </g>
+
+      <!-- Group 2: Haworth Show Ratios -->
+      <g transform="translate(0, 160)">
+        <rect x="0" y="0" width="334" height="135" rx="8" fill="#051711" stroke="#134e3a" stroke-width="1" />
+        <text x="14" y="22" fill="#34d399" font-size="11" font-weight="800" text-transform="uppercase">2. Haworth Show Ratios (1985)</text>
+        <g transform="translate(14, 44)" font-family="'JetBrains Mono', monospace" font-size="11">
+          <text x="0" y="0" fill="#a7f3d0">Wh% = ((C2+C3+C4+C5) / TG) * 100</text>
+          <text x="0" y="16" fill="#64748b" font-size="9.5">[Wetness Ratio: Fluid Richness]</text>
+          
+          <text x="0" y="40" fill="#a7f3d0">Bh = (C1 + C2) / (C3 + C4 + C5)</text>
+          <text x="0" y="56" fill="#64748b" font-size="9.5">[Balance Ratio: Gas vs Heavy]</text>
+          
+          <text x="0" y="80" fill="#a7f3d0">Ch = (iC4 + nC4 + iC5 + nC5) / C3</text>
+          <text x="0" y="96" fill="#64748b" font-size="9.5">[Character Ratio: Fluid Phase Validation]</text>
+        </g>
+      </g>
+
+      <!-- Group 3: Composite Indicators -->
+      <g transform="translate(0, 310)">
+        <rect x="0" y="0" width="334" height="160" rx="8" fill="#051711" stroke="#134e3a" stroke-width="1" />
+        <text x="14" y="22" fill="#34d399" font-size="11" font-weight="800" text-transform="uppercase">3. Composite Petrophysical Indicators</text>
+        <g transform="translate(14, 44)" font-family="'JetBrains Mono', monospace" font-size="10.5">
+          <text x="0" y="0" fill="#a7f3d0">Dryness = (C1 / Derived_TG) * 100%</text>
+          <text x="0" y="26" fill="#a7f3d0">Ci = TG / (C1 + 2C2 + 3C3 + 4C4 + 5C5)</text>
+          <text x="0" y="52" fill="#a7f3d0">GOW = (C3 + iC4 + nC4 + iC5 + nC5) * TG</text>
+          <text x="0" y="78" fill="#a7f3d0">GOW_noTG = (C3 + C4 + C5) / TG</text>
+          <text x="0" y="104" fill="#a7f3d0">WBS = (log10(Bh)-0.903)/2.097 - log10(Wh)/2</text>
+        </g>
+      </g>
+
+      <!-- Deterministic Guarantee Box -->
+      <g transform="translate(0, 485)">
+        <rect x="0" y="0" width="334" height="135" rx="8" fill="#02140d" stroke="#059669" stroke-width="1.2" />
+        <text x="14" y="24" fill="#6ee7b7" font-size="11" font-weight="800" text-transform="uppercase">SPE PRMS Audit Guarantee</text>
+        <text x="14" y="48" fill="#ffffff" font-size="11" font-weight="600">&bull; 100% Explicit Physics Causality</text>
+        <text x="14" y="68" fill="#ffffff" font-size="11" font-weight="600">&bull; Zero Opaque Neural Weights</text>
+        <text x="14" y="88" fill="#ffffff" font-size="11" font-weight="600">&bull; Zero Floating-Point Drift</text>
+        <text x="14" y="108" fill="#ffffff" font-size="11" font-weight="600">&bull; Auditable in Formal Reserve Certification</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <path d="M 770 550 L 825 550" fill="none" stroke="#10b981" stroke-width="3.5" marker-end="url(#arrowEmerald)" filter="url(#glowEmerald)" />
+
+  <!-- ========================================================================= -->
+  <!-- STEP 3: MAJORITY-VOTE DECISION MATRIX                                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(830, 180)" filter="url(#dropShadow)">
+    <rect x="0" y="0" width="340" height="740" rx="14" fill="url(#cardGradClass)" stroke="#f59e0b" stroke-width="1.8" />
+    
+    <!-- Step Header -->
+    <rect x="0" y="0" width="340" height="60" rx="14" fill="#291a08" />
+    <rect x="18" y="16" width="28" height="28" rx="6" fill="#f59e0b" />
+    <text x="32" y="35" fill="#060a14" font-size="15" font-weight="900" text-anchor="middle">3</text>
+    <text x="56" y="29" fill="#ffffff" font-size="15" font-weight="800">Majority-Vote Classification</text>
+    <text x="56" y="47" fill="#fbbf24" font-size="11" font-weight="600">Decision-Tree Expert Matrix</text>
+
+    <!-- Step Content -->
+    <g transform="translate(18, 80)">
+      <!-- Noise & Pure Gas Cutoff -->
+      <rect x="0" y="0" width="304" height="100" rx="8" fill="#170f05" stroke="#451a03" stroke-width="1" />
+      <text x="14" y="22" fill="#fde68a" font-size="11" font-weight="800" text-transform="uppercase">Background Noise Cutoff</text>
+      <text x="14" y="44" fill="#fef3c7" font-size="10.5" font-family="'JetBrains Mono', monospace">if TG &lt; 300 or C1 &lt; 200 ppm:</text>
+      <text x="28" y="60" fill="#94a3b8" font-size="10.5" font-family="'JetBrains Mono', monospace">&rarr; Assign 'No Show / Noise'</text>
+      <text x="14" y="82" fill="#fef3c7" font-size="10.5" font-family="'JetBrains Mono', monospace">if Heavies == 0 and C1 &ge; 2000 &rarr; 'Gas'</text>
+
+      <!-- Multi-Indicator Voting Rules -->
+      <g transform="translate(0, 115)">
+        <rect x="0" y="0" width="304" height="260" rx="8" fill="#170f05" stroke="#451a03" stroke-width="1" />
+        <text x="14" y="22" fill="#fde68a" font-size="11" font-weight="800" text-transform="uppercase">Multi-Criteria Expert Voting</text>
+        
+        <g transform="translate(14, 44)" font-size="10" font-family="'JetBrains Mono', monospace">
+          <text x="0" y="0" fill="#60a5fa" font-weight="700">1. Haworth Wetness (Wh):</text>
+          <text x="12" y="16" fill="#cbd5e1">Wh &lt; 17.5 (Gas) | 17.5-40 (Oil) | &gt;40 (Wat)</text>
+
+          <text x="0" y="38" fill="#60a5fa" font-weight="700">2. Haworth Balance (Bh):</text>
+          <text x="12" y="54" fill="#cbd5e1">Bh &ge; 15 (Gas) | 0.5-15 (Oil) | &lt;0.5 (Wat)</text>
+
+          <text x="0" y="76" fill="#60a5fa" font-weight="700">3. Haworth Character (Ch):</text>
+          <text x="12" y="92" fill="#cbd5e1">Ch &lt; 0.5 (Gas) | Ch &ge; 0.5 (Oil)</text>
+
+          <text x="0" y="114" fill="#60a5fa" font-weight="700">4. Dryness Ratio (C1/TG):</text>
+          <text x="12" y="130" fill="#cbd5e1">Dry &ge; 85% (Gas) | 50-85% (Oil) | &lt;50% (Wat)</text>
+
+          <text x="0" y="152" fill="#60a5fa" font-weight="700">5. Pixler R1 (C1/C2):</text>
+          <text x="12" y="168" fill="#cbd5e1">R1 &ge; 15 (Gas) | 2-15 (Oil) | &lt;2 (Wat)</text>
+
+          <text x="0" y="190" fill="#60a5fa" font-weight="700">6. WBS Score &amp; GOW_noTG:</text>
+          <text x="12" y="206" fill="#cbd5e1">WBS &gt; 0 (Gas) | -0.5-0 (Oil) | &lt;-0.5 (Wat)</text>
+        </g>
+      </g>
+
+      <!-- Winning Regime Output -->
+      <g transform="translate(0, 390)">
+        <rect x="0" y="0" width="304" height="230" rx="8" fill="#0d0802" stroke="#d97706" stroke-width="1.2" />
+        <text x="14" y="24" fill="#fbbf24" font-size="11" font-weight="800" text-transform="uppercase">Predicted Fluid Regimes</text>
+
+        <!-- Gas Zone Badge -->
+        <g transform="translate(14, 40)">
+          <rect x="0" y="0" width="276" height="36" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1" />
+          <text x="12" y="22" fill="#a7f3d0" font-size="12" font-weight="800">&bull; GAS PAY ZONE</text>
+          <text x="175" y="22" fill="#6ee7b7" font-size="10" font-weight="700">Wh &lt; 17.5%</text>
+        </g>
+
+        <!-- Oil Zone Badge -->
+        <g transform="translate(14, 84)">
+          <rect x="0" y="0" width="276" height="36" rx="6" fill="#78350f" stroke="#f59e0b" stroke-width="1" />
+          <text x="12" y="22" fill="#fde68a" font-size="12" font-weight="800">&bull; OIL PAY ZONE</text>
+          <text x="165" y="22" fill="#fcd34d" font-size="10" font-weight="700">17.5 &le; Wh &le; 40%</text>
+        </g>
+
+        <!-- Water Zone Badge -->
+        <g transform="translate(14, 128)">
+          <rect x="0" y="0" width="276" height="36" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1" />
+          <text x="12" y="22" fill="#c7d2fe" font-size="12" font-weight="800">&bull; WATER / RESIDUAL</text>
+          <text x="175" y="22" fill="#a5b4fc" font-size="10" font-weight="700">Wh &gt; 40.0%</text>
+        </g>
+
+        <!-- No Show Badge -->
+        <g transform="translate(14, 172)">
+          <rect x="0" y="0" width="276" height="36" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1" />
+          <text x="12" y="22" fill="#94a3b8" font-size="12" font-weight="800">&bull; NO SHOW / TIGHT</text>
+          <text x="175" y="22" fill="#cbd5e1" font-size="10" font-weight="700">TG &lt; 300 ppm</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrow 3 -> 4 -->
+  <path d="M 1170 550 L 1225 550" fill="none" stroke="#f59e0b" stroke-width="3.5" marker-end="url(#arrowAmber)" filter="url(#glowAmber)" />
+
+  <!-- ========================================================================= -->
+  <!-- STEP 4: 21-TRACK WEB PRESENTATION & CONTROLS                             -->
+  <!-- ========================================================================= -->
+  <g transform="translate(1230, 180)" filter="url(#dropShadow)">
+    <rect x="0" y="0" width="290" height="740" rx="14" fill="url(#cardGradUI)" stroke="#a855f7" stroke-width="1.8" />
+    
+    <!-- Step Header -->
+    <rect x="0" y="0" width="290" height="60" rx="14" fill="#201033" />
+    <rect x="18" y="16" width="28" height="28" rx="6" fill="#a855f7" />
+    <text x="32" y="35" fill="#060a14" font-size="15" font-weight="900" text-anchor="middle">4</text>
+    <text x="56" y="29" fill="#ffffff" font-size="15" font-weight="800">21-Track Web UI</text>
+    <text x="56" y="47" fill="#d8b4fe" font-size="11" font-weight="600">app.py &bull; Interactive Dashboard</text>
+
+    <!-- Step Content -->
+    <g transform="translate(18, 80)">
+      <!-- Visualization Features -->
+      <rect x="0" y="0" width="254" height="200" rx="8" fill="#12091c" stroke="#3b1d5c" stroke-width="1" />
+      <text x="14" y="22" fill="#d8b4fe" font-size="11" font-weight="800" text-transform="uppercase">Continuous Visualization</text>
+      
+      <circle cx="20" cy="48" r="4" fill="#a855f7" />
+      <text x="32" y="52" fill="#ffffff" font-size="11" font-weight="700">Sticky Measured Depth (MD)</text>
+      <text x="32" y="66" fill="#94a3b8" font-size="10">Locked left depth scale axis</text>
+
+      <circle cx="20" cy="94" r="4" fill="#a855f7" />
+      <text x="32" y="98" fill="#ffffff" font-size="11" font-weight="700">21 Dedicated Track Columns</text>
+      <text x="32" y="112" fill="#94a3b8" font-size="10">Each curve has independent graph</text>
+
+      <circle cx="20" cy="140" r="4" fill="#a855f7" />
+      <text x="32" y="144" fill="#ffffff" font-size="11" font-weight="700">Synchronized Crosshairs</text>
+      <text x="32" y="158" fill="#94a3b8" font-size="10">Depth cursor tracking across all tracks</text>
+
+      <!-- Dynamic Managers -->
+      <g transform="translate(0, 215)">
+        <rect x="0" y="0" width="254" height="205" rx="8" fill="#12091c" stroke="#3b1d5c" stroke-width="1" />
+        <text x="14" y="22" fill="#d8b4fe" font-size="11" font-weight="800" text-transform="uppercase">Dynamic Pipeline Controls</text>
+
+        <rect x="12" y="38" width="230" height="68" rx="6" fill="#1e102e" stroke="#6b21a8" stroke-width="1" />
+        <text x="24" y="58" fill="#c084fc" font-size="11" font-weight="800">Column Configuration</text>
+        <text x="24" y="74" fill="#cbd5e1" font-size="10">Show/Hide tracks &bull; Add Custom</text>
+        <text x="24" y="90" fill="#94a3b8" font-size="9.5">Quick Variable Tokens (C1..C5, Wh, Bh)</text>
+
+        <rect x="12" y="116" width="230" height="74" rx="6" fill="#1e102e" stroke="#6b21a8" stroke-width="1" />
+        <text x="24" y="136" fill="#c084fc" font-size="11" font-weight="800">Formula &amp; Cutoff Manager</text>
+        <text x="24" y="152" fill="#cbd5e1" font-size="10">Live formula editor &bull; Threshold tuning</text>
+        <text x="24" y="168" fill="#34d399" font-size="9.5">Real-Time Well Record Audit Preview</text>
+      </g>
+
+      <!-- Output Deliverables Box -->
+      <g transform="translate(0, 435)">
+        <rect x="0" y="0" width="254" height="185" rx="8" fill="#0c0514" stroke="#7e22ce" stroke-width="1.2" />
+        <text x="14" y="24" fill="#c084fc" font-size="11" font-weight="800" text-transform="uppercase">1-Click Export Suite</text>
+        
+        <text x="14" y="52" fill="#ffffff" font-size="11" font-weight="600">&bull; Full Computed CSV Table</text>
+        <text x="14" y="74" fill="#ffffff" font-size="11" font-weight="600">&bull; High-Res PNG Well Log</text>
+        <text x="14" y="96" fill="#ffffff" font-size="11" font-weight="600">&bull; Custom Schema JSON Config</text>
+        <text x="14" y="118" fill="#ffffff" font-size="11" font-weight="600">&bull; PDF Presentation Slide Layout</text>
+        
+        <rect x="14" y="136" width="226" height="34" rx="6" fill="#10b981" fill-opacity="0.2" stroke="#10b981" stroke-width="1" />
+        <text x="127" y="158" fill="#34d399" font-size="11" font-weight="800" text-anchor="middle">Ready for Wellsite Ops</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom Feedback Loop from UI back to Engine (Dynamic Recalculation) -->
+  <path d="M 1375 920 L 1375 965 L 585 965 L 585 925" fill="none" stroke="#a855f7" stroke-width="2.5" stroke-dasharray="6,6" marker-end="url(#arrowPurple)" />
+  <rect x="860" y="950" width="240" height="26" rx="6" fill="#0b1220" stroke="#a855f7" stroke-width="1" />
+  <text x="980" y="967" fill="#d8b4fe" font-size="11" font-weight="700" text-anchor="middle">&larr; Live Operational Formula / Schema Updates &larr;</text>
+
+</svg>

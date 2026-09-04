@@ -404,48 +404,17 @@
     </section>
 
     <!-- ========================================================================= -->
-    <!-- SLIDE 9: ARSITEKTUR SISTEM                                                -->
+    <!-- SLIDE 9: DIAGRAM ALIRAN DATA (SEQUENCE WORKFLOW)                          -->
     <!-- ========================================================================= -->
     <section class="slide-canvas" id="slide-9">
       <div class="slide-header">
-        <span class="slide-category-tag"><i class="fa-solid fa-sitemap"></i> Bab III : Metodologi</span>
-        <span class="slide-title-text">Arsitektur Sistem & Aliran Data Modular</span>
+        <span class="slide-category-tag"><i class="fa-solid fa-arrow-progress"></i> Bab III : Metodologi</span>
+        <span class="slide-title-text">Diagram Aliran Data &amp; Siklus Pemrosesan (Data Workflow)</span>
         <img src="assets/logougm.png" class="ugm-mini-logo" alt="UGM">
       </div>
-      <div class="slide-content">
-        <div class="grid-3col">
-          <div class="card">
-            <div class="card-title" style="color: var(--accent-cyan);">
-              <i class="fa-solid fa-file-import"></i> 1. Ingestion Layer (<code>parser.py</code>)
-            </div>
-            <ul class="bullet-list">
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Parsing multi-format: LAS 2.0/3.0, CSV, TXT, Excel (.xlsx).</li>
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Automated header normalization ($CH_4 \to C_1$, $DEP \to DEPTH$).</li>
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Missing-value imputation & continuous depth validation.</li>
-            </ul>
-          </div>
-
-          <div class="card card-highlight">
-            <div class="card-title" style="color: var(--accent-emerald);">
-              <i class="fa-solid fa-gears"></i> 2. Logic Layer (<code>engine.py</code>)
-            </div>
-            <ul class="bullet-list">
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> 16 formulasi petrofisika deterministik terverifikasi.</li>
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Majority-Vote Expert Classification Matrix.</li>
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Vectorized in-memory DAG processing via NumPy & Pandas.</li>
-            </ul>
-          </div>
-
-          <div class="card">
-            <div class="card-title" style="color: var(--accent-amber);">
-              <i class="fa-solid fa-desktop"></i> 3. Presentation Layer (<code>app.py</code>)
-            </div>
-            <ul class="bullet-list">
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Reactive single-page application dashboard.</li>
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> 21 unique continuous depth tracks sinkron.</li>
-              <li class="bullet-item"><i class="fa-solid fa-angle-right"></i> Dynamic Column & Formula Configuration Managers.</li>
-            </ul>
-          </div>
+      <div class="slide-content" style="padding: 0.75rem 1.5rem; justify-content: center; align-items: center;">
+        <div class="slide-img-frame" style="width: 100%; height: 100%; max-height: 570px; background: transparent; border: none; box-shadow: none;">
+          <img src="assets/data_workflow_slide.svg" alt="GWD Data Processing Sequence Workflow" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
       </div>
       <div class="slide-footer">
