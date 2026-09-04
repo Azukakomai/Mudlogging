@@ -27,7 +27,7 @@ In the open-source domain, several Python libraries (such as \texttt{lasio}, \te
     \item \textit{Limitations:} They lack an integrated, user-friendly graphical user interface (GUI), requiring users to write manual Python code for every calculation and visual track setup. Furthermore, they contain no automated GWD multi-ratio interpretation pipelines or deterministic fluid-typing decision trees, leaving them as low-level programmatic drafting utilities.
 \end{itemize}
 
-\section{Existing Machine Learning Approaches}
+\section{Machine Learning Approaches}
 
 Parallel to classical formation evaluation techniques, the application of machine learning (ML) and deep learning (DL) to subsurface prediction has grown substantially since its early introduction to petroleum engineering \citep{ref1}. The conceptual groundwork for applying artificial intelligence techniques to oilfield problems was laid by \citet{ref1}, who demonstrated that Artificial Neural Networks (ANN) could approximate complex, non-linear mappings between well log inputs and reservoir properties that resist explicit analytical formulation. Over the subsequent decades, this research trajectory has expanded across a wide range of formation evaluation and logging tasks:
 
@@ -57,13 +57,4 @@ In the domain of automated classification, supervised classification algorithms 
 \begin{itemize}
     \item \textit{Capabilities:} Supervised classifiers can rapidly segment multi-dimensional log datasets and map non-linear decision boundaries between distinct lithologies and productive pay zones in well-characterized, mature fields with abundant labeled data.
     \item \textit{Limitations:} Non-transparent decision boundaries violate SPE PRMS Chapter 4 deterministic auditability mandates, which strictly require physical, documented methodologies for hydrocarbon reserve certification \citep{ref2, ref3}. Additionally, supervised classifiers require extensive, pre-labeled ground-truth training datasets (such as core analyses or production tests) that are unavailable during initial first-drilling GWD operations in wildcat wells.
-\end{itemize}
-
-\section{The Deterministic Decision-Support Paradigm}
-
-To overcome the operational bottlenecks of passive visualization software and the audit and data constraints of machine learning models, deterministic rule-based evaluation represents the optimal operational foundation for real-time Gas While Drilling interpretation \citep{ref11, haworth1985}:
-\begin{itemize}
-    \item \textbf{Full Mathematical Transparency and Auditability:} Deterministic algorithms execute closed-form analytical formulas grounded in explicit physical and chemical laws (e.g., Haworth show ratios, Pixler ratio cutoffs, and Whittaker composite gas indicators) \citep{ref13, haworth1985, whittaker1991}. Every calculation step and classification boundary is 100\% mathematically traceable, ensuring full compliance with international SPE PRMS reserve certification standards \citep{ref2, ref3}.
-    \item \textbf{Zero Historical Training Data Dependency:} Deterministic models operate instantaneously on raw chromatographic gas inputs ($C_1 - C_5$) without requiring pre-existing training datasets, weights, or offset well logs, making them immediately deployable in wildcat exploration and frontier drilling environments \citep{ref11}.
-    \item \textbf{Resolution of Regional Sensitivity via Dynamic Interfaces:} While static deterministic cutoffs have historically exhibited sensitivity to regional basin variations \citep{ref9, ref11}, modern web-based software architectures overcome this rigidity by providing interactive threshold and formula management interfaces, enabling geoscientists to calibrate physical boundary cutoffs dynamically while preserving total mathematical auditability.
 \end{itemize}

@@ -39,10 +39,7 @@ The following section outlines the initial system requirements, established thro
 
 \section{System Architecture and Design}
 
-To ensure separation of concerns, high maintainability, and low computational overhead, the software is structured as a decoupled three-tier architecture.
-
-\subsection{Three-Tier Architectural Overview}
-\noindent The system architecture separates data processing into three dedicated layers:
+To ensure separation of concerns, high maintainability, and low computational overhead, the software is structured as a decoupled three-tier architecture:
 \begin{enumerate}
     \item \textbf{Data Parsing \& Ingestion Layer:} Handles file decoding, format identification, header stripping, data cleaning, and structured matrix generation.
     \item \textbf{Deterministic Logic Engine Layer:} Implements petrophysical formulas, maintains the declarative parameter dependency graph, vectorizes numerical operations, and executes zone classification logic.
@@ -58,7 +55,7 @@ The ingestion module isolates valid numeric data matrices from raw well logs thr
     \item \textbf{Data Normalization and Type Casting:} Delimited data lines are parsed, stripped of non-numeric formatting characters, and converted into continuous float matrices indexed by measured depth ($MD$). Missing or anomalous data points are systematically handled to preserve calculation continuity.
 \end{enumerate}
 
-\subsection{Declarative Parameter Dependency Graph and Indicator Pipeline}
+\subsection{Deterministic Logic Engine Layer}
 
 To ensure flexibility across diverse geological basins without requiring code-level modifications, the computation engine represents petrophysical variables, mathematical formulas, and decision boundaries as a \textbf{declarative directed acyclic graph (DAG)}. In this structural representation:
 \begin{itemize}
@@ -71,37 +68,37 @@ This decoupled, declarative structure allows the computation engine to dynamical
 \subsubsection{The 16 Derived Petrophysical Indicators}
 The data pipeline processes measured chromatographic gas curves to evaluate 16 derived parameters:
 
-\paragraph{1--5. Classic and Expanded Pixler Ratios \citep{ref13}:}
+\paragraph{1--4. Classic and Expanded Pixler Ratios \citep{ref13}:}
 Evaluates light-to-medium hydrocarbon fractions to delineate gas from oil regimes:
 \begin{equation}
-    R_1 = \frac{C_1}{C_2}, \quad R_2 = \frac{C_1}{C_3}, \quad R_3 = \frac{C_2}{C_3}, \quad R_4 = \frac{C_1}{C_4}, \quad R_5 = \frac{C_1}{C_5}
+    R_1 = \frac{C_1}{C_2}, \quad R_2 = \frac{C_1}{C_3}, \quad R_3 = \frac{C_3}{C_1}, \quad R_4 = \frac{C_2}{C_1}
 \end{equation}
 
-\paragraph{6--7. Expanded Butane Isomer Multipliers:}
+\paragraph{5--6. Expanded Butane Isomer Multipliers:}
 Tracks methane against separated butane isomers to capture sensitivity to heavier, liquid-associated hydrocarbon fractions:
 \begin{equation}
     \text{Ratio}_{\text{iC4}} = \frac{C_1}{iC_4}, \quad \text{Ratio}_{\text{nC4}} = \frac{C_1}{nC_4}
 \end{equation}
 
-\paragraph{10. Total Gas Volume ($TG$) \citep{ref14}:}
+\paragraph{7. Total Gas Volume ($TG$) \citep{ref14}:}
 Calculated by summing all recorded hydrocarbon gas fractions when Total Gas is not pre-recorded in the field log:
 \begin{equation}
     TG = C_1 + C_2 + C_3 + iC_4 + nC_4 + iC_5 + nC_5
 \end{equation}
 
-\paragraph{11. Dryness Ratio ($DR$):}
+\paragraph{8. Dryness Ratio ($DR$):}
 Quantifies the methane fraction within the total hydrocarbon gas mixture:
 \begin{equation}
     DR = \frac{C_1}{TG}
 \end{equation}
 
-\paragraph{12. Carbon-Weighted Density Index ($I_{\text{carbon}}$):}
+\paragraph{9. Carbon-Weighted Density Index ($I_{\text{carbon}}$):}
 Quantifies carbon density across the gas stream, scaled by carbon atom count:
 \begin{equation}
     I_{\text{carbon}} = \frac{TG}{C_1 + 2C_2 + 3C_3 + 4iC_4 + 4nC_4 + 5iC_5 + 5nC_5}
 \end{equation}
 
-\paragraph{13--15. Expanded Haworth Show Evaluation Ratios \citep{haworth1985, ref12}:}
+\paragraph{10--12. Expanded Haworth Show Evaluation Ratios \citep{haworth1985, ref12}:}
 These three expanded parameters form the core fluid-typing decision framework (Wetness $W_h$, Balance $B_h$, and Character $C_h$):
 \begin{equation}
     W_h = \left( \frac{C_2 + C_3 + iC_4 + nC_4 + iC_5 + nC_5}{TG} \right) \times 100
@@ -113,7 +110,7 @@ These three expanded parameters form the core fluid-typing decision framework (W
     C_h = \frac{iC_4 + nC_4 + iC_5 + nC_5}{C_3}
 \end{equation}
 
-\paragraph{16. Composite Screening Indicators ($GOW, WBS, GOR$) \citep{whittaker1991, spe2020}:}
+\paragraph{13--16. Composite Screening Indicators ($GOW, WBS, GOR$) \citep{whittaker1991, spe2020}:}
 Continuous composite indicators isolate heavy fluid concentrations and decouple total gas fluctuations:
 \begin{equation}
 \begin{aligned}
@@ -196,22 +193,24 @@ To evaluate and refine these interface workflows, user interaction and navigatio
 
 \section{Software Implementation}
 
-The implementation translates the architectural design into modular, clean, and maintainable Python packages adhering to scientific software standards.
+The architecture is implemented as a modular, decoupled Python software suite built with functional design patterns and specific computing standards
 
-\subsection{Module Responsibilities}
-The codebase is structured into four primary modules:
+\subsection{Module Responsibilities and Architecture}
+\noindent The core application logic is strictly separated into four dedicated functional modules:
 \begin{itemize}
-    \item \texttt{parser.py}: Implements file decoding, format detection, header stripping, and missing-value normalization.
-    \item \texttt{engine.py}: Encapsulates the declarative parameter graph, vectorized petrophysical formula pipelines, and deterministic fluid classification routines.
-    \item \texttt{evaluator.py}: Houses ground-truth validation routines, confusion matrix calculation, and statistical performance benchmarking.
-    \item \texttt{app.py}: Configures Dash application callbacks, binds user interactions, and renders responsive multi-track visual components.
+    \item \texttt{parser.py}: Handles data ingestion, encoding detection, structured header normalization, schema validation, and missing-value imputation.
+    \item \texttt{engine.py}: Encapsulates the deterministic calculation pipeline, executing declarative mathematical graphs, vector transformations, and boundary-evaluation algorithms across operational cutoffs.
+    \item \texttt{evaluator.py}: Executes verification suites, ground-truth comparative scoring, confusion matrix generation, and deterministic accuracy benchmarking against verified analytical cases.
+    \item \texttt{app.py}: Manages the reactive user interface layer, wiring asynchronous state callbacks, handling client-side event updates, and mounting interactive multi-track visualizers via Plotly.
 \end{itemize}
 
-\subsection{Deterministic Implementation Principles}
-Because the calculation engine is purely deterministic—operating strictly on closed-form petrophysical formulas and explicit boundary thresholds—the system development requires no empirical training data or stochastic model fitting during construction. Algorithms are validated directly against analytical test matrices to guarantee mathematical fidelity.
+\subsection{Zero-Training Deterministic Logic and Model Verification}
+Unlike statistical machine learning systems, the calculation pipeline is entirely rule-based, deterministic, and analytical. Consequently, the implementation lifecycle requires no machine learning training phases, stochastic optimization, hyperparameter tuning, or labeled historical datasets to construct or deploy the model. 
 
-\subsection{In-Memory Reactive State Execution}
-The application executes entirely in memory. Uploaded well data is parsed, processed through vectorized NumPy and Pandas routines, and rendered across synchronized Plotly subplots, ensuring rapid execution without persistent server-side caching.
+Instead of empirical training, code verification is conducted via automated software test suites using synthesized synthetic arrays and boundary-condition test matrices. This ensures every pipeline stage guarantees exact mathematical reproducibility and zero inference drift.
+
+\subsection{In-Memory Reactive Data Pipeline}
+To maximize throughput and prevent disk I/O bottlenecks, data execution operates entirely in volatile memory. Ingested datasets transition through a vectorized processing DAG (Directed Acyclic Graph) powered by NumPy and Pandas before streaming to the presentation layer as client-side serialized states, eliminating persistent server-side caching and multi-user data leakage risks.
 
 \section{System Verification and Performance Evaluation}
 
@@ -228,7 +227,7 @@ The multi-class classification problem is evaluated across three primary reservo
     C = \{\text{Gas Zone}, \text{Oil Zone}, \text{Water / Non-Productive Sand}\}
 \end{equation}
 
-For each class $c \in C$, depth intervals are categorized in a confusion matrix as True Positives ($TP_c$), False Positives ($FP_c$), True Negatives ($TN_c$), and False Negatives ($FN_c$). Performance is quantified using standard classification metrics \citep{sokolova2009, powers2011}:
+For each class $c \in C$, depth intervals within ±25m are categorized in a confusion matrix as True Positives ($TP_c$), False Positives ($FP_c$), True Negatives ($TN_c$), and False Negatives ($FN_c$). Performance is quantified using standard classification metrics \citep{sokolova2009, powers2011}:
 
 \begin{enumerate}
     \item \textbf{Overall Classification Accuracy:} Measures the total proportion of depth intervals correctly classified across all categories:
