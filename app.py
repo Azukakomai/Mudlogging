@@ -264,54 +264,21 @@ navbar = html.Header(
     html.Div([
         # Brand
         html.Div([
-            html.Div([
-                html.I(className="fa-solid fa-gas-pump", style={"fontSize": "18px", "color": "#ffffff"}),
-            ], style={
-                "width": "38px", "height": "38px", "borderRadius": "10px",
-                "background": "linear-gradient(135deg, #6366f1 0%, #10b981 100%)",
-                "display": "flex", "alignItems": "center", "justifyContent": "center",
-                "boxShadow": "0 4px 12px rgba(99, 102, 241, 0.35)", "marginRight": "12px"
-            }),
-            html.Div([
-                html.Div([
-                    html.Span("MudLog ", style={"fontWeight": "800", "fontSize": "18px", "color": CLR_TEXT, "letterSpacing": "-0.5px"}),
-                    html.Span("Pro", style={"fontWeight": "800", "fontSize": "18px", "color": "#818cf8"}),
-                    html.Span(
-                        [html.I(className="fa-solid fa-bolt me-1", style={"fontSize": "10px"}), "Live Connected"],
-                        id="status-badge",
-                        className="ms-2 px-2 py-0.5 rounded-pill",
-                        style={
-                            "fontSize": "10px", "fontWeight": "600",
-                            "background": "rgba(16, 185, 129, 0.12)", "color": "#10b981",
-                            "border": "1px solid rgba(16, 185, 129, 0.3)"
-                        }
-                    ),
-                ], style={"display": "flex", "alignItems": "center"}),
-                html.P("Synchronized Gas While Drilling (GWD) Full Continuous Multi-Track Well Log", style={"margin": "0", "fontSize": "11px", "color": CLR_MUTED}),
-            ]),
+            html.H1(
+                "Mudlogging",
+                style={
+                    "fontSize": "1.25rem",
+                    "fontWeight": "800",
+                    "letterSpacing": "-0.02em",
+                    "color": "#38bdf8",
+                    "margin": "0",
+                    "textTransform": "capitalize",
+                },
+            ),
         ], style={"display": "flex", "alignItems": "center"}),
 
-        # Controls (Depth Filter + Upload Modal Button + Export CSV)
+        # Controls (Upload Modal Button + Export CSV)
         html.Div([
-            dcc.Dropdown(
-                id="depth-filter-select",
-                options=[
-                    {"label": "🌐 Full Well Interval (All Depths)", "value": "all"},
-                    {"label": "🎯 Target Reservoir (2,100m – 2,450m)", "value": "target"},
-                    {"label": "⬆️ Upper Overburden (< 2,100m)", "value": "upper"},
-                    {"label": "⬇️ Lower Sub-reservoir (> 2,450m)", "value": "lower"},
-                ],
-                value="all",
-                clearable=False,
-                searchable=False,
-                style={
-                    "width": "260px",
-                    "fontSize": "12px",
-                    "fontWeight": "500",
-                    "color": "#000",
-                },
-                className="me-2",
-            ),
             dbc.Button(
                 [html.I(className="fa-solid fa-upload me-2"), "Upload File"],
                 id="btn-open-upload",
@@ -390,19 +357,15 @@ def filter_df_by_depth(df: pd.DataFrame, depth_filter: str) -> pd.DataFrame:
 # ──────────────────────────────────────────────────────────────────────
 @app.callback(
     Output("track-header-info", "children"),
-    [Input("store-computed", "data"),
-     Input("depth-filter-select", "value")]
+    [Input("store-computed", "data")]
 )
-def update_header_info(json_computed, depth_filter):
+def update_header_info(json_computed):
     if not json_computed:
         return ""
     df = pd.read_json(io.StringIO(json_computed), orient="split")
-    filtered_df = filter_df_by_depth(df, depth_filter)
-    if len(filtered_df) == 0:
-        filtered_df = df
-    d_min = filtered_df["DEPTH"].min()
-    d_max = filtered_df["DEPTH"].max()
-    pts = len(filtered_df)
+    d_min = df["DEPTH"].min()
+    d_max = df["DEPTH"].max()
+    pts = len(df)
     return [
         html.I(className="fa-solid fa-ruler-vertical text-info me-1"),
         f"Depth: {d_min:.0f}m – {d_max:.0f}m ({d_max - d_min:.0f}m span • {pts} intervals) • All 23 individual tracks fitted to screen width",
@@ -414,17 +377,14 @@ def update_header_info(json_computed, depth_filter):
 # ──────────────────────────────────────────────────────────────────────
 @app.callback(
     Output("tracks-container", "children"),
-    [Input("store-computed", "data"),
-     Input("depth-filter-select", "value")]
+    [Input("store-computed", "data")]
 )
-def render_full_continuous_tracks(json_computed, depth_filter):
+def render_full_continuous_tracks(json_computed):
     if not json_computed:
         return html.Div("No data loaded.", style={"color": CLR_MUTED, "padding": "40px", "textAlign": "center"})
 
     df = pd.read_json(io.StringIO(json_computed), orient="split")
-    filtered_df = filter_df_by_depth(df, depth_filter)
-    if len(filtered_df) == 0:
-        filtered_df = df
+    filtered_df = df
 
     depth = filtered_df["DEPTH"].values
     grid_clr = "rgba(51, 65, 85, 0.22)"
@@ -539,7 +499,6 @@ def toggle_upload_modal(n_clicks, is_open):
     [Output("store-raw", "data"),
      Output("store-computed", "data"),
      Output("upload-status", "children"),
-     Output("status-badge", "children"),
      Output("upload-modal", "is_open", allow_duplicate=True)],
     [Input("upload-data", "contents")],
     [State("upload-data", "filename")],
@@ -547,7 +506,7 @@ def toggle_upload_modal(n_clicks, is_open):
 )
 def handle_mudlog_upload(contents, filename):
     if not contents:
-        return no_update, no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     try:
         content_type, content_string = contents.split(",")
@@ -580,18 +539,16 @@ def handle_mudlog_upload(contents, filename):
         computed_df = compute_all(df)
 
         status_msg = dbc.Alert(f"✅ Successfully loaded {filename} ({len(df)} depth intervals).", color="success", style={"fontSize": "12px", "borderRadius": "8px"})
-        badge_text = [html.I(className="fa-solid fa-check me-1", style={"fontSize": "10px"}), f"{filename} ({len(df)} pts)"]
 
         return (
             df.to_json(orient="split", date_format="iso"),
             computed_df.to_json(orient="split", date_format="iso"),
             status_msg,
-            badge_text,
             False
         )
     except Exception as e:
         status_msg = dbc.Alert(f"❌ Error loading file: {str(e)}", color="danger", style={"fontSize": "12px", "borderRadius": "8px"})
-        return no_update, no_update, status_msg, no_update, no_update
+        return no_update, no_update, status_msg, no_update
 
 
 # ──────────────────────────────────────────────────────────────────────

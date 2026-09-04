@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 680" width="100%" height="100%" style="background-color: #070d1a; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="slideBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070d1a"/>
+      <stop offset="100%" stop-color="#04070e"/>
+    </linearGradient>
+
+    <!-- Actor Box Gradients -->
+    <linearGradient id="actorUser" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#065f46"/><stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="actorParser" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0369a1"/><stop offset="100%" stop-color="#075985"/>
+    </linearGradient>
+    <linearGradient id="actorEngine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857"/><stop offset="100%" stop-color="#065f46"/>
+    </linearGradient>
+    <linearGradient id="actorClassifier" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b45309"/><stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="actorApp" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6d28d9"/><stop offset="100%" stop-color="#5b21b6"/>
+    </linearGradient>
+
+    <!-- Loop & Opt Container Gradients -->
+    <linearGradient id="loopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1338"/><stop offset="100%" stop-color="#130b24"/>
+    </linearGradient>
+    <linearGradient id="optBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#062e24"/><stop offset="100%" stop-color="#031f18"/>
+    </linearGradient>
+
+    <!-- Arrow Markers -->
+    <marker id="arrCyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 7 3, 0 6" fill="#38bdf8" />
+    </marker>
+    <marker id="arrEmerald" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 7 3, 0 6" fill="#10b981" />
+    </marker>
+    <marker id="arrAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 7 3, 0 6" fill="#f59e0b" />
+    </marker>
+    <marker id="arrPurple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 7 3, 0 6" fill="#a855f7" />
+    </marker>
+    <marker id="arrGray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 7 3, 0 6" fill="#94a3b8" />
+    </marker>
+
+    <!-- Glow Filter -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Slide Background -->
+  <rect width="100%" height="100%" fill="url(#slideBg)" rx="10"/>
+
+  <!-- Slide Header -->
+  <g transform="translate(45, 36)">
+    <rect x="0" y="0" width="170" height="22" rx="4" fill="#0284c7" fill-opacity="0.2" stroke="#38bdf8" stroke-width="1"/>
+    <text x="85" y="15" fill="#38bdf8" font-size="10.5" font-weight="800" text-anchor="middle" letter-spacing="1">SEQUENCE WORKFLOW</text>
+    <text x="0" y="46" fill="#ffffff" font-size="20" font-weight="800" letter-spacing="-0.3">GWD Petrophysical Decision Support System — Data Processing Workflow</text>
+  </g>
+
+  <!-- Lifeline Columns (X Coordinates): 
+       User: 120, Parser: 370, Engine: 620, Classifier: 870, App: 1120 -->
+
+  <!-- Lifeline Vertical Dashed Lines -->
+  <g stroke="#1e293b" stroke-width="1.5" stroke-dasharray="5,5">
+    <line x1="120" y1="140" x2="120" y2="620" />
+    <line x1="370" y1="140" x2="370" y2="620" />
+    <line x1="620" y1="140" x2="620" y2="620" />
+    <line x1="870" y1="140" x2="870" y2="620" />
+    <line x1="1120" y1="140" x2="1120" y2="620" />
+  </g>
+
+  <!-- Participant Top Boxes -->
+  <!-- 1. User -->
+  <g transform="translate(45, 95)" filter="url(#shadow)">
+    <rect width="150" height="42" rx="8" fill="url(#actorUser)" stroke="#10b981" stroke-width="1.5"/>
+    <circle cx="24" cy="21" r="9" fill="#10b981" fill-opacity="0.3" stroke="#34d399" stroke-width="1.2"/>
+    <text x="24" y="25" fill="#ffffff" font-size="11" font-weight="900" text-anchor="middle">👤</text>
+    <text x="88" y="26" fill="#ffffff" font-size="12.5" font-weight="800" text-anchor="middle">User / Geologist</text>
+  </g>
+
+  <!-- 2. Parser -->
+  <g transform="translate(280, 95)" filter="url(#shadow)">
+    <rect width="180" height="42" rx="8" fill="url(#actorParser)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="90" y="20" fill="#ffffff" font-size="12" font-weight="800" text-anchor="middle">Ingestion Layer</text>
+    <text x="90" y="34" fill="#7dd3fc" font-size="10" font-family="'JetBrains Mono', monospace" text-anchor="middle">(parser.py)</text>
+  </g>
+
+  <!-- 3. Engine -->
+  <g transform="translate(525, 95)" filter="url(#shadow)">
+    <rect width="190" height="42" rx="8" fill="url(#actorEngine)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="95" y="20" fill="#ffffff" font-size="12" font-weight="800" text-anchor="middle">Petrophysical Engine</text>
+    <text x="95" y="34" fill="#6ee7b7" font-size="10" font-family="'JetBrains Mono', monospace" text-anchor="middle">(engine.py)</text>
+  </g>
+
+  <!-- 4. Classifier -->
+  <g transform="translate(775, 95)" filter="url(#shadow)">
+    <rect width="190" height="42" rx="8" fill="url(#actorClassifier)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="95" y="20" fill="#ffffff" font-size="12" font-weight="800" text-anchor="middle">Majority-Vote Classifier</text>
+    <text x="95" y="34" fill="#fde68a" font-size="10" font-weight="600" text-anchor="middle">Rule-Based Matrix</text>
+  </g>
+
+  <!-- 5. App UI -->
+  <g transform="translate(1025, 95)" filter="url(#shadow)">
+    <rect width="190" height="42" rx="8" fill="url(#actorApp)" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="95" y="20" fill="#ffffff" font-size="12" font-weight="800" text-anchor="middle">21-Track Web Visualizer</text>
+    <text x="95" y="34" fill="#d8b4fe" font-size="10" font-family="'JetBrains Mono', monospace" text-anchor="middle">(app.py)</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKFLOW SEQUENCE (Steps 1 to 7)                                     -->
+  <!-- ========================================================================= -->
+
+  <!-- Message 1: User -> Parser -->
+  <g transform="translate(0, 160)">
+    <line x1="120" y1="0" x2="365" y2="0" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrCyan)"/>
+    <rect x="135" y="-18" width="20" height="15" rx="3" fill="#0284c7"/>
+    <text x="145" y="-7" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">1</text>
+    <text x="162" y="-7" fill="#f8fafc" font-size="11" font-weight="600">Upload raw mud log file (.csv, .las, .xlsx)</text>
+  </g>
+
+  <!-- Self-call 2: Parser -> Parser (Normalize & buffer) -->
+  <g transform="translate(370, 195)">
+    <path d="M 0 0 L 30 0 L 30 20 L 5 20" fill="none" stroke="#38bdf8" stroke-width="1.8" marker-end="url(#arrCyan)"/>
+    <rect x="36" y="-3" width="20" height="15" rx="3" fill="#0284c7"/>
+    <text x="46" y="8" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">2</text>
+    <text x="62" y="8" fill="#cbd5e1" font-size="10.5" font-weight="500">Normalize, impute &amp; buffer gas channels (io.StringIO)</text>
+  </g>
+
+  <!-- Message 3: Parser -> Engine -->
+  <g transform="translate(0, 245)">
+    <line x1="370" y1="0" x2="615" y2="0" stroke="#10b981" stroke-width="2" marker-end="url(#arrEmerald)"/>
+    <rect x="385" y="-18" width="20" height="15" rx="3" fill="#059669"/>
+    <text x="395" y="-7" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">3</text>
+    <text x="412" y="-7" fill="#f8fafc" font-size="11" font-weight="600">Clean DataFrame (DEPTH, C1-C5, TG)</text>
+  </g>
+
+  <!-- Self-call 4: Engine -> Engine (Compute 16 indicators) -->
+  <g transform="translate(620, 275)">
+    <path d="M 0 0 L 30 0 L 30 20 L 5 20" fill="none" stroke="#10b981" stroke-width="1.8" marker-end="url(#arrEmerald)"/>
+    <rect x="36" y="-3" width="20" height="15" rx="3" fill="#059669"/>
+    <text x="46" y="8" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">4</text>
+    <text x="62" y="8" fill="#a7f3d0" font-size="10.5" font-weight="500">Compute 16 indicators (Pixler R1-R5, Haworth Wh/Bh/Ch, Dryness, WBS, GOW, GOR)</text>
+  </g>
+
+  <!-- Message 5: Engine -> Classifier -->
+  <g transform="translate(0, 325)">
+    <line x1="620" y1="0" x2="865" y2="0" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrAmber)"/>
+    <rect x="635" y="-18" width="20" height="15" rx="3" fill="#d97706"/>
+    <text x="645" y="-7" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">5</text>
+    <text x="662" y="-7" fill="#f8fafc" font-size="11" font-weight="600">16 continuous indicator curves array</text>
+  </g>
+
+  <!-- Self-call 6: Classifier -> Classifier -->
+  <g transform="translate(870, 350)">
+    <path d="M 0 0 L 30 0 L 30 20 L 5 20" fill="none" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#arrAmber)"/>
+    <rect x="36" y="-3" width="20" height="15" rx="3" fill="#d97706"/>
+    <text x="46" y="8" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">6</text>
+    <text x="62" y="8" fill="#fde68a" font-size="10.5" font-weight="500">Screen noise floor (TG&lt;300) &amp; tally 8 expert votes</text>
+  </g>
+
+  <!-- Message 7: Classifier -> App -->
+  <g transform="translate(0, 395)">
+    <line x1="870" y1="0" x2="1115" y2="0" stroke="#a855f7" stroke-width="2" marker-end="url(#arrPurple)"/>
+    <rect x="885" y="-18" width="20" height="15" rx="3" fill="#7e22ce"/>
+    <text x="895" y="-7" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">7</text>
+    <text x="912" y="-7" fill="#f8fafc" font-size="11" font-weight="600">21-track trajectory with facies labels (Gas / Oil / Water / No Show)</text>
+  </g>
+
+  <!-- Message 8: App -> User (Render Complete UI) -->
+  <g transform="translate(0, 425)">
+    <line x1="1120" y1="0" x2="125" y2="0" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrCyan)"/>
+    <rect x="135" y="-18" width="20" height="15" rx="3" fill="#0284c7"/>
+    <text x="145" y="-7" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">8</text>
+    <text x="162" y="-7" fill="#38bdf8" font-size="11" font-weight="700">Render depth axis, 21 tracks, sync crosshairs, facies overlays &amp; KPIs (&lt; 0.05s)</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- LOOP CONTAINER: DYNAMIC CALIBRATION                                       -->
+  <!-- ========================================================================= -->
+  <g transform="translate(65, 450)">
+    <!-- Loop Box Frame -->
+    <rect x="0" y="0" width="1150" height="110" rx="8" fill="url(#loopBg)" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="5,4" fill-opacity="0.75"/>
+    
+    <!-- Loop Badge -->
+    <rect x="0" y="0" width="180" height="20" rx="4" fill="#6b21a8"/>
+    <text x="10" y="14" fill="#f3e8ff" font-size="9.5" font-weight="800" letter-spacing="0.5">LOOP: DYNAMIC CALIBRATION</text>
+
+    <!-- Loop Sequence 1: User -> App (Edit formula/cutoff) -->
+    <g transform="translate(0, 32)">
+      <line x1="55" y1="0" x2="1050" y2="0" stroke="#c084fc" stroke-width="1.8" marker-end="url(#arrPurple)"/>
+      <text x="75" y="-6" fill="#e9d5ff" font-size="10.5" font-weight="600">8.1 Edit formulas or cutoffs in Formula Manager, toggle tracks in Column Manager</text>
+    </g>
+
+    <!-- Loop Sequence 2: App -> Engine (Recalculate) -->
+    <g transform="translate(0, 56)">
+      <line x1="1055" y1="0" x2="560" y2="0" stroke="#c084fc" stroke-width="1.6" stroke-dasharray="3,3" marker-end="url(#arrPurple)"/>
+      <text x="640" y="-6" fill="#d8b4fe" font-size="10" font-weight="600">8.2 Request recalculation with custom overrides</text>
+    </g>
+
+    <!-- Loop Sequence 3: Engine -> Classifier -> App -> User -->
+    <g transform="translate(0, 80)">
+      <line x1="555" y1="0" x2="800" y2="0" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrAmber)"/>
+      <line x1="805" y1="0" x2="1050" y2="0" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrPurple)"/>
+      <line x1="1055" y1="12" x2="60" y2="12" stroke="#34d399" stroke-width="1.8" stroke-dasharray="3,3" marker-end="url(#arrEmerald)"/>
+      <text x="575" y="-5" fill="#fde68a" font-size="9.5">8.3 Updated curves</text>
+      <text x="825" y="-5" fill="#d8b4fe" font-size="9.5">8.4 Revised fluid regime</text>
+      <text x="75" y="9" fill="#34d399" font-size="10" font-weight="700">8.5 Live refreshed tracks, log curves &amp; facies overlays (&lt; 0.05s latency)</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- OPT CONTAINER: EXPORT RESULTS                                             -->
+  <!-- ========================================================================= -->
+  <g transform="translate(65, 575)">
+    <!-- Opt Box Frame -->
+    <rect x="0" y="0" width="1150" height="50" rx="8" fill="url(#optBg)" stroke="#10b981" stroke-width="1.2" stroke-dasharray="5,4" fill-opacity="0.75"/>
+    
+    <!-- Opt Badge -->
+    <rect x="0" y="0" width="150" height="18" rx="4" fill="#047857"/>
+    <text x="10" y="13" fill="#ecfdf5" font-size="9.5" font-weight="800" letter-spacing="0.5">OPT: EXPORT RESULTS</text>
+
+    <!-- Opt Sequence: User -> App -> User -->
+    <g transform="translate(0, 30)">
+      <line x1="55" y1="0" x2="520" y2="0" stroke="#10b981" stroke-width="1.6" marker-end="url(#arrEmerald)"/>
+      <text x="75" y="-5" fill="#a7f3d0" font-size="10" font-weight="600">9.1 Request auditable report</text>
+      
+      <line x1="1055" y1="0" x2="550" y2="0" stroke="#34d399" stroke-width="1.8" stroke-dasharray="4,3" marker-end="url(#arrEmerald)"/>
+      <text x="575" y="-5" fill="#6ee7b7" font-size="10" font-weight="700">9.2 Deliver Computed CSV, High-Res PNG Well Log, Schema JSON &amp; PDF</text>
+    </g>
+  </g>
+
+  <!-- Slide Footer Info -->
+  <g transform="translate(45, 660)" font-size="10" fill="#64748b">
+    <text x="0" y="0">Universitas Gadjah Mada &bull; Departemen Ilmu Komputer dan Elektronika</text>
+    <text x="1190" y="0" text-anchor="end" fill="#94a3b8">Mohammad Azka Khairur Rahman (23/511608/PA/21830)</text>
+  </g>
+
+</svg>

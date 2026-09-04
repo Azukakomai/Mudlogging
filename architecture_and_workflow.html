@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mudlogging System Architecture & Data Workflow Diagrams</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Mermaid.js -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+
+  <style>
+    :root {
+      --bg-main: #050811;
+      --bg-panel: #0a1120;
+      --bg-card: #0e172a;
+      --bg-card-hover: #14223d;
+      --border-color: #1a2a47;
+      --border-bright: #28406c;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --accent-cyan: #38bdf8;
+      --accent-blue: #3b82f6;
+      --accent-indigo: #6366f1;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-heading: 'Outfit', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Sticky Header */
+    header {
+      background: rgba(10, 17, 32, 0.96);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0.9rem 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.25rem;
+      box-shadow: 0 3px 12px rgba(2, 132, 199, 0.4);
+    }
+
+    .header-titles h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #fff;
+      font-family: var(--font-heading);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .badge-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--accent-cyan);
+    }
+
+    .header-nav-tabs {
+      display: flex;
+      gap: 0.65rem;
+    }
+
+    .tab-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      transition: all 0.18s ease;
+      text-decoration: none;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      border-color: var(--accent-cyan);
+      background: var(--bg-card-hover);
+      transform: translateY(-1px);
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: var(--accent-cyan);
+      color: #38bdf8;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 2.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+    }
+
+    /* Section Cards */
+    .diagram-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .section-title-group h2 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #fff;
+      font-family: var(--font-heading);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title-group p {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    /* Action Toolbar (Zoom, Download, Fullscreen) */
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      background: rgba(16, 26, 46, 0.85);
+      border: 1px solid var(--border-bright);
+      color: var(--text-primary);
+      padding: 0.45rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.15s ease;
+    }
+
+    .btn-action:hover {
+      color: #fff;
+      border-color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .btn-download-svg {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+    .btn-download-svg:hover {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: #34d399;
+      color: #a7f3d0;
+    }
+
+    .btn-download-png {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+    }
+    .btn-download-png:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #e0f2fe;
+    }
+
+    /* Diagram Canvas Container (Large & Zoomable) */
+    .diagram-viewport {
+      background: #060a15;
+      border: 1.5px solid var(--border-bright);
+      border-radius: 12px;
+      position: relative;
+      overflow: auto;
+      min-height: 650px;
+      max-height: 850px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .diagram-content {
+      transform-origin: center center;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-block;
+      width: 100%;
+    }
+
+    .diagram-content svg {
+      width: 100% !important;
+      height: auto !important;
+      min-width: 900px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Explanation Grid / Key Details */
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .detail-card {
+      background: rgba(16, 26, 46, 0.65);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      backdrop-filter: blur(8px);
+      transition: border-color 0.15s;
+    }
+
+    .detail-card:hover {
+      border-color: var(--border-bright);
+    }
+
+    .detail-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-family: var(--font-heading);
+    }
+
+    .detail-card-desc {
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .detail-card code {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: #38bdf8;
+    }
+
+    /* Toast Alert */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f1c36;
+      border: 1px solid var(--accent-cyan);
+      color: var(--text-primary);
+      padding: 0.85rem 1.4rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 0.86rem;
+      font-weight: 600;
+      z-index: 2000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Footer */
+    footer {
+      background: #060a14;
+      border-top: 1px solid var(--border-color);
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    footer strong {
+      color: var(--text-secondary);
+    }
+
+    /* Print & Fullscreen styles */
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+      }
+      header, .toolbar-actions, footer {
+        display: none !important;
+      }
+      .diagram-section {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        page-break-after: always;
+        padding: 1rem;
+      }
+      .diagram-viewport {
+        background: #fff;
+        border: 1px solid #ccc;
+        max-height: none;
+      }
+      .diagram-content svg {
+        filter: invert(1) hue-rotate(180deg);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="header-brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-sitemap"></i>
+      </div>
+      <div class="header-titles">
+        <h1>
+          Mudlogging System Architecture & Data Workflow
+          <span class="badge-tag">UGM Skripsi SDLC</span>
+        </h1>
+        <p>Deterministic Gas While Drilling (GWD) Decision Support System &bull; High-Definition Interactive Diagrams</p>
+      </div>
+    </div>
+
+    <div class="header-nav-tabs">
+      <a class="tab-btn active" href="#sec-architecture">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>System Architecture</span>
+      </a>
+      <a class="tab-btn" href="#sec-workflow">
+        <i class="fa-solid fa-arrow-progress"></i>
+        <span>Data Workflow</span>
+      </a>
+      <button class="tab-btn" onclick="window.print()">
+        <i class="fa-solid fa-print"></i>
+        <span>Print PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Diagrams Container -->
+  <main>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 1: SYSTEM ARCHITECTURE DIAGRAM                                    -->
+    <!-- ========================================================================= -->
+    <section class="diagram-section" id="sec-architecture">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2>
+            <i class="fa-solid fa-cubes" style="color: var(--accent-cyan);"></i>
+            1. Three-Layer Modular System Architecture
+          </h2>
+          <p>Comprehensive decoupled system diagram showing raw source ingestion, deterministic calculation engine, verification suite, and 21-track reactive presentation.</p>
+        </div>
+        
+        <!-- Action Toolbar -->
+        <div class="toolbar-actions">
+          <button class="btn-action" onclick="zoomDiagram('arch-content', 1.2)" title="Zoom In">
+            <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
+          </button>
+          <button class="btn-action" onclick="zoomDiagram('arch-content', 0.8)" title="Zoom Out">
+            <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
+          </button>
+          <button class="btn-action" onclick="resetZoomDiagram('arch-content')" title="Reset Zoom">
+            <i class="fa-solid fa-rotate-left"></i> Reset
+          </button>
+          <button class="btn-action btn-download-svg" onclick="downloadDiagramSVG('arch-content', 'mudlog_system_architecture.svg')">
+            <i class="fa-solid fa-file-code"></i> Download SVG (Vector)
+          </button>
+          <button class="btn-action btn-download-png" onclick="downloadDiagramPNG('arch-content', 'mudlog_system_architecture.png')">
+            <i class="fa-solid fa-file-image"></i> Download High-Res PNG
+          </button>
+        </div>
+      </div>
+
+      <!-- Diagram Canvas -->
+      <div class="diagram-viewport" id="arch-viewport">
+        <div class="diagram-content" id="arch-content">
+          <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Inter, Outfit, sans-serif', 'primaryColor': '#0e1a32', 'primaryBorderColor': '#38bdf8', 'primaryTextColor': '#ffffff', 'lineColor': '#38bdf8', 'secondaryColor': '#111e38', 'tertiaryColor': '#080e1c'}}}%%
+flowchart TB
+    subgraph SOURCEDATA ["📂 1. Raw Wellsite Data Sources (First-Drilling Run)"]
+        F1["📄 ASCII LAS Files<br/><b>(.las 2.0 / 3.0)</b>"]
+        F2["📊 Rig Mud Logs<br/><b>(.csv / .txt / .tsv)</b>"]
+        F3["📑 Mud Logging Worksheets<br/><b>(.xlsx / .xls)</b>"]
+    end
+
+    subgraph INGESTION ["📥 Layer 1: Ingestion & Data Normalization Layer (parser.py)"]
+        P1["<b>Rig Banner & Metadata Stripper</b><br/>Scans headers, removes comment lines"]
+        P2["<b>Automated Header Normalization</b><br/>CH4 → C1, C2H6 → C2, DEP → DEPTH, etc."]
+        P3["<b>Numeric Validation & Missing-Value Imputation</b><br/>Coerce errors to float, fillna(0.0)"]
+        P4["<b>In-Memory Stream Buffer (io.StringIO)</b><br/>Zero disk I/O bottleneck & zero data leakage"]
+    end
+
+    subgraph COMPUTATION ["⚙️ Layer 2: Deterministic Petrophysical Logic Layer (engine.py)"]
+        subgraph RATIOS ["🧮 16 Derived Mathematical Indicators (Closed-Form Equations)"]
+            R1["<b>Pixler Hydrocarbon Ratios (1969)</b><br/>R1 (C1/C2), R2 (C1/C3), R3 (C2/C3), R4 (C1/iC4), R5 (C1/nC4)"]
+            R2["<b>Haworth Show Ratios (1985)</b><br/>Wetness (Wh%), Balance (Bh), Character (Ch)"]
+            R3["<b>Gas Dryness & Carbon Density</b><br/>Dryness (C1/TG), Carbon Index (Ci)"]
+            R4["<b>Composite Heavy Fractions</b><br/>GOW, GOW_noTG, WBS Score, GOR Index"]
+        end
+        
+        subgraph CLASSIFIER ["⚖️ Majority-Vote Expert Decision Engine (SPE PRMS Compliant)"]
+            MV1["1. Background Noise / Low Gas Cutoff (TG &lt; 300 / C1 &lt; 200 ppm)"]
+            MV2["2. Haworth Wetness (Wh &lt; 17.5 = Gas | 17.5 - 40 = Oil | &gt; 40 = Water)"]
+            MV3["3. Haworth Balance (Bh &ge; 15 = Gas | 0.5 - 15 = Oil | &lt; 0.5 = Water)"]
+            MV4["4. Dryness Ratio (&ge; 85% = Gas | 50 - 85% = Oil | &lt; 50% = Water)"]
+            MV5["5. Pixler R1 (&ge; 15 = Gas | 2 - 15 = Oil | &lt; 2 = Water) + WBS &amp; GOW Voting"]
+            ZOUT["🏷️ <b>Predicted Fluid Regime</b><br/>🟩 Gas Pay &bull; 🟧 Oil Pay &bull; 🟦 Water Sand &bull; ⬛ No Show"]
+        end
+    end
+
+    subgraph EVALUATION ["🧪 Automated Verification & Benchmarking (evaluator.py)"]
+        E1["<b>Unit Mathematical Verification</b><br/>Synthetic benchmark tensor arrays (zero float drift)"]
+        E2["<b>Ground-Truth Scoring vs RFT / MDT</b><br/>Multi-Class Confusion Matrix (TP, FP, TN, FN)"]
+        E3["<b>Classification Metrics</b><br/>Macro-F1 Score, Accuracy, Precision, Recall"]
+    end
+
+    subgraph PRESENTATION ["🖥️ Layer 3: Reactive 21-Track Web Presentation Layer (app.py / Web SPA)"]
+        V1["📊 <b>21 Dedicated Continuous Tracks</b><br/>Every ratio & gas has an independent graph"]
+        V2["📌 <b>Sticky Depth (MD) Axis</b><br/>Locked left axis for seamless horizontal scrolling"]
+        V3["🎯 <b>Synchronized Depth Crosshair</b><br/>Hovering highlights depth & readouts across all 21 tracks"]
+        V4["🎨 <b>Color-Coded Fluid Facies Overlay</b><br/>Instant visual interval delineation"]
+        
+        subgraph CONTROLS ["🎛️ Dynamic Pipeline Managers"]
+            M1["<b>Column Configuration Manager</b><br/>Toggle show/hide & add custom computed tracks"]
+            M2["<b>Petrophysical Formula Manager</b><br/>Edit equations, calibrate cutoffs, live preview"]
+            M3["<b>Export Deliverables</b><br/>Computed CSV, High-Res PNG, Schema JSON, PDF"]
+        end
+    end
+
+    SOURCEDATA ==> INGESTION
+    INGESTION ==> COMPUTATION
+    COMPUTATION ==> EVALUATION
+    COMPUTATION ==> PRESENTATION
+    CONTROLS -.->|"Live Recalculation & Formula Overrides"| COMPUTATION
+
+    classDef sourceStyle fill:#0c172c,stroke:#3b82f6,stroke-width:2px,color:#93c5fd;
+    classDef ingestStyle fill:#0d233a,stroke:#06b6d4,stroke-width:2px,color:#67e8f9;
+    classDef logicStyle fill:#102b22,stroke:#10b981,stroke-width:2px,color:#6ee7b7;
+    classDef evalStyle fill:#291a38,stroke:#a855f7,stroke-width:2px,color:#d8b4fe;
+    classDef presStyle fill:#281e11,stroke:#f59e0b,stroke-width:2px,color:#fde68a;
+
+    class F1,F2,F3 sourceStyle;
+    class P1,P2,P3,P4 ingestStyle;
+    class R1,R2,R3,R4,MV1,MV2,MV3,MV4,MV5,ZOUT logicStyle;
+    class E1,E2,E3 evalStyle;
+    class V1,V2,V3,V4,M1,M2,M3 presStyle;
+          </pre>
+        </div>
+      </div>
+
+      <!-- Technical Architecture Explanation Cards -->
+      <div class="details-grid">
+        <div class="detail-card">
+          <div class="detail-card-title"><i class="fa-solid fa-file-import" style="color: var(--accent-cyan);"></i> Ingestion Layer (<code>parser.py</code>)</div>
+          <div class="detail-card-desc">Handles dirty rig metadata headers, multi-format parsing (.las, .csv, .txt, .xlsx), automated channel aliases, and float conversions in volatile RAM via <code>io.StringIO</code>.</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-title"><i class="fa-solid fa-gears" style="color: var(--accent-emerald);"></i> Logic Layer (<code>engine.py</code>)</div>
+          <div class="detail-card-desc">Vectorized in-memory DAG computing 16 ratios and majority-vote fluid classification (Gas, Oil, Water, No Show) with 100% mathematical auditability (SPE PRMS Ch. 4).</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-title"><i class="fa-solid fa-chart-line" style="color: var(--accent-amber);"></i> Presentation Layer (<code>app.py</code>)</div>
+          <div class="detail-card-desc">Interactive dashboard rendering 21 dedicated tracks, synchronized depth crosshairs, KPI metrics, and dynamic Column & Formula Manager popups with live preview.</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-title"><i class="fa-solid fa-vial-circle-check" style="color: var(--accent-purple);"></i> Evaluator Layer (<code>evaluator.py</code>)</div>
+          <div class="detail-card-desc">Executes automated tensor verification, ground-truth benchmarking vs Wireline Formation Testers (RFT/MDT), Confusion Matrix, and Macro-$F_1$ scoring.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 2: DATA WORKFLOW & PROCESSING PIPELINE DIAGRAM                    -->
+    <!-- ========================================================================= -->
+    <section class="diagram-section" id="sec-workflow">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2>
+            <i class="fa-solid fa-arrow-progress" style="color: var(--accent-emerald);"></i>
+            2. End-to-End Data Processing Workflow & Execution Lifecycle
+          </h2>
+          <p>High-resolution sequence workflow mapping chronological data flow from rig file upload to instant multi-track visualization (&le; 5.0s latency).</p>
+        </div>
+
+        <!-- Action Toolbar -->
+        <div class="toolbar-actions">
+          <button class="btn-action" onclick="zoomDiagram('wf-content', 1.2)" title="Zoom In">
+            <i class="fa-solid fa-magnifying-glass-plus"></i> Zoom In
+          </button>
+          <button class="btn-action" onclick="zoomDiagram('wf-content', 0.8)" title="Zoom Out">
+            <i class="fa-solid fa-magnifying-glass-minus"></i> Zoom Out
+          </button>
+          <button class="btn-action" onclick="resetZoomDiagram('wf-content')" title="Reset Zoom">
+            <i class="fa-solid fa-rotate-left"></i> Reset
+          </button>
+          <button class="btn-action btn-download-svg" onclick="downloadDiagramSVG('wf-content', 'mudlog_data_workflow.svg')">
+            <i class="fa-solid fa-file-code"></i> Download SVG (Vector)
+          </button>
+          <button class="btn-action btn-download-png" onclick="downloadDiagramPNG('wf-content', 'mudlog_data_workflow.png')">
+            <i class="fa-solid fa-file-image"></i> Download High-Res PNG
+          </button>
+        </div>
+      </div>
+
+      <!-- Diagram Canvas -->
+      <div class="diagram-viewport" id="wf-viewport">
+        <div class="diagram-content" id="wf-content">
+          <pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Inter, Outfit, sans-serif', 'primaryColor': '#0e1a32', 'primaryBorderColor': '#10b981', 'primaryTextColor': '#ffffff', 'lineColor': '#10b981', 'secondaryColor': '#111e38', 'tertiaryColor': '#080e1c'}}}%%
+sequenceDiagram
+    autonumber
+    actor User as 👤 Geoscientist / Petrophysicist
+    participant Upload as 📤 Upload Ingestion (parser.py)
+    participant Engine as ⚙️ Petrophysical Engine (engine.py)
+    participant Classifier as ⚖️ Majority-Vote Decision Engine
+    participant UI as 📊 21-Track Visualizer (app.py)
+
+    User->>Upload: 1. Drag & Drop Raw Mud Log (.csv, .las, .xlsx)
+    activate Upload
+    Upload->>Upload: Detect Format, Strip Metadata Headers, Impute Nulls
+    Upload->>Engine: In-Memory Clean DataFrame (DEPTH, C1-C5, TG)
+    deactivate Upload
+
+    activate Engine
+    Engine->>Engine: 2. Compute Pixler Ratios: R1 (C1/C2), R2 (C1/C3), R3 (C2/C3), R4, R5
+    Engine->>Engine: 3. Compute Haworth Show Ratios: Wh (Wetness), Bh (Balance), Ch (Character)
+    Engine->>Engine: 4. Compute Dryness (C1/TG), Carbon Index (Ci), GOW, WBS, GOR
+    Engine->>Classifier: Pass Complete 16 Calculated Ratio Curves Array
+    deactivate Engine
+
+    activate Classifier
+    Classifier->>Classifier: 5. Background Noise Filter (TG &lt; 300 / C1 &lt; 200 ppm)
+    Classifier->>Classifier: 6. Tally Multi-Criteria Expert Votes (Wh, Bh, Ch, Dryness, R1, WBS, GOW_noTG)
+    Classifier->>Classifier: 7. Determine Winning Regime: [Gas Pay | Oil Pay | Water Sand | No Show]
+    Classifier->>UI: Stream Full 21-Track Depth Trajectory State
+    deactivate Classifier
+
+    activate UI
+    UI->>UI: 8. Render Sticky Depth (MD) Axis + 21 Dedicated Canvas Graphs
+    UI->>UI: 9. Overlay Color-Coded Fluid Facies Intervals
+    UI->>UI: 10. Calculate KPI Summary (Depth Span, Peak C1, Mean Dryness, Net Pay)
+    UI-->>User: 11. Display Interactive Multi-Track Presentation (Latency &lt;&lt; 5.0s)
+    deactivate UI
+
+    opt Operational Dynamic Calibration Workflow
+        User->>UI: Open Column / Formula Manager Popup
+        UI->>Engine: Send Custom Mathematical Formula / Cutoff Overrides
+        Engine->>UI: Instant Live Curve & Facies Recalculation
+    end
+
+    opt Ground-Truth Benchmarking & Export
+        User->>UI: Trigger Export (CSV / PNG / Schema JSON / PDF)
+        UI-->>User: Download Auditable 21-Parameter Well Log Report
+    end
+          </pre>
+        </div>
+      </div>
+
+      <!-- Workflow Step Highlights -->
+      <div class="details-grid">
+        <div class="detail-card">
+          <div class="detail-card-title"><span style="color: var(--accent-cyan); font-weight: 800;">Step 1 &ndash; 2</span> Ingestion & In-Memory Sanitization</div>
+          <div class="detail-card-desc">User drags and drops raw field logs. Parser cleans metadata, normalizes channel aliases, and builds numeric buffers in volatile RAM in less than <code>0.02s</code>.</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-title"><span style="color: var(--accent-emerald); font-weight: 800;">Step 3 &ndash; 4</span> 16 Deterministic Ratio Derivations</div>
+          <div class="detail-card-desc">Vectorized calculation of Pixler ratios, Haworth parameters, Dryness, Carbon Index, GOW, WBS, and GOR without black-box ML risks.</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-title"><span style="color: var(--accent-amber); font-weight: 800;">Step 5 &ndash; 7</span> Multi-Criteria Expert Classification</div>
+          <div class="detail-card-desc">The majority-vote rule matrix tallies 8 independent indicators per depth step to classify reservoir fluid regimes with full SPE PRMS audit traceability.</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-title"><span style="color: var(--accent-purple); font-weight: 800;">Step 8 &ndash; 11</span> Interactive Exploration & Export</div>
+          <div class="detail-card-desc">Synchronized depth crosshair tracking across 21 tracks, live formula editing with real-time audit preview, and 1-click deliverable exports.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="appToast">
+    <i class="fa-solid fa-circle-check" style="color: #34d399; font-size: 1.2rem;"></i>
+    <span id="toastMsg">Export downloaded successfully</span>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      <strong>Mudlogging Decision Support System</strong> &bull; Universitas Gadjah Mada (UGM) Skripsi &copy; 2026
+    </div>
+    <div>
+      Penyusun: <strong>Mohammad Azka Khairur Rahman (23/511608/PA/21830)</strong> &bull; Pembimbing: <strong>Dr. Techn. Khabib Mustofa, S.Si., M.Kom.</strong>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize Mermaid.js with High-Resolution Typography and Large Sizing
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: {
+        useMaxWidth: false,
+        htmlLabels: true,
+        curve: 'basis',
+        nodeSpacing: 45,
+        rankSpacing: 55
+      },
+      sequence: {
+        useMaxWidth: false,
+        showSequenceNumbers: true,
+        actorMargin: 60,
+        boxMargin: 15,
+        messageMargin: 35
+      }
+    });
+
+    // Zoom State Storage
+    const zoomLevels = {
+      'arch-content': 1.0,
+      'wf-content': 1.0
+    };
+
+    function zoomDiagram(contentId, factor) {
+      zoomLevels[contentId] = (zoomLevels[contentId] || 1.0) * factor;
+      // Clamp between 0.4 and 3.0
+      zoomLevels[contentId] = Math.max(0.4, Math.min(3.0, zoomLevels[contentId]));
+      
+      const el = document.getElementById(contentId);
+      if (el) {
+        el.style.transform = `scale(${zoomLevels[contentId]})`;
+      }
+    }
+
+    function resetZoomDiagram(contentId) {
+      zoomLevels[contentId] = 1.0;
+      const el = document.getElementById(contentId);
+      if (el) {
+        el.style.transform = `scale(1.0)`;
+      }
+    }
+
+    /**
+     * Download Diagram as Scalable Vector Graphics (.SVG)
+     */
+    function downloadDiagramSVG(containerId, filename) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) {
+        showToast('SVG diagram is still rendering. Please retry in a moment.');
+        return;
+      }
+
+      // Clone SVG and prepare for standalone vector export
+      const svgClone = svgEl.cloneNode(true);
+      svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svgClone.setAttribute('style', 'background-color: #060a15; font-family: Inter, sans-serif;');
+
+      const svgData = new XMLSerializer().serializeToString(svgClone);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || 'diagram.svg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast(`Downloaded vector SVG: ${filename}`);
+    }
+
+    /**
+     * Download Diagram as High-Resolution PNG (.PNG @ 2.5x Scale)
+     */
+    function downloadDiagramPNG(containerId, filename) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) {
+        showToast('Diagram is still rendering.');
+        return;
+      }
+
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = function() {
+        const scale = 2.5; // High resolution scale
+        const canvas = document.createElement('canvas');
+        canvas.width = (svgEl.viewBox.baseVal.width || svgEl.clientWidth || 1200) * scale;
+        canvas.height = (svgEl.viewBox.baseVal.height || svgEl.clientHeight || 800) * scale;
+
+        const ctx = canvas.getContext('2d');
+        // Dark background matching the theme
+        ctx.fillStyle = '#060a15';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+
+        const pngUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = pngUrl;
+        link.download = filename || 'diagram.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showToast(`Downloaded high-res PNG: ${filename}`);
+      };
+      img.src = url;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('appToast');
+      const msgEl = document.getElementById('toastMsg');
+      if (!toast || !msgEl) return;
+      msgEl.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+  </script>
+</body>
+</html>
