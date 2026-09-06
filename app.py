@@ -144,7 +144,7 @@ app = dash.Dash(
         "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
     ],
     suppress_callback_exceptions=True,
-    title="MudLog Pro — Continuous Depth Track Log",
+    title="Mudlogging",
 )
 
 server = app.server
