@@ -20,19 +20,23 @@ def parse_mudlog_file(file_path_or_buffer):
             raise FileNotFoundError(f"File not found: {file_path_or_buffer}")
         
         ext = os.path.splitext(file_path_or_buffer)[1].lower()
+        # Extracts file extension
         if ext in ['.xlsx', '.xls']:
             df_raw = pd.read_excel(file_path_or_buffer)
+        # if Extension is not xlsx
         else:
             with open(file_path_or_buffer, 'r', encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
             
             header_idx = 0
             for i, line in enumerate(lines[:100]):
+                # finding header index
                 line_upper = line.upper()
                 if 'DEPTH' in line_upper or 'METRES' in line_upper or 'C1' in line_upper:
                     header_idx = i
                     break
-            
+
+            # Joins all lines from the header index to the end
             content = "".join(lines[header_idx:])
             df_raw = pd.read_csv(io.StringIO(content))
     else:
@@ -53,28 +57,33 @@ def parse_mudlog_file(file_path_or_buffer):
     }
     
     df_raw = df_raw.rename(columns=column_mapping)
-
+    # checks if required columns are available
     required_cols = ['DEPTH', 'C1', 'C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5']
     for col in required_cols:
         if col not in df_raw.columns:
             df_raw[col] = 0.0
 
     valid_rows = []
+
+    # check depth in each row, if depth is in float format it will accept, otherwise it will skip the row
     for idx, row in df_raw.iterrows():
         try:
             depth_val = float(row['DEPTH'])
             valid_rows.append(idx)
         except (ValueError, TypeError):
             continue
-
+    
+    # selects all rows with valid depth
     df_clean = df_raw.loc[valid_rows].copy()
 
     cols_to_convert = ['DEPTH', 'C1', 'C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5']
     if 'TG' in df_clean.columns:
         cols_to_convert.append('TG')
 
+    # converts all columns to numeric format, if value is not a number it will be converted to 0.0  
     for col in cols_to_convert:
         df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').fillna(0.0)
 
+    # Sorts the dataframe by depth from shallowest to deepest, dropping initial index
     df_clean = df_clean.sort_values(by='DEPTH').reset_index(drop=True)
     return df_clean

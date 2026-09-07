@@ -16,6 +16,7 @@ import pandas as pd
 #  Utility: safe division (returns NaN instead of raising on zero-divisor)
 # ---------------------------------------------------------------------------
 
+# Divide function
 def _safe_div(numerator, denominator):
     """Element-wise division that returns NaN where denominator is zero."""
     with np.errstate(divide='ignore', invalid='ignore'):
