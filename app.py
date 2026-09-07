@@ -340,6 +340,9 @@ app.layout = html.Div([
 # ──────────────────────────────────────────────────────────────────────
 #  Data Filtering Utility
 # ──────────────────────────────────────────────────────────────────────
+
+# Deprecated
+
 def filter_df_by_depth(df: pd.DataFrame, depth_filter: str) -> pd.DataFrame:
     if df is None or len(df) == 0:
         return df
@@ -368,7 +371,7 @@ def update_header_info(json_computed):
     pts = len(df)
     return [
         html.I(className="fa-solid fa-ruler-vertical text-info me-1"),
-        f"Depth: {d_min:.0f}m – {d_max:.0f}m ({d_max - d_min:.0f}m span • {pts} intervals) • All 23 individual tracks fitted to screen width",
+        f"Depth: {d_min:.0f}m – {d_max:.0f}m ({d_max - d_min:.0f}m span • {pts} intervals)",
     ]
 
 
