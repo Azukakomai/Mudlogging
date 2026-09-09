@@ -28,11 +28,175 @@ def _safe_div(numerator, denominator):
 #  Core computation
 # ---------------------------------------------------------------------------
 
-def compute_all(df: pd.DataFrame) -> pd.DataFrame:
+# Default formula definitions matching thesis / petrophysical standard
+DEFAULT_FORMULAS = {
+    "WH": {
+        "name": "Haworth Wetness Ratio (Wh)",
+        "expr": "((C2 + C3 + IC4 + NC4 + IC5 + NC5) / DERIVED_TG) * 100.0",
+        "gas": "Wh < 17.5",
+        "oil": "17.5 <= Wh <= 40.0",
+        "water": "Wh > 40.0",
+    },
+    "BH": {
+        "name": "Haworth Balance Ratio (Bh)",
+        "expr": "(C1 + C2) / (C3 + IC4 + NC4 + IC5 + NC5)",
+        "gas": "Bh >= 15.0",
+        "oil": "0.5 <= Bh < 15.0",
+        "water": "Bh < 0.5",
+    },
+    "CH": {
+        "name": "Haworth Character Ratio (Ch)",
+        "expr": "(IC4 + NC4 + IC5 + NC5) / C3",
+        "gas": "Ch < 0.5",
+        "oil": "Ch >= 0.5",
+        "water": "Undefined",
+    },
+    "R1_C1_C2": {
+        "name": "Pixler R1 (C1 / C2)",
+        "expr": "C1 / C2",
+        "gas": "R1 >= 15.0",
+        "oil": "2.0 <= R1 < 15.0",
+        "water": "R1 < 2.0",
+    },
+    "R2_C1_C3": {
+        "name": "Pixler R2 (C1 / C3)",
+        "expr": "C1 / C3",
+        "gas": "R2 > 30.0",
+        "oil": "4.0 <= R2 <= 30.0",
+        "water": "R2 < 4.0",
+    },
+    "R3_C2_C3": {
+        "name": "Pixler R3 (C2 / C3)",
+        "expr": "C2 / C3",
+        "gas": "R3 < 0.5",
+        "oil": "0.5 <= R3 <= 5.0",
+        "water": "R3 > 5.0",
+    },
+    "R4_C1_IC4": {
+        "name": "Ratio 4 (C1 / iC4)",
+        "expr": "C1 / IC4",
+        "gas": "R4 > 150.0",
+        "oil": "15.0 <= R4 <= 150.0",
+        "water": "R4 < 15.0",
+    },
+    "R5_C1_NC4": {
+        "name": "Ratio 5 (C1 / nC4)",
+        "expr": "C1 / NC4",
+        "gas": "R5 > 100.0",
+        "oil": "10.0 <= R5 <= 100.0",
+        "water": "R5 < 10.0",
+    },
+    "DRYNESS": {
+        "name": "Dryness Ratio (C1 / TG)",
+        "expr": "C1 / DERIVED_TG",
+        "gas": "Dry >= 0.85",
+        "oil": "0.50 <= Dry < 0.85",
+        "water": "Dry < 0.50",
+    },
+    "CARBON_INDEX": {
+        "name": "Carbon Density Index (Ci)",
+        "expr": "DERIVED_TG / (C1 + 2*C2 + 3*C3 + 4*IC4 + 4*NC4 + 5*IC5 + 5*NC5)",
+        "gas": "> 0.85",
+        "oil": "0.40 - 0.85",
+        "water": "< 0.40",
+    },
+    "GOW": {
+        "name": "Composite GOW",
+        "expr": "(C3 + IC4 + NC4 + IC5 + NC5) * DERIVED_TG",
+        "gas": "GOW < 500",
+        "oil": "500 <= GOW <= 15000",
+        "water": "GOW > 15000",
+    },
+    "GOW_NOTG": {
+        "name": "GOW No-TG (Normalized Heavy Fraction)",
+        "expr": "(C2 + C3 + IC4 + NC4 + IC5 + NC5) / DERIVED_TG",
+        "gas": "< 0.015",
+        "oil": "0.015 - 0.08",
+        "water": "> 0.08",
+    },
+    "WBS": {
+        "name": "Wetness-Balance Score (WBS)",
+        "expr": "((log10(BH) - log10(8)) / (log10(1000) - log10(8))) - (log10(WH) / log10(100))",
+        "gas": "WBS > 0",
+        "oil": "-0.5 <= WBS <= 0",
+        "water": "WBS < -0.5",
+    },
+    "GOR": {
+        "name": "Gas-Oil Ratio (GOR)",
+        "expr": "where((TG_USED > 0.8) & (TG_USED < 1.2) & (C1 > 2000), 0, 1)",
+        "gas": "> 5000",
+        "oil": "500 - 5000",
+        "water": "< 500",
+    },
+}
+
+
+def eval_expr(expr: str, df: pd.DataFrame):
+    """
+    Safely evaluate a mathematical expression against DataFrame column arrays.
+    Supports variables (C1, C2, C3, iC4, nC4, iC5, nC5, TG, DERIVED_TG, etc.)
+    and math operations log10, log, sqrt, abs, exp, where.
+    """
+    if not expr or not isinstance(expr, str):
+        return np.full(len(df), np.nan)
+
+    clean_expr = expr.strip()
+    if not clean_expr:
+        return np.full(len(df), np.nan)
+
+    context = {
+        'log10': lambda x: np.where(np.asarray(x, dtype=float) > 0, np.log10(np.asarray(x, dtype=float)), np.nan),
+        'log': lambda x: np.where(np.asarray(x, dtype=float) > 0, np.log(np.asarray(x, dtype=float)), np.nan),
+        'sqrt': lambda x: np.where(np.asarray(x, dtype=float) >= 0, np.sqrt(np.asarray(x, dtype=float)), np.nan),
+        'abs': np.abs,
+        'exp': np.exp,
+        'where': np.where,
+        'np': np,
+    }
+
+    for col in df.columns:
+        vals = pd.to_numeric(df[col], errors='coerce').fillna(0.0).values.astype(float)
+        context[col] = vals
+        context[col.upper()] = vals
+        context[col.lower()] = vals
+        # Common casing
+        if col.upper() == 'IC4':
+            context['iC4'] = vals
+        elif col.upper() == 'NC4':
+            context['nC4'] = vals
+        elif col.upper() == 'IC5':
+            context['iC5'] = vals
+        elif col.upper() == 'NC5':
+            context['nC5'] = vals
+        elif col.upper() == 'DERIVED_TG':
+            context['derived_tg'] = vals
+        elif col.upper() == 'TG_USED':
+            context['TG'] = vals
+            context['tg'] = vals
+
+    if 'TG' not in context:
+        if 'TG_USED' in context:
+            context['TG'] = context['TG_USED']
+        elif 'DERIVED_TG' in context:
+            context['TG'] = context['DERIVED_TG']
+
+    try:
+        res = eval(clean_expr, {"__builtins__": {}}, context)
+        if isinstance(res, (int, float)):
+            res = np.full(len(df), float(res))
+        elif not isinstance(res, np.ndarray):
+            res = np.array(res, dtype=float)
+        return res
+    except Exception as e:
+        raise ValueError(f"Expression evaluation error: {str(e)}")
+
+
+def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns: list = None) -> pd.DataFrame:
     """
     Takes a cleaned DataFrame with columns:
-        DEPTH, C1, C2, C3, IC4, NC4, IC5, NC5  (and optionally TG)
-    Returns a new DataFrame with all original columns plus 16 derived columns.
+        DEPTH, C1, C2, C3, IC4, NC4, IC5, NC5 (and optionally TG)
+    Accepts optional formula_overrides {key: expr_str} and custom_columns [{key, expr}].
+    Returns a new DataFrame with all original columns plus derived columns & Zone.
     """
     out = df.copy()
 
@@ -45,7 +209,21 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     NC5 = out['NC5'].values.astype(float)
 
     # ------------------------------------------------------------------
-    #  1–5. Pixler Hydrocarbon Ratios
+    #  Base Derived TG
+    # ------------------------------------------------------------------
+    derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
+
+    if 'TG' in out.columns and out['TG'].notna().any() and (out['TG'] > 0).any():
+        TG = out['TG'].values.astype(float)
+        TG = np.where(TG > 0, TG, derived_tg)
+    else:
+        TG = derived_tg
+
+    out['DERIVED_TG'] = derived_tg
+    out['TG_USED']    = TG
+
+    # ------------------------------------------------------------------
+    #  Pixler & Ratio Defaults
     # ------------------------------------------------------------------
     out['R1_C1_C2']  = _safe_div(C1, C2)
     out['R2_C1_C3']  = _safe_div(C1, C3)
@@ -56,63 +234,25 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
     out['C3_C1']     = _safe_div(C3, C1)
 
     # ------------------------------------------------------------------
-    #  6. Total Gas Volume — use uploaded TG if available, else derive
-    # ------------------------------------------------------------------
-    derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
-
-    if 'TG' in out.columns and out['TG'].notna().any() and (out['TG'] > 0).any():
-        TG = out['TG'].values.astype(float)
-        # Where TG is zero/missing, fall back to derived
-        TG = np.where(TG > 0, TG, derived_tg)
-    else:
-        TG = derived_tg
-
-    out['DERIVED_TG'] = derived_tg
-    out['TG_USED']    = TG
-
-    # ------------------------------------------------------------------
-    #  7. Dryness Ratio (C1 / Derived_TG)
+    #  Standard Petrophysical Indicators
     # ------------------------------------------------------------------
     out['DRYNESS'] = _safe_div(C1, derived_tg)
-
-    # ------------------------------------------------------------------
-    #  8. Carbon Index (TG Sum)
-    # ------------------------------------------------------------------
     carbon_weighted = C1 + 2*C2 + 3*C3 + 4*IC4 + 4*NC4 + 5*IC5 + 5*NC5
     out['CARBON_INDEX'] = _safe_div(derived_tg, carbon_weighted)
 
-    # ------------------------------------------------------------------
-    #  9. Expanded Wetness Ratio (Wh)
-    # ------------------------------------------------------------------
     heavy_sum = C2 + C3 + IC4 + NC4 + IC5 + NC5
     out['WH'] = _safe_div(heavy_sum, derived_tg) * 100.0
 
-    # ------------------------------------------------------------------
-    # 10. Expanded Balance Ratio (Bh)
-    # ------------------------------------------------------------------
     light = C1 + C2
     heavy = C3 + IC4 + NC4 + IC5 + NC5
     out['BH'] = _safe_div(light, heavy)
 
-    # ------------------------------------------------------------------
-    # 11. Expanded Character Ratio (Ch)
-    # ------------------------------------------------------------------
     butane_pentane = IC4 + NC4 + IC5 + NC5
     out['CH'] = _safe_div(butane_pentane, C3)
 
-    # ------------------------------------------------------------------
-    # 12. GOW indicator
-    # ------------------------------------------------------------------
     out['GOW'] = heavy * derived_tg
-
-    # ------------------------------------------------------------------
-    # 13. GOW without TG multiplier
-    # ------------------------------------------------------------------
     out['GOW_NOTG'] = _safe_div(heavy, derived_tg)
 
-    # ------------------------------------------------------------------
-    # 14. Wetness-Balance Score (WBS)
-    # ------------------------------------------------------------------
     Bh = out['BH'].values.astype(float)
     Wh = out['WH'].values.astype(float)
 
@@ -122,19 +262,38 @@ def compute_all(df: pd.DataFrame) -> pd.DataFrame:
         log_8   = np.log10(8)
         log_1000 = np.log10(1000)
         log_100  = np.log10(100)
-
         wbs = (log_bh - log_8) / (log_1000 - log_8) - log_wh / log_100
 
     out['WBS'] = wbs
-
-    # ------------------------------------------------------------------
-    # 15. GOR flag (simplified Gas-Oil Ratio index)
-    # ------------------------------------------------------------------
     gor = np.where((TG > 0.8) & (TG < 1.2) & (C1 > 2000), 0, 1)
     out['GOR'] = gor
 
     # ------------------------------------------------------------------
-    # 16. Zone Classification — majority-vote expert matrix
+    #  Apply Dynamic Formula Overrides if provided
+    # ------------------------------------------------------------------
+    if formula_overrides:
+        for key, expr in formula_overrides.items():
+            if expr and isinstance(expr, str) and expr.strip():
+                try:
+                    out[key] = eval_expr(expr, out)
+                except Exception:
+                    pass
+
+    # ------------------------------------------------------------------
+    #  Apply Custom User Columns if provided
+    # ------------------------------------------------------------------
+    if custom_columns:
+        for item in custom_columns:
+            col_key = item.get('key')
+            col_expr = item.get('expr')
+            if col_key and col_expr:
+                try:
+                    out[col_key] = eval_expr(col_expr, out)
+                except Exception:
+                    out[col_key] = np.nan
+
+    # ------------------------------------------------------------------
+    #  Zone Classification — majority-vote expert matrix
     # ------------------------------------------------------------------
     out['ZONE'] = _classify_zones(out)
 
