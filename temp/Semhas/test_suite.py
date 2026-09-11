@@ -2,6 +2,7 @@
 """
 Automated Verification Test Suite — Mudlogging Petrophysical System
 Validates mathematical calculations, boundary conditions, and latency targets.
+Matches all 16 derived petrophysical indicators from Chapter 3.
 """
 
 import sys
@@ -12,10 +13,12 @@ import unittest
 import numpy as np
 import pandas as pd
 
-# Add parent directory for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add repository root for imports
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
-from engine import compute_all
+from engine import compute_all, eval_expr, DEFAULT_FORMULAS
 from parser import parse_mudlog_file
 
 
@@ -33,15 +36,24 @@ class TestPetrophysicalFormulas(unittest.TestCase):
             'TG': 46730.0
         }])
 
-    def test_pixler_ratios(self):
+    def test_pixler_and_butane_ratios(self):
+        """Validates Chapter 3 Equations 74 and 80 (Pixler R1–R4, Ratio iC4, Ratio nC4)."""
         res = compute_all(self.sample_data)
+        # R1 = C1 / C2
         self.assertAlmostEqual(res['R1_C1_C2'].iloc[0], 45000.0 / 1200.0, places=4)
+        # R2 = C1 / C3
         self.assertAlmostEqual(res['R2_C1_C3'].iloc[0], 45000.0 / 300.0, places=4)
-        self.assertAlmostEqual(res['R3_C2_C3'].iloc[0], 1200.0 / 300.0, places=4)
-        self.assertAlmostEqual(res['R4_C1_IC4'].iloc[0], 45000.0 / 80.0, places=4)
-        self.assertAlmostEqual(res['R5_C1_NC4'].iloc[0], 45000.0 / 100.0, places=4)
+        # R3 = C3 / C1
+        self.assertAlmostEqual(res['R3_C3_C1'].iloc[0], 300.0 / 45000.0, places=6)
+        # R4 = C2 / C1
+        self.assertAlmostEqual(res['R4_C2_C1'].iloc[0], 1200.0 / 45000.0, places=6)
+        # Ratio iC4 = C1 / iC4
+        self.assertAlmostEqual(res['RATIO_IC4'].iloc[0], 45000.0 / 80.0, places=4)
+        # Ratio nC4 = C1 / nC4
+        self.assertAlmostEqual(res['RATIO_NC4'].iloc[0], 45000.0 / 100.0, places=4)
 
     def test_haworth_ratios(self):
+        """Validates Chapter 3 Equations 104, 107, 110 (Haworth Wh, Bh, Ch)."""
         res = compute_all(self.sample_data)
         heavy_sum = 1200.0 + 300.0 + 80.0 + 100.0 + 30.0 + 20.0
         tg = 45000.0 + heavy_sum
@@ -55,6 +67,7 @@ class TestPetrophysicalFormulas(unittest.TestCase):
         self.assertAlmostEqual(res['CH'].iloc[0], expected_ch, places=4)
 
     def test_dryness_and_carbon_index(self):
+        """Validates Chapter 3 Equations 86, 92, 98 (TG, Dryness, Carbon Index)."""
         res = compute_all(self.sample_data)
         derived_tg = 46730.0
         expected_dryness = 45000.0 / derived_tg
@@ -63,6 +76,22 @@ class TestPetrophysicalFormulas(unittest.TestCase):
         carbon_weighted = 45000.0 + 2*1200.0 + 3*300.0 + 4*80.0 + 4*100.0 + 5*30.0 + 5*20.0
         expected_ci = derived_tg / carbon_weighted
         self.assertAlmostEqual(res['CARBON_INDEX'].iloc[0], expected_ci, places=4)
+
+    def test_composite_screening_indicators(self):
+        """Validates Chapter 3 Equations 117, 118, 122, 125 (GOW, GOW_noTG, WBS, GOR)."""
+        res = compute_all(self.sample_data)
+        heavy_c3_plus = 300.0 + 80.0 + 100.0 + 30.0 + 20.0
+        tg = 46730.0
+        expected_gow = (heavy_c3_plus * tg) / tg
+        self.assertAlmostEqual(res['GOW'].iloc[0], expected_gow, places=4)
+
+        expected_gow_notg = heavy_c3_plus / tg
+        self.assertAlmostEqual(res['GOW_NOTG'].iloc[0], expected_gow_notg, places=6)
+
+        expected_bh = (45000.0 + 1200.0) / heavy_c3_plus
+        expected_wh = ((1200.0 + heavy_c3_plus) / tg) * 100.0
+        expected_wbs = (math.log10(expected_bh) - 0.903) / 2.097 - (math.log10(expected_wh) / 2.0)
+        self.assertAlmostEqual(res['WBS'].iloc[0], expected_wbs, places=4)
 
     def test_fluid_classification_majority_vote(self):
         res = compute_all(self.sample_data)

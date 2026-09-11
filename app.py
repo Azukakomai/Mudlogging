@@ -56,32 +56,37 @@ ZONE_COLORS = {
     "No Show": "#475569",
 }
 
-# Default 24-Track Continuous Multi-Track Specifications
+# Default Multi-Track Specifications (All input columns & 16 Chapter 3 derived ratios)
 DEFAULT_TRACK_SCHEMA = [
-    {"id": "C1",           "key": "C1",           "name": "C1",      "unit": "ppm",   "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C2",           "key": "C2",           "name": "C2",      "unit": "ppm",   "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C3",           "key": "C3",           "name": "C3",      "unit": "ppm",   "color": "#f472b6", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "IC4",          "key": "IC4",          "name": "iC4",     "unit": "ppm",   "color": "#fb923c", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "NC4",          "key": "NC4",          "name": "nC4",     "unit": "ppm",   "color": "#facc15", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "IC5",          "key": "IC5",          "name": "iC5",     "unit": "ppm",   "color": "#34d399", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "NC5",          "key": "NC5",          "name": "nC5",     "unit": "ppm",   "color": "#a78bfa", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "TG",           "key": "TG_USED",      "name": "TG",      "unit": "ppm",   "color": "#ffffff", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "C1/C2",   "unit": "ratio", "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "C1/C3",   "unit": "ratio", "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C2_C1",        "key": "C2_C1",        "name": "C2/C1",   "unit": "ratio", "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C3_C1",        "key": "C3_C1",        "name": "C3/C1",   "unit": "ratio", "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R3_C2_C3",     "key": "R3_C2_C3",     "name": "C2/C3",   "unit": "ratio", "color": "#f472b6", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R4_C1_IC4",    "key": "R4_C1_IC4",    "name": "C1/iC4",  "unit": "ratio", "color": "#fb923c", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R5_C1_NC4",    "key": "R5_C1_NC4",    "name": "C1/nC4",  "unit": "ratio", "color": "#facc15", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "WH",           "key": "WH",           "name": "Wh%",     "unit": "%",     "color": "#22c55e", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "BH",           "key": "BH",           "name": "Bh",      "unit": "index", "color": "#f59e0b", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "CH",           "key": "CH",           "name": "Ch",      "unit": "index", "color": "#ef4444", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "DRYNESS",      "key": "DRYNESS",      "name": "Dryness", "unit": "ratio", "color": "#38bdf8", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "CARBON_INDEX", "key": "CARBON_INDEX", "name": "Ci",      "unit": "index", "color": "#818cf8", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "WBS",          "key": "WBS",          "name": "WBS",     "unit": "score", "color": "#f59e0b", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "GOW",          "key": "GOW",          "name": "GOW",     "unit": "index", "color": "#a78bfa", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "GOW_NOTG",     "key": "GOW_NOTG",     "name": "GOW/TG",  "unit": "ratio", "color": "#ef4444", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "GOR",          "key": "GOR",          "name": "GOR",     "unit": "flag",  "color": "#34d399", "scale": "linear", "visible": True,  "is_custom": False},
+    # Input Gas Curves (FR-02, Ch3 Section 3.3.2)
+    {"id": "C1",           "key": "C1",           "name": "C1",           "unit": "ppm",   "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "C2",           "key": "C2",           "name": "C2",           "unit": "ppm",   "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "C3",           "key": "C3",           "name": "C3",           "unit": "ppm",   "color": "#f472b6", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "IC4",          "key": "IC4",          "name": "iC4",          "unit": "ppm",   "color": "#fb923c", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "NC4",          "key": "NC4",          "name": "nC4",          "unit": "ppm",   "color": "#facc15", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "IC5",          "key": "IC5",          "name": "iC5",          "unit": "ppm",   "color": "#34d399", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "NC5",          "key": "NC5",          "name": "nC5",          "unit": "ppm",   "color": "#a78bfa", "scale": "log",    "visible": True,  "is_custom": False},
+    # Derived / Measured Total Gas (Indicator 7, Eq 86)
+    {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#ffffff", "scale": "log",    "visible": True,  "is_custom": False},
+    # Classic & Expanded Pixler Ratios (Indicators 1–4, Eq 74)
+    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R3_C3_C1",     "key": "R3_C3_C1",     "name": "R3 (C3/C1)",   "unit": "ratio", "color": "#f472b6", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R4_C2_C1",     "key": "R4_C2_C1",     "name": "R4 (C2/C1)",   "unit": "ratio", "color": "#fb7185", "scale": "log",    "visible": True,  "is_custom": False},
+    # Expanded Butane Isomer Multipliers (Indicators 5–6, Eq 80)
+    {"id": "RATIO_IC4",    "key": "RATIO_IC4",    "name": "Ratio iC4",    "unit": "ratio", "color": "#fb923c", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "RATIO_NC4",    "key": "RATIO_NC4",    "name": "Ratio nC4",    "unit": "ratio", "color": "#facc15", "scale": "log",    "visible": True,  "is_custom": False},
+    # Core Fluid Typing & Show Indicators (Indicators 8–12, Eq 92, 98, 104, 107, 110)
+    {"id": "DRYNESS",      "key": "DRYNESS",      "name": "Dryness (DR)", "unit": "ratio", "color": "#38bdf8", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "CARBON_INDEX", "key": "CARBON_INDEX", "name": "Ci",           "unit": "index", "color": "#818cf8", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "WH",           "key": "WH",           "name": "Wh%",          "unit": "%",     "color": "#22c55e", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "BH",           "key": "BH",           "name": "Bh",           "unit": "index", "color": "#f59e0b", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "CH",           "key": "CH",           "name": "Ch",           "unit": "index", "color": "#ef4444", "scale": "linear", "visible": True,  "is_custom": False},
+    # Composite Screening Indicators (Indicators 13–16, Eq 117, 118, 122, 125)
+    {"id": "GOW",          "key": "GOW",          "name": "GOW",          "unit": "index", "color": "#a78bfa", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "GOW_NOTG",     "key": "GOW_NOTG",     "name": "GOW/TG",       "unit": "ratio", "color": "#ef4444", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "WBS",          "key": "WBS",          "name": "WBS",          "unit": "score", "color": "#f59e0b", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "GOR",          "key": "GOR",          "name": "GOR",          "unit": "flag",  "color": "#34d399", "scale": "linear", "visible": True,  "is_custom": False},
 ]
 
 
@@ -440,23 +445,26 @@ columns_modal = dbc.Modal(
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Modal 2: Petrophysical Formula & Indicator Manager
+#  Modal 2: Petrophysical Formula & Indicator Manager (16 Derived Indicators)
 # ──────────────────────────────────────────────────────────────────────
 FORMULA_SELECT_OPTIONS = [
+    {"label": "Methane Gas Channel (C1) — Raw Hydrocarbon", "value": "C1"},
     {"label": "Haworth Wetness (Wh) — Richness Indicator", "value": "WH"},
     {"label": "Haworth Balance (Bh) — Gas-Oil Contact", "value": "BH"},
     {"label": "Haworth Character (Ch) — Fluid Confirmation", "value": "CH"},
     {"label": "Pixler R1 (C1 / C2) — Dry Gas Delineation", "value": "R1_C1_C2"},
     {"label": "Pixler R2 (C1 / C3) — Gas-Liquid Contact", "value": "R2_C1_C3"},
-    {"label": "Pixler R3 (C2 / C3) — Heavy Multiplier", "value": "R3_C2_C3"},
-    {"label": "Ratio 4 (C1 / iC4) — Iso-Butane Sensitivity", "value": "R4_C1_IC4"},
-    {"label": "Ratio 5 (C1 / nC4) — Normal-Butane Sensitivity", "value": "R5_C1_NC4"},
-    {"label": "Dryness Ratio (C1 / TG)", "value": "DRYNESS"},
-    {"label": "Carbon Density Index (Ci)", "value": "CARBON_INDEX"},
-    {"label": "Composite GOW", "value": "GOW"},
+    {"label": "Pixler R3 (C3 / C1) — Light-to-Heavy Ratio", "value": "R3_C3_C1"},
+    {"label": "Pixler R4 (C2 / C1) — Methane-Ethane Inverse", "value": "R4_C2_C1"},
+    {"label": "Expanded Ratio iC4 (C1 / iC4) — Iso-Butane Sensitivity", "value": "RATIO_IC4"},
+    {"label": "Expanded Ratio nC4 (C1 / nC4) — Normal-Butane Sensitivity", "value": "RATIO_NC4"},
+    {"label": "Total Gas Volume (TG) — Hydrocarbon Summation", "value": "TG"},
+    {"label": "Dryness Ratio (DR = C1 / TG) — Methane Purity", "value": "DRYNESS"},
+    {"label": "Carbon Density Index (Icarbon) — Molecular Density", "value": "CARBON_INDEX"},
+    {"label": "Composite GOW — Heavy Fraction Volume", "value": "GOW"},
     {"label": "GOW No-TG (Normalized Heavy Fraction)", "value": "GOW_NOTG"},
-    {"label": "Wetness-Balance Score (WBS)", "value": "WBS"},
-    {"label": "Gas-Oil Ratio (GOR) Screening", "value": "GOR"},
+    {"label": "Wetness-Balance Score (WBS) — Crossplot Index", "value": "WBS"},
+    {"label": "Gas-Oil Ratio (GOR) — Screening Flag", "value": "GOR"},
 ]
 
 formulas_modal = dbc.Modal(
@@ -502,8 +510,12 @@ formulas_modal = dbc.Modal(
                     html.Span("IC5", id={"type": "btn-formula-token", "token": "IC5"}, className="var-tag"),
                     html.Span("NC5", id={"type": "btn-formula-token", "token": "NC5"}, className="var-tag"),
                     html.Span("TG", id={"type": "btn-formula-token", "token": "TG"}, className="var-tag"),
+                    html.Span("WH", id={"type": "btn-formula-token", "token": "WH"}, className="var-tag"),
+                    html.Span("BH", id={"type": "btn-formula-token", "token": "BH"}, className="var-tag"),
+                    html.Span("CH", id={"type": "btn-formula-token", "token": "CH"}, className="var-tag"),
                     html.Span("log10(", id={"type": "btn-formula-token", "token": "log10("}, className="var-tag"),
                     html.Span("sqrt(", id={"type": "btn-formula-token", "token": "sqrt("}, className="var-tag"),
+                    html.Span("where(", id={"type": "btn-formula-token", "token": "where("}, className="var-tag"),
                 ], className="d-flex align-items-center flex-wrap mb-3"),
 
                 # Boundary Cutoff Thresholds Display
