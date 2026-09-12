@@ -166,9 +166,9 @@ def eval_expr(expr: str, df: pd.DataFrame):
         return np.full(len(df), np.nan)
 
     context = {
-        'log10': lambda x: np.where(np.asarray(x, dtype=float) > 0, np.log10(np.asarray(x, dtype=float)), np.nan),
-        'log': lambda x: np.where(np.asarray(x, dtype=float) > 0, np.log(np.asarray(x, dtype=float)), np.nan),
-        'sqrt': lambda x: np.where(np.asarray(x, dtype=float) >= 0, np.sqrt(np.asarray(x, dtype=float)), np.nan),
+        'log10': lambda x: np.where(np.asarray(x, dtype=float) > 0, np.log10(np.where(np.asarray(x, dtype=float) > 0, np.asarray(x, dtype=float), 1.0)), np.nan),
+        'log': lambda x: np.where(np.asarray(x, dtype=float) > 0, np.log(np.where(np.asarray(x, dtype=float) > 0, np.asarray(x, dtype=float), 1.0)), np.nan),
+        'sqrt': lambda x: np.where(np.asarray(x, dtype=float) >= 0, np.sqrt(np.where(np.asarray(x, dtype=float) >= 0, np.asarray(x, dtype=float), 0.0)), np.nan),
         'abs': np.abs,
         'exp': np.exp,
         'where': np.where,

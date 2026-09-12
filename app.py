@@ -58,35 +58,35 @@ ZONE_COLORS = {
 
 # Default Multi-Track Specifications (All input columns & 16 Chapter 3 derived ratios)
 DEFAULT_TRACK_SCHEMA = [
-    # Input Gas Curves (FR-02, Ch3 Section 3.3.2)
-    {"id": "C1",           "key": "C1",           "name": "C1",           "unit": "ppm",   "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C2",           "key": "C2",           "name": "C2",           "unit": "ppm",   "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C3",           "key": "C3",           "name": "C3",           "unit": "ppm",   "color": "#f472b6", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "IC4",          "key": "IC4",          "name": "iC4",          "unit": "ppm",   "color": "#fb923c", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "NC4",          "key": "NC4",          "name": "nC4",          "unit": "ppm",   "color": "#facc15", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "IC5",          "key": "IC5",          "name": "iC5",          "unit": "ppm",   "color": "#34d399", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "NC5",          "key": "NC5",          "name": "nC5",          "unit": "ppm",   "color": "#a78bfa", "scale": "log",    "visible": True,  "is_custom": False},
-    # Derived / Measured Total Gas (Indicator 7, Eq 86)
-    {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#ffffff", "scale": "log",    "visible": True,  "is_custom": False},
-    # Classic & Expanded Pixler Ratios (Indicators 1–4, Eq 74)
-    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#38bdf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#818cf8", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R3_C3_C1",     "key": "R3_C3_C1",     "name": "R3 (C3/C1)",   "unit": "ratio", "color": "#f472b6", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R4_C2_C1",     "key": "R4_C2_C1",     "name": "R4 (C2/C1)",   "unit": "ratio", "color": "#fb7185", "scale": "log",    "visible": True,  "is_custom": False},
-    # Expanded Butane Isomer Multipliers (Indicators 5–6, Eq 80)
-    {"id": "RATIO_IC4",    "key": "RATIO_IC4",    "name": "Ratio iC4",    "unit": "ratio", "color": "#fb923c", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "RATIO_NC4",    "key": "RATIO_NC4",    "name": "Ratio nC4",    "unit": "ratio", "color": "#facc15", "scale": "log",    "visible": True,  "is_custom": False},
-    # Core Fluid Typing & Show Indicators (Indicators 8–12, Eq 92, 98, 104, 107, 110)
-    {"id": "DRYNESS",      "key": "DRYNESS",      "name": "Dryness (DR)", "unit": "ratio", "color": "#38bdf8", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "CARBON_INDEX", "key": "CARBON_INDEX", "name": "Ci",           "unit": "index", "color": "#818cf8", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "WH",           "key": "WH",           "name": "Wh%",          "unit": "%",     "color": "#22c55e", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "BH",           "key": "BH",           "name": "Bh",           "unit": "index", "color": "#f59e0b", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "CH",           "key": "CH",           "name": "Ch",           "unit": "index", "color": "#ef4444", "scale": "linear", "visible": True,  "is_custom": False},
-    # Composite Screening Indicators (Indicators 13–16, Eq 117, 118, 122, 125)
-    {"id": "GOW",          "key": "GOW",          "name": "GOW",          "unit": "index", "color": "#a78bfa", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "GOW_NOTG",     "key": "GOW_NOTG",     "name": "GOW/TG",       "unit": "ratio", "color": "#ef4444", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "WBS",          "key": "WBS",          "name": "WBS",          "unit": "score", "color": "#f59e0b", "scale": "linear", "visible": True,  "is_custom": False},
-    {"id": "GOR",          "key": "GOR",          "name": "GOR",          "unit": "flag",  "color": "#34d399", "scale": "linear", "visible": True,  "is_custom": False},
+    # Input Gas Curves (FR-02, Ch3 Section 3.3.2) — Blue/Cyan
+    {"id": "C1",           "key": "C1",           "name": "C1",           "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "C2",           "key": "C2",           "name": "C2",           "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "C3",           "key": "C3",           "name": "C3",           "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "IC4",          "key": "IC4",          "name": "iC4",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "NC4",          "key": "NC4",          "name": "nC4",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "IC5",          "key": "IC5",          "name": "iC5",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "NC5",          "key": "NC5",          "name": "nC5",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
+    # Derived / Measured Total Gas (Indicator 7, Eq 86) — Blue/Cyan
+    {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#0284c7", "scale": "log",    "visible": True,  "is_custom": False},
+    # Classic & Expanded Pixler Ratios (Indicators 1–4, Eq 74) — Vibrant Green
+    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R3_C3_C1",     "key": "R3_C3_C1",     "name": "R3 (C3/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R4_C2_C1",     "key": "R4_C2_C1",     "name": "R4 (C2/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    # Expanded Butane Isomer Multipliers (Indicators 5–6, Eq 80) — Vibrant Green
+    {"id": "RATIO_IC4",    "key": "RATIO_IC4",    "name": "Ratio iC4",    "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "RATIO_NC4",    "key": "RATIO_NC4",    "name": "Ratio nC4",    "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    # Core Fluid Typing & Show Indicators (Indicators 8–12, Eq 92, 98, 104, 107, 110) — Blue/Cyan
+    {"id": "DRYNESS",      "key": "DRYNESS",      "name": "Dryness (DR)", "unit": "ratio", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "CARBON_INDEX", "key": "CARBON_INDEX", "name": "Ci",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "WH",           "key": "WH",           "name": "Wh%",          "unit": "%",     "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "BH",           "key": "BH",           "name": "Bh",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "CH",           "key": "CH",           "name": "Ch",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    # Composite Screening Indicators (Indicators 13–16, Eq 117, 118, 122, 125) — Vibrant Orange
+    {"id": "GOW",          "key": "GOW",          "name": "GOW",          "unit": "index", "color": "#ea580c", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "GOW_NOTG",     "key": "GOW_NOTG",     "name": "GOW/TG",       "unit": "ratio", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "WBS",          "key": "WBS",          "name": "WBS",          "unit": "score", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "GOR",          "key": "GOR",          "name": "GOR",          "unit": "flag",  "color": "#64748b", "scale": "linear", "visible": True,  "is_custom": False},
 ]
 
 
@@ -179,6 +179,40 @@ app.index_string = """<!DOCTYPE html>
             .glass-card:hover {
                 border-color: rgba(99, 102, 241, 0.45) !important;
             }
+            .log-card {
+                background: #ffffff !important;
+                border: 1.5px solid #cbd5e1 !important;
+                border-radius: 12px !important;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+                position: relative;
+                overflow: hidden;
+            }
+            #global-crosshair-line {
+                position: absolute;
+                left: 52px;
+                right: 15px;
+                height: 0px;
+                border-top: 1.5px dashed #0f172a;
+                pointer-events: none;
+                z-index: 50;
+                display: none;
+            }
+            #global-crosshair-badge {
+                position: absolute;
+                left: 4px;
+                background: #0f172a;
+                color: #ffffff;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: 700;
+                pointer-events: none;
+                z-index: 55;
+                display: none;
+                white-space: nowrap;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            }
             .var-tag {
                 background: rgba(56, 189, 248, 0.12);
                 color: #38bdf8;
@@ -261,6 +295,57 @@ app.index_string = """<!DOCTYPE html>
             {%config%}
             {%scripts%}
             {%renderer%}
+            <script>
+                (function() {
+                    function attachCrosshairTracker() {
+                        const container = document.getElementById('log-graph-container');
+                        const crosshair = document.getElementById('global-crosshair-line');
+                        const badge = document.getElementById('global-crosshair-badge');
+                        const graphDiv = document.querySelector('#log-graph .js-plotly-plot');
+                        
+                        if (!container || !crosshair || !badge) return;
+                        if (container.dataset.tracked === 'true') return;
+                        container.dataset.tracked = 'true';
+
+                        container.addEventListener('mousemove', function(e) {
+                            const rect = container.getBoundingClientRect();
+                            const mouseY = e.clientY - rect.top;
+                            
+                            if (mouseY >= 50 && mouseY <= rect.height - 25) {
+                                crosshair.style.top = mouseY + 'px';
+                                crosshair.style.display = 'block';
+                                
+                                if (graphDiv && graphDiv._fullLayout && graphDiv._fullLayout.yaxis) {
+                                    const yaxis = graphDiv._fullLayout.yaxis;
+                                    const plotTop = yaxis._offset;
+                                    const plotHeight = yaxis._length;
+                                    const rel = (mouseY - plotTop) / plotHeight;
+                                    if (rel >= 0 && rel <= 1) {
+                                        const dMin = yaxis.range[0];
+                                        const dMax = yaxis.range[1];
+                                        const currentDepth = dMin + rel * (dMax - dMin);
+                                        badge.innerText = currentDepth.toFixed(1) + ' m';
+                                        badge.style.top = (mouseY - 9) + 'px';
+                                        badge.style.display = 'block';
+                                    } else {
+                                        badge.style.display = 'none';
+                                    }
+                                }
+                            } else {
+                                crosshair.style.display = 'none';
+                                badge.style.display = 'none';
+                            }
+                        });
+
+                        container.addEventListener('mouseleave', function() {
+                            crosshair.style.display = 'none';
+                            badge.style.display = 'none';
+                        });
+                    }
+
+                    setInterval(attachCrosshairTracker, 800);
+                })();
+            </script>
         </footer>
     </body>
 </html>"""
@@ -748,7 +833,6 @@ def render_full_continuous_tracks(json_computed, schema):
     filtered_df = df
 
     depth = filtered_df["DEPTH"].values
-    grid_clr = "rgba(51, 65, 85, 0.22)"
     chart_height = 840
 
     track_specs = schema if schema else DEFAULT_TRACK_SCHEMA
@@ -770,7 +854,7 @@ def render_full_continuous_tracks(json_computed, schema):
         rows=1,
         cols=total_cols,
         shared_yaxes=True,
-        horizontal_spacing=0.0035,
+        horizontal_spacing=0.0028,
         subplot_titles=titles,
         column_widths=norm_widths,
     )
@@ -778,20 +862,20 @@ def render_full_continuous_tracks(json_computed, schema):
     for i, spec in enumerate(active_specs, start=1):
         col_key = spec.get("key")
         title = spec.get("name", col_key)
-        color = spec.get("color", "#38bdf8")
+        color = spec.get("color", "#0284c7")
         scale_type = spec.get("scale", "log")
 
         vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
         x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
 
-        # Safe color parsing for fill rgba
+        # Rich vibrant fill matching petrophysical presentation
         try:
             r = int(color[1:3], 16)
             g = int(color[3:5], 16)
             b = int(color[5:7], 16)
-            fill_color = f"rgba({r}, {g}, {b}, 0.18)"
+            fill_color = f"rgba({r}, {g}, {b}, 0.72)"
         except Exception:
-            fill_color = "rgba(56, 189, 248, 0.18)"
+            fill_color = "rgba(2, 132, 199, 0.72)"
 
         fig.add_trace(
             go.Scatter(
@@ -806,11 +890,23 @@ def render_full_continuous_tracks(json_computed, schema):
         xname = "xaxis" if i == 1 else f"xaxis{i}"
         fig.update_layout(**{xname: dict(
             type="log" if scale_type == "log" else "linear",
-            gridcolor=grid_clr,
-            tickfont=dict(size=7, color=CLR_MUTED),
+            showline=True,
+            linewidth=1.4,
+            linecolor="#000000",
+            mirror=True,
+            gridcolor="#e2e8f0",
+            gridwidth=0.8,
+            tickfont=dict(size=7.5, color="#000000", family="'JetBrains Mono', monospace"),
+            tickcolor="#000000",
             nticks=3,
             showgrid=True,
             zeroline=False,
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikedash="dot",
+            spikethickness=1.2,
+            spikecolor="#000000",
         )})
 
     if has_zone:
@@ -827,35 +923,61 @@ def render_full_continuous_tracks(json_computed, schema):
             ),
             row=1, col=ci,
         )
-        fig.update_layout(**{f"xaxis{ci}": dict(showticklabels=False, zeroline=False, gridcolor=grid_clr)})
+        fig.update_layout(**{f"xaxis{ci}": dict(
+            showticklabels=False, zeroline=False,
+            showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
+            gridcolor="#e2e8f0",
+            showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
+        )})
 
-    # Invert Y-axis for well depth on all subplots
-    fig.update_yaxes(autorange="reversed", gridcolor=grid_clr, title_text="Depth (m)", row=1, col=1, tickfont=dict(size=8.5, color=CLR_TEXT))
+    # Invert Y-axis for well depth on all subplots with crisp track borders
+    fig.update_yaxes(
+        autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8,
+        title_text="DEPTH (m)", title_font=dict(size=9.5, color="#000000", family="Inter, sans-serif", weight="bold"),
+        row=1, col=1,
+        showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
+        tickfont=dict(size=8, color="#000000", family="'JetBrains Mono', monospace"),
+        tickcolor="#000000",
+        showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
+    )
     for c_idx in range(2, total_cols + 1):
-        fig.update_layout(**{f"yaxis{c_idx}": dict(autorange="reversed", gridcolor=grid_clr, showgrid=True, zeroline=False, tickfont=dict(size=7.5, color=CLR_MUTED))})
+        fig.update_layout(**{f"yaxis{c_idx}": dict(
+            autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8, showgrid=True, zeroline=False,
+            showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
+            tickfont=dict(size=7.5, color="#000000", family="'JetBrains Mono', monospace"),
+            tickcolor="#000000",
+            showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
+        )})
 
     fig.update_layout(
         height=chart_height,
         autosize=True,
-        template="plotly_dark",
-        paper_bgcolor=CLR_BG,
-        plot_bgcolor="#070c18",
-        font=dict(family="Inter, sans-serif", size=8.5, color=CLR_TEXT),
-        margin=dict(l=55, r=15, t=40, b=25),
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        font=dict(family="Inter, sans-serif", size=8.5, color="#000000"),
+        margin=dict(l=52, r=15, t=55, b=25),
         hovermode="y unified",
     )
 
+    # Boxed Track Headers matching petrophysical well log layout
     for ann in fig.layout.annotations:
-        ann.font = dict(size=9.5, color="#818cf8", family="Inter, sans-serif", weight="bold")
+        ann.font = dict(size=8, color="#000000", family="Inter, sans-serif", weight="bold")
+        ann.bgcolor = "#f8fafc"
+        ann.bordercolor = "#000000"
+        ann.borderwidth = 1.2
+        ann.borderpad = 3
 
     return html.Div([
+        html.Div(id="global-crosshair-line"),
+        html.Div(id="global-crosshair-badge", children="Depth: -- m"),
         dcc.Graph(
+            id="log-graph",
             figure=fig,
             responsive=True,
             config={"scrollZoom": True, "displayModeBar": True},
             style={"width": "100%", "height": f"{chart_height}px"},
         ),
-    ], className="glass-card p-3")
+    ], id="log-graph-container", className="log-card p-2")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1020,9 +1142,12 @@ def sync_formula_selection(selected_key, n_restore, current_formulas):
     prevent_initial_call=True
 )
 def insert_formula_token(clicks, current_expr):
-    if not ctx.triggered:
+    if not ctx.triggered or not any(c for c in (clicks or []) if c is not None and c > 0):
         return no_update
-    prop_id = ctx.triggered[0]["prop_id"]
+    triggered_item = ctx.triggered[0]
+    if not triggered_item.get("value") or triggered_item.get("value") <= 0:
+        return no_update
+    prop_id = triggered_item["prop_id"]
     token = json.loads(prop_id.rsplit(".", 1)[0])["token"]
     cur = current_expr or ""
     if cur and not cur.endswith((" ", "(", "+", "-", "*", "/", ",")):
@@ -1122,9 +1247,9 @@ def render_column_checklist(is_open, schema):
 )
 def select_deselect_all_columns(n_sel, n_desel, current_values):
     triggered = ctx.triggered_id
-    if triggered == "btn-col-select-all":
+    if triggered == "btn-col-select-all" and n_sel:
         return [True] * len(current_values)
-    elif triggered == "btn-col-deselect-all":
+    elif triggered == "btn-col-deselect-all" and n_desel:
         return [False] * len(current_values)
     return no_update
 
@@ -1136,9 +1261,12 @@ def select_deselect_all_columns(n_sel, n_desel, current_values):
     prevent_initial_call=True
 )
 def insert_newcol_token(clicks, current_expr):
-    if not ctx.triggered:
+    if not ctx.triggered or not any(c for c in (clicks or []) if c is not None and c > 0):
         return no_update
-    prop_id = ctx.triggered[0]["prop_id"]
+    triggered_item = ctx.triggered[0]
+    if not triggered_item.get("value") or triggered_item.get("value") <= 0:
+        return no_update
+    prop_id = triggered_item["prop_id"]
     token = json.loads(prop_id.rsplit(".", 1)[0])["token"]
     cur = current_expr or ""
     if cur and not cur.endswith((" ", "(", "+", "-", "*", "/", ",")):
@@ -1263,11 +1391,18 @@ def render_remove_columns_list(is_open, schema):
     prevent_initial_call=True
 )
 def delete_column(clicks, schema, custom_cols):
-    if not ctx.triggered:
+    if not ctx.triggered or not any(c for c in (clicks or []) if c is not None and c > 0):
         return no_update, no_update
 
-    prop_id = ctx.triggered[0]["prop_id"]
-    target_id = json.loads(prop_id.rsplit(".", 1)[0])["id"]
+    triggered_item = ctx.triggered[0]
+    if not triggered_item.get("value") or triggered_item.get("value") <= 0:
+        return no_update, no_update
+
+    prop_id = triggered_item["prop_id"]
+    try:
+        target_id = json.loads(prop_id.rsplit(".", 1)[0])["id"]
+    except Exception:
+        return no_update, no_update
 
     updated_schema = [s for s in (schema or []) if s.get("id") != target_id]
     updated_custom_cols = [c for c in (custom_cols or []) if c.get("key") != target_id]
