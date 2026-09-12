@@ -190,7 +190,7 @@ app.index_string = """<!DOCTYPE html>
             #global-crosshair-line {
                 position: absolute;
                 left: 52px;
-                right: 15px;
+                right: 50px;
                 height: 0px;
                 border-top: 1.5px dashed #0f172a;
                 pointer-events: none;
@@ -199,12 +199,13 @@ app.index_string = """<!DOCTYPE html>
             }
             #global-crosshair-badge {
                 position: absolute;
-                left: 4px;
+                left: 3px;
                 background: #0f172a;
                 color: #ffffff;
-                padding: 2px 6px;
+                border: 1px solid #334155;
+                padding: 2px 7px;
                 border-radius: 4px;
-                font-size: 10px;
+                font-size: 10.5px;
                 font-family: 'JetBrains Mono', monospace;
                 font-weight: 700;
                 pointer-events: none;
@@ -212,6 +213,24 @@ app.index_string = """<!DOCTYPE html>
                 display: none;
                 white-space: nowrap;
                 box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            }
+            #global-crosshair-zone-badge {
+                position: absolute;
+                right: 3px;
+                background: #0f172a;
+                color: #ffffff;
+                border: 1px solid #334155;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 10.5px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: 700;
+                pointer-events: none;
+                z-index: 55;
+                display: none;
+                white-space: nowrap;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
             }
             .var-tag {
                 background: rgba(56, 189, 248, 0.12);
@@ -297,52 +316,116 @@ app.index_string = """<!DOCTYPE html>
             {%renderer%}
             <script>
                 (function() {
+                    function getZoneAtDepth(d) {
+                        const holder = document.getElementById('zone-data-holder');
+                        if (!holder || !holder.innerText) return null;
+                        let data = window._mudlogZoneCache;
+                        if (!data || data._rawText !== holder.innerText) {
+                            try {
+                                data = JSON.parse(holder.innerText);
+                                data._rawText = holder.innerText;
+                                window._mudlogZoneCache = data;
+                            } catch(e) {
+                                return null;
+                            }
+                        }
+                        if (!data || data.length === 0) return null;
+                        
+                        let low = 0, high = data.length - 1;
+                        while (low <= high) {
+                            let mid = (low + high) >> 1;
+                            if (data[mid].d === d) return data[mid].z;
+                            else if (data[mid].d < d) low = mid + 1;
+                            else high = mid - 1;
+                        }
+                        if (low >= data.length) return data[data.length - 1].z;
+                        if (high < 0) return data[0].z;
+                        return (Math.abs(data[low].d - d) < Math.abs(data[high].d - d)) ? data[low].z : data[high].z;
+                    }
+
                     function attachCrosshairTracker() {
                         const container = document.getElementById('log-graph-container');
                         const crosshair = document.getElementById('global-crosshair-line');
                         const badge = document.getElementById('global-crosshair-badge');
-                        const graphDiv = document.querySelector('#log-graph .js-plotly-plot');
+                        const zoneBadge = document.getElementById('global-crosshair-zone-badge');
+                        const graphDiv = document.querySelector('#log-graph .js-plotly-plot') || document.querySelector('#log-graph');
                         
-                        if (!container || !crosshair || !badge) return;
+                        if (!container || !crosshair || !badge || !zoneBadge || !graphDiv) return;
                         if (container.dataset.tracked === 'true') return;
                         container.dataset.tracked = 'true';
 
                         container.addEventListener('mousemove', function(e) {
-                            const rect = container.getBoundingClientRect();
-                            const mouseY = e.clientY - rect.top;
+                            const contRect = container.getBoundingClientRect();
+                            const graphRect = graphDiv.getBoundingClientRect();
                             
-                            if (mouseY >= 50 && mouseY <= rect.height - 25) {
-                                crosshair.style.top = mouseY + 'px';
-                                crosshair.style.display = 'block';
+                            const mousePlotY = e.clientY - graphRect.top;
+                            const mouseContY = e.clientY - contRect.top;
+                            
+                            if (graphDiv._fullLayout && graphDiv._fullLayout.yaxis) {
+                                const yaxis = graphDiv._fullLayout.yaxis;
+                                const plotTop = yaxis._offset;
+                                const plotHeight = yaxis._length;
+                                const rel = (mousePlotY - plotTop) / plotHeight;
                                 
-                                if (graphDiv && graphDiv._fullLayout && graphDiv._fullLayout.yaxis) {
-                                    const yaxis = graphDiv._fullLayout.yaxis;
-                                    const plotTop = yaxis._offset;
-                                    const plotHeight = yaxis._length;
-                                    if (rel >= 0 && rel <= 1) {
+                                if (rel >= 0 && rel <= 1) {
+                                    crosshair.style.top = mouseContY + 'px';
+                                    crosshair.style.display = 'block';
+                                    
+                                    let currentDepth;
+                                    if (typeof yaxis.p2d === 'function') {
+                                        currentDepth = yaxis.p2d(mousePlotY - plotTop);
+                                    } else {
                                         const minDepth = Math.min(yaxis.range[0], yaxis.range[1]);
                                         const maxDepth = Math.max(yaxis.range[0], yaxis.range[1]);
-                                        const currentDepth = minDepth + rel * (maxDepth - minDepth);
-                                        badge.innerText = currentDepth.toFixed(1) + ' m';
-                                        badge.style.top = (mouseY - 9) + 'px';
-                                        badge.style.display = 'block';
-                                    } else {
-                                        badge.style.display = 'none';
+                                        currentDepth = minDepth + rel * (maxDepth - minDepth);
                                     }
+                                    
+                                    badge.innerText = currentDepth.toFixed(1) + ' m';
+                                    badge.style.top = (mouseContY - 10) + 'px';
+                                    badge.style.display = 'block';
+
+                                    // Lookup zone on the right
+                                    const zone = getZoneAtDepth(currentDepth);
+                                    if (zone) {
+                                        zoneBadge.innerText = zone;
+                                        if (zone === 'Gas') {
+                                            zoneBadge.style.background = '#065f46';
+                                            zoneBadge.style.color = '#6ee7b7';
+                                            zoneBadge.style.borderColor = '#10b981';
+                                        } else if (zone === 'Oil') {
+                                            zoneBadge.style.background = '#881337';
+                                            zoneBadge.style.color = '#fca5a5';
+                                            zoneBadge.style.borderColor = '#f43f5e';
+                                        } else if (zone === 'Water') {
+                                            zoneBadge.style.background = '#0c4a6e';
+                                            zoneBadge.style.color = '#7dd3fc';
+                                            zoneBadge.style.borderColor = '#0284c7';
+                                        } else {
+                                            zoneBadge.style.background = '#1e293b';
+                                            zoneBadge.style.color = '#cbd5e1';
+                                            zoneBadge.style.borderColor = '#475569';
+                                        }
+                                        zoneBadge.style.top = (mouseContY - 10) + 'px';
+                                        zoneBadge.style.display = 'block';
+                                    } else {
+                                        zoneBadge.style.display = 'none';
+                                    }
+                                } else {
+                                    crosshair.style.display = 'none';
+                                    badge.style.display = 'none';
+                                    zoneBadge.style.display = 'none';
                                 }
-                            } else {
-                                crosshair.style.display = 'none';
-                                badge.style.display = 'none';
                             }
                         });
 
                         container.addEventListener('mouseleave', function() {
                             crosshair.style.display = 'none';
                             badge.style.display = 'none';
+                            zoneBadge.style.display = 'none';
                         });
                     }
 
-                    setInterval(attachCrosshairTracker, 800);
+                    setInterval(attachCrosshairTracker, 500);
                 })();
             </script>
         </footer>
@@ -1017,9 +1100,18 @@ def render_full_continuous_tracks(json_computed, schema):
         ann.borderwidth = 1.2
         ann.borderpad = 3
 
+    depth_zone_pairs = []
+    if "ZONE" in filtered_df.columns:
+        for d, z in zip(filtered_df["DEPTH"].values, filtered_df["ZONE"].values):
+            if pd.notna(d) and pd.notna(z):
+                depth_zone_pairs.append({"d": float(d), "z": str(z)})
+    depth_zone_json = json.dumps(depth_zone_pairs)
+
     return html.Div([
         html.Div(id="global-crosshair-line"),
         html.Div(id="global-crosshair-badge", children="Depth: -- m"),
+        html.Div(id="global-crosshair-zone-badge", children="--"),
+        html.Div(id="zone-data-holder", style={"display": "none"}, children=depth_zone_json),
         dcc.Graph(
             id="log-graph",
             figure=fig,
@@ -1027,7 +1119,7 @@ def render_full_continuous_tracks(json_computed, schema):
             config={"scrollZoom": True, "displayModeBar": True},
             style={"width": "100%", "height": f"{chart_height}px"},
         ),
-    ], id="log-graph-container", className="log-card p-2")
+    ], id="log-graph-container", className="log-card p-2", **{"data-zone-data": depth_zone_json})
 
 
 # ──────────────────────────────────────────────────────────────────────
