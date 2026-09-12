@@ -319,11 +319,10 @@ app.index_string = """<!DOCTYPE html>
                                     const yaxis = graphDiv._fullLayout.yaxis;
                                     const plotTop = yaxis._offset;
                                     const plotHeight = yaxis._length;
-                                    const rel = (mouseY - plotTop) / plotHeight;
                                     if (rel >= 0 && rel <= 1) {
-                                        const dMin = yaxis.range[0];
-                                        const dMax = yaxis.range[1];
-                                        const currentDepth = dMin + rel * (dMax - dMin);
+                                        const minDepth = Math.min(yaxis.range[0], yaxis.range[1]);
+                                        const maxDepth = Math.max(yaxis.range[0], yaxis.range[1]);
+                                        const currentDepth = minDepth + rel * (maxDepth - minDepth);
                                         badge.innerText = currentDepth.toFixed(1) + ' m';
                                         badge.style.top = (mouseY - 9) + 'px';
                                         badge.style.display = 'block';
@@ -820,6 +819,41 @@ def update_header_info(json_computed, schema):
 # ──────────────────────────────────────────────────────────────────────
 #  Full Continuous Multi-Track Well Log Builder (Fits 100% Screen Width)
 # ──────────────────────────────────────────────────────────────────────
+def build_well_log_polygons(x_vals, y_depths, scale_type="log"):
+    """
+    Constructs isolated closed polygons for each contiguous non-zero data segment.
+    Guarantees clean horizontal top and bottom cutoffs and complete separation at zeroes.
+    """
+    valid = (~np.isnan(x_vals)) & (x_vals > 0) & np.isfinite(x_vals)
+    if not np.any(valid):
+        return [], []
+
+    if scale_type == "log":
+        min_pos = float(np.min(x_vals[valid]))
+        base_x = max(1e-4, 10.0 ** (np.floor(np.log10(min_pos)) - 1))
+    else:
+        base_x = 0.0
+
+    diff = np.diff(valid.astype(int))
+    starts = np.where(diff == 1)[0] + 1
+    if valid[0]:
+        starts = np.r_[0, starts]
+    ends = np.where(diff == -1)[0] + 1
+    if valid[-1]:
+        ends = np.r_[ends, len(valid)]
+
+    poly_x, poly_y = [], []
+    for s, e in zip(starts, ends):
+        seg_x = list(x_vals[s:e])
+        seg_y = list(y_depths[s:e])
+        if len(seg_x) == 0:
+            continue
+        poly_x.extend([base_x] + seg_x + [base_x, base_x, np.nan])
+        poly_y.extend([seg_y[0]] + seg_y + [seg_y[-1], seg_y[0], np.nan])
+
+    return poly_x, poly_y
+
+
 @app.callback(
     Output("tracks-container", "children"),
     [Input("store-computed", "data"),
@@ -866,7 +900,7 @@ def render_full_continuous_tracks(json_computed, schema):
         scale_type = spec.get("scale", "log")
 
         vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
-        x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
+        x_plot = np.where((vals > 0) & np.isfinite(vals), vals, np.nan)
 
         # Rich vibrant fill matching petrophysical presentation
         try:
@@ -877,11 +911,27 @@ def render_full_continuous_tracks(json_computed, schema):
         except Exception:
             fill_color = "rgba(2, 132, 199, 0.72)"
 
+        # 1. Closed fill polygons with clean horizontal top/bottom cutoffs
+        poly_x, poly_y = build_well_log_polygons(vals, depth, scale_type)
+        if len(poly_x) > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=poly_x, y=poly_y, mode="lines",
+                    line=dict(width=0, color=fill_color),
+                    fill="toself", fillcolor=fill_color,
+                    connectgaps=False,
+                    showlegend=False,
+                    hoverinfo="skip",
+                ),
+                row=1, col=i,
+            )
+
+        # 2. Precise curve trace with isolated segments (no diagonal bridging across zeroes)
         fig.add_trace(
             go.Scatter(
                 x=x_plot, y=depth, mode="lines", name=title,
                 line=dict(color=color, width=1.4),
-                fill="tozerox", fillcolor=fill_color,
+                connectgaps=False,
                 showlegend=False,
                 hovertemplate=f"Depth: %{{y:.1f}}m<br>{title}: %{{x:.3g}}<extra></extra>",
             ),
