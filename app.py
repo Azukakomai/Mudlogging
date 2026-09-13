@@ -5,19 +5,16 @@ Interactive single-page Dash application featuring a clean, full-screen
 continuous multi-track well log where every hydrocarbon gas, ratio,
 and petrophysical indicator has its own dedicated track column.
 
-Tracks Included:
-  • Raw Gases: C1, C2, C3, iC4, nC4, iC5, nC5, Total Gas (TG)
-  • Pixler & Gas Ratios: C1/C2 (R1), C1/C3 (R2), C2/C1, C3/C1, C2/C3 (R3), C1/iC4 (R4), C1/nC4 (R5)
-  • Haworth Ratios: Wh% (Wetness), Bh (Balance), Ch (Character)
-  • Composite Indicators: Dryness, Carbon Index (Ci), WBS, GOW, GOW/TG, GOR
-  • Classification: Fluid Zone (Gas, Oil, Water, No Show)
-
-All tracks are engineered to fit 100% within the screen width with zero horizontal scroll.
-
-Run: py app.py
+Features:
+  • Configuration Dropdown with dynamic pipeline controls
+  • Petrophysical Formula & Indicator Manager Modal (edit formulas, live preview, threshold limits)
+  • Column Configuration & Display Manager Modal (Show/Hide, Add New Column, Delete Column)
+  • Real-time deterministic recomputation of well logs and fluid facies zones
+  • Upload and CSV Export
 """
 
 import io
+import json
 import base64
 import webbrowser
 import threading
@@ -25,69 +22,72 @@ import numpy as np
 import pandas as pd
 
 import dash
-from dash import dcc, html, no_update
-from dash.dependencies import Input, Output, State
+from dash import dcc, html, no_update, ctx
+from dash.dependencies import Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # Local imports
 from parser import parse_mudlog_file
-from engine import compute_all
+from engine import compute_all, eval_expr, DEFAULT_FORMULAS, DEFAULT_THRESHOLDS
 
 
 # ──────────────────────────────────────────────────────────────────────
 #  Theme & Color Palette
 # ──────────────────────────────────────────────────────────────────────
-CLR_BG       = "#090d16"
-CLR_SURFACE  = "#0f172a"
-CLR_CARD     = "#111827"
-CLR_BORDER   = "rgba(51, 65, 85, 0.5)"
-CLR_ACCENT   = "#6366f1"  # Indigo
-CLR_CYAN     = "#38bdf8"  # Sky/Cyan
-CLR_SUCCESS  = "#10b981"  # Emerald
-CLR_WARNING  = "#f59e0b"  # Amber
-CLR_DANGER   = "#f43f5e"  # Rose
-CLR_TEXT     = "#f1f5f9"  # Slate 100
-CLR_MUTED    = "#94a3b8"  # Slate 400
-CLR_DARK_MUTED = "#64748b" # Slate 500
+CLR_BG         = "#090d16"
+CLR_SURFACE    = "#0f172a"
+CLR_CARD       = "#111827"
+CLR_BORDER     = "rgba(51, 65, 85, 0.5)"
+CLR_ACCENT     = "#6366f1"  # Indigo
+CLR_CYAN       = "#38bdf8"  # Sky/Cyan
+CLR_SUCCESS    = "#10b981"  # Emerald
+CLR_WARNING    = "#f59e0b"  # Amber
+CLR_DANGER     = "#f43f5e"  # Rose
+CLR_TEXT       = "#f1f5f9"  # Slate 100
+CLR_MUTED      = "#94a3b8"  # Slate 400
+CLR_DARK_MUTED = "#64748b"  # Slate 500
 
 ZONE_COLORS = {
-    "Gas":     "#10b981",
-    "Oil":     "#f43f5e",
+    "Gas":     "#f43f5e",
+    "Oil":     "#10b981",
     "Water":   "#0284c7",
     "No Show": "#475569",
 }
 
-# Complete List of Continuous Multi-Track Specifications (All 24 Indicators)
-CONTINUOUS_TRACK_SPECS = [
-    # (col_key, title, color, scale_type)
-    ("C1",           "C1",        "#38bdf8", "log"),
-    ("C2",           "C2",        "#818cf8", "log"),
-    ("C3",           "C3",        "#f472b6", "log"),
-    ("IC4",          "iC4",       "#fb923c", "log"),
-    ("NC4",          "nC4",       "#facc15", "log"),
-    ("IC5",          "iC5",       "#34d399", "log"),
-    ("NC5",          "nC5",       "#a78bfa", "log"),
-    ("TG_USED",      "TG",        "#ffffff", "log"),
-    ("R1_C1_C2",     "C1/C2",     "#38bdf8", "log"),
-    ("R2_C1_C3",     "C1/C3",     "#818cf8", "log"),
-    ("C2_C1",        "C2/C1",     "#38bdf8", "log"),
-    ("C3_C1",        "C3/C1",     "#818cf8", "log"),
-    ("R3_C2_C3",     "C2/C3",     "#f472b6", "log"),
-    ("R4_C1_IC4",    "C1/iC4",    "#fb923c", "log"),
-    ("R5_C1_NC4",    "C1/nC4",    "#facc15", "log"),
-    ("WH",           "Wh%",       "#22c55e", "linear"),
-    ("BH",           "Bh",        "#f59e0b", "linear"),
-    ("CH",           "Ch",        "#ef4444", "linear"),
-    ("DRYNESS",      "Dryness",   "#38bdf8", "linear"),
-    ("CARBON_INDEX", "Ci",        "#818cf8", "linear"),
-    ("WBS",          "WBS",       "#f59e0b", "linear"),
-    ("GOW",          "GOW",       "#a78bfa", "log"),
-    ("GOW_NOTG",     "GOW/TG",    "#ef4444", "linear"),
-    ("GOR",          "GOR",       "#34d399", "linear"),
+# Default Multi-Track Specifications (All input columns & 16 Chapter 3 derived ratios)
+DEFAULT_TRACK_SCHEMA = [
+    # Input Gas Curves (FR-02, Ch3 Section 3.3.2) — Vibrant Green Linear Protruding Peaks
+    {"id": "C1",           "key": "C1",           "name": "C1",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "C2",           "key": "C2",           "name": "C2",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "C3",           "key": "C3",           "name": "C3",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "IC4",          "key": "IC4",          "name": "iC4",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "NC4",          "key": "NC4",          "name": "nC4",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "IC5",          "key": "IC5",          "name": "iC5",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "NC5",          "key": "NC5",          "name": "nC5",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    # Derived / Measured Total Gas (Indicator 7, Eq 86) — Vibrant Green Linear Peak
+    {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    # Classic & Expanded Pixler Ratios (Indicators 1–4, Eq 74) — Vibrant Green
+    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "R3_C3_C1",     "key": "R3_C3_C1",     "name": "R3 (C3/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "R4_C2_C1",     "key": "R4_C2_C1",     "name": "R4 (C2/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    # Expanded Butane Isomer Multipliers (Indicators 5–6, Eq 80) — Vibrant Green
+    {"id": "RATIO_IC4",    "key": "RATIO_IC4",    "name": "Ratio iC4",    "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "RATIO_NC4",    "key": "RATIO_NC4",    "name": "Ratio nC4",    "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    # Core Fluid Typing & Show Indicators (Indicators 8–12, Eq 92, 98, 104, 107, 110) — Blue/Cyan
+    {"id": "DRYNESS",      "key": "DRYNESS",      "name": "Dryness (DR)", "unit": "ratio", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "CARBON_INDEX", "key": "CARBON_INDEX", "name": "Ci",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "WH",           "key": "WH",           "name": "Wh%",          "unit": "%",     "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "BH",           "key": "BH",           "name": "Bh",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "CH",           "key": "CH",           "name": "Ch",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
+    # Composite Screening Indicators (Indicators 13–16, Eq 117, 118, 122, 125) — Vibrant Orange
+    {"id": "GOW",          "key": "GOW",          "name": "GOW",          "unit": "index", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "GOW_NOTG",     "key": "GOW_NOTG",     "name": "GOW/TG",       "unit": "ratio", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "WBS",          "key": "WBS",          "name": "WBS",          "unit": "score", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "GOR",          "key": "GOR",          "name": "GOR",          "unit": "flag",  "color": "#64748b", "scale": "linear", "visible": True,  "is_custom": False},
 ]
-
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -141,10 +141,10 @@ app = dash.Dash(
     external_stylesheets=[
         dbc.themes.DARKLY,
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
-        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap",
     ],
     suppress_callback_exceptions=True,
-    title="MudLog Pro — Continuous Depth Track Log",
+    title="Mudlogging",
 )
 
 server = app.server
@@ -159,7 +159,7 @@ app.index_string = """<!DOCTYPE html>
         {%css%}
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
         <style>
             body {
@@ -178,6 +178,118 @@ app.index_string = """<!DOCTYPE html>
             }
             .glass-card:hover {
                 border-color: rgba(99, 102, 241, 0.45) !important;
+            }
+            .log-card {
+                background: #ffffff !important;
+                border: 1.5px solid #cbd5e1 !important;
+                border-radius: 12px !important;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+                position: relative;
+                overflow: hidden;
+            }
+            #global-crosshair-line {
+                position: absolute;
+                left: 52px;
+                right: 50px;
+                height: 0px;
+                border-top: 1.5px dashed #0f172a;
+                pointer-events: none;
+                z-index: 50;
+                display: none;
+            }
+            #global-crosshair-badge {
+                position: absolute;
+                left: 3px;
+                background: #0f172a;
+                color: #ffffff;
+                border: 1px solid #334155;
+                padding: 2px 7px;
+                border-radius: 4px;
+                font-size: 10.5px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: 700;
+                pointer-events: none;
+                z-index: 55;
+                display: none;
+                white-space: nowrap;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            }
+            #global-crosshair-zone-badge {
+                position: absolute;
+                right: 3px;
+                background: #0f172a;
+                color: #ffffff;
+                border: 1px solid #334155;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 10.5px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: 700;
+                pointer-events: none;
+                z-index: 55;
+                display: none;
+                white-space: nowrap;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+            }
+            .var-tag {
+                background: rgba(56, 189, 248, 0.12);
+                color: #38bdf8;
+                border: 1px solid rgba(56, 189, 248, 0.3);
+                border-radius: 6px;
+                padding: 2px 8px;
+                font-size: 11px;
+                font-family: 'JetBrains Mono', monospace;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                display: inline-block;
+                margin: 2px;
+                user-select: none;
+            }
+            .var-tag:hover {
+                background: rgba(56, 189, 248, 0.28);
+                border-color: #38bdf8;
+                transform: translateY(-1px);
+            }
+            .dropdown-menu {
+                background-color: #0f172a !important;
+                border: 1px solid rgba(51, 65, 85, 0.6) !important;
+                border-radius: 10px !important;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+            }
+            .dropdown-item {
+                color: #e2e8f0 !important;
+                font-size: 12.5px !important;
+                padding: 8px 16px !important;
+                transition: background 0.15s ease;
+            }
+            .dropdown-item:hover {
+                background-color: rgba(99, 102, 241, 0.2) !important;
+                color: #ffffff !important;
+            }
+            .form-control, .form-select {
+                background-color: #0b1120 !important;
+                border: 1px solid rgba(51, 65, 85, 0.7) !important;
+                color: #f1f5f9 !important;
+                border-radius: 8px !important;
+                font-size: 13px !important;
+            }
+            .form-control:focus, .form-select:focus {
+                border-color: #6366f1 !important;
+                box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+            }
+            .nav-tabs .nav-link {
+                color: #94a3b8 !important;
+                border: none !important;
+                border-bottom: 2px solid transparent !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                padding: 8px 16px !important;
+            }
+            .nav-tabs .nav-link.active {
+                background: transparent !important;
+                color: #38bdf8 !important;
+                border-bottom: 2px solid #38bdf8 !important;
             }
             /* Scrollbars */
             ::-webkit-scrollbar {
@@ -202,6 +314,124 @@ app.index_string = """<!DOCTYPE html>
             {%config%}
             {%scripts%}
             {%renderer%}
+            <script>
+                (function() {
+                    function getZoneAtDepth(d) {
+                        const holder = document.getElementById('zone-data-holder');
+                        if (!holder || !holder.innerText) return null;
+                        let data = window._mudlogZoneCache;
+                        if (!data || data._rawText !== holder.innerText) {
+                            try {
+                                data = JSON.parse(holder.innerText);
+                                data._rawText = holder.innerText;
+                                window._mudlogZoneCache = data;
+                            } catch(e) {
+                                return null;
+                            }
+                        }
+                        if (!data || data.length === 0) return null;
+                        
+                        let low = 0, high = data.length - 1;
+                        while (low <= high) {
+                            let mid = (low + high) >> 1;
+                            if (data[mid].d === d) return data[mid].z;
+                            else if (data[mid].d < d) low = mid + 1;
+                            else high = mid - 1;
+                        }
+                        if (low >= data.length) return data[data.length - 1].z;
+                        if (high < 0) return data[0].z;
+                        return (Math.abs(data[low].d - d) < Math.abs(data[high].d - d)) ? data[low].z : data[high].z;
+                    }
+
+                    function attachCrosshairTracker() {
+                        const container = document.getElementById('log-graph-container');
+                        const crosshair = document.getElementById('global-crosshair-line');
+                        const badge = document.getElementById('global-crosshair-badge');
+                        const zoneBadge = document.getElementById('global-crosshair-zone-badge');
+                        
+                        if (!container || !crosshair || !badge || !zoneBadge) return;
+                        if (container.dataset.tracked === 'true') return;
+                        container.dataset.tracked = 'true';
+
+                        container.addEventListener('mousemove', function(e) {
+                            const activePlot = document.querySelector('#log-graph .js-plotly-plot') || document.querySelector('#log-graph');
+                            if (!activePlot) return;
+                            const fullLayout = activePlot._fullLayout;
+                            if (!fullLayout || !fullLayout.yaxis) return;
+
+                            const contRect = container.getBoundingClientRect();
+                            const graphRect = activePlot.getBoundingClientRect();
+                            
+                            const mousePlotY = e.clientY - graphRect.top;
+                            const mouseContY = e.clientY - contRect.top;
+                            
+                            const yaxis = fullLayout.yaxis;
+                            const plotTop = (yaxis._offset !== undefined) ? yaxis._offset : 0;
+                            const plotHeight = (yaxis._length !== undefined) ? yaxis._length : graphRect.height;
+                            const rel = (mousePlotY - plotTop) / plotHeight;
+                            
+                            if (rel >= 0 && rel <= 1) {
+                                crosshair.style.top = mouseContY + 'px';
+                                crosshair.style.display = 'block';
+                                
+                                let currentDepth;
+                                if (typeof yaxis.p2d === 'function') {
+                                    currentDepth = yaxis.p2d(mousePlotY - plotTop);
+                                } else if (yaxis.range) {
+                                    const d0 = yaxis.range[0];
+                                    const d1 = yaxis.range[1];
+                                    currentDepth = d0 + rel * (d1 - d0);
+                                }
+                                
+                                if (currentDepth !== undefined && !isNaN(currentDepth)) {
+                                    badge.innerText = currentDepth.toFixed(1) + ' m';
+                                    badge.style.top = (mouseContY - 10) + 'px';
+                                    badge.style.display = 'block';
+
+                                    // Lookup zone on the right
+                                    const zone = getZoneAtDepth(currentDepth);
+                                    if (zone) {
+                                        zoneBadge.innerText = zone;
+                                        if (zone === 'Gas') {
+                                            zoneBadge.style.background = '#881337';
+                                            zoneBadge.style.color = '#fca5a5';
+                                            zoneBadge.style.borderColor = '#f43f5e';
+                                        } else if (zone === 'Oil') {
+                                            zoneBadge.style.background = '#065f46';
+                                            zoneBadge.style.color = '#6ee7b7';
+                                            zoneBadge.style.borderColor = '#10b981';
+                                        } else if (zone === 'Water') {
+                                            zoneBadge.style.background = '#0c4a6e';
+                                            zoneBadge.style.color = '#7dd3fc';
+                                            zoneBadge.style.borderColor = '#0284c7';
+                                        } else {
+                                            zoneBadge.style.background = '#1e293b';
+                                            zoneBadge.style.color = '#cbd5e1';
+                                            zoneBadge.style.borderColor = '#475569';
+                                        }
+                                        zoneBadge.style.top = (mouseContY - 10) + 'px';
+                                        zoneBadge.style.display = 'block';
+                                    } else {
+                                        zoneBadge.style.display = 'none';
+                                    }
+                                }
+                            } else {
+                                crosshair.style.display = 'none';
+                                badge.style.display = 'none';
+                                zoneBadge.style.display = 'none';
+                            }
+                        });
+
+                        container.addEventListener('mouseleave', function() {
+                            crosshair.style.display = 'none';
+                            badge.style.display = 'none';
+                            zoneBadge.style.display = 'none';
+                        });
+                    }
+
+                    setInterval(attachCrosshairTracker, 300);
+                })();
+            </script>
         </footer>
     </body>
 </html>"""
@@ -258,12 +488,407 @@ upload_modal = dbc.Modal(
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Top Navbar
+#  Modal 1: Column Configuration & Display Manager (Show/Hide, Add, Remove)
+# ──────────────────────────────────────────────────────────────────────
+columns_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(
+            dbc.ModalTitle(
+                html.Div([
+                    html.I(className="fa-solid fa-table-columns me-2", style={"color": CLR_CYAN}),
+                    "Column Configuration & Display Manager",
+                ]),
+                style={"color": CLR_TEXT, "fontSize": "16px", "fontWeight": "700"},
+            ),
+            close_button=True,
+            style={"background": CLR_SURFACE, "borderBottom": f"1px solid {CLR_BORDER}"},
+        ),
+        dbc.ModalBody([
+            dbc.Tabs(
+                [
+                    dbc.Tab(
+                        label="Show / Hide Columns",
+                        tab_id="tab-col-visibility",
+                        children=[
+                            html.Div([
+                                html.Div([
+                                    html.Span("Toggle individual tracks on the continuous well log:", style={"fontSize": "12px", "color": CLR_MUTED}),
+                                    html.Div([
+                                        dbc.Button("Select All", id="btn-col-select-all", color="secondary", outline=True, size="sm", className="me-2 py-1 px-2", style={"fontSize": "11px", "borderRadius": "6px"}),
+                                        dbc.Button("Deselect All", id="btn-col-deselect-all", color="secondary", outline=True, size="sm", className="py-1 px-2", style={"fontSize": "11px", "borderRadius": "6px"}),
+                                    ]),
+                                ], className="d-flex justify-content-between align-items-center mb-3 mt-3"),
+                                html.Div(id="column-checklist-container", style={"maxHeight": "320px", "overflowY": "auto", "paddingRight": "5px"}),
+                            ]),
+                        ],
+                    ),
+                    dbc.Tab(
+                        label="Add New Column",
+                        tab_id="tab-col-add",
+                        children=[
+                            html.Div([
+                                html.Div([
+                                    html.Label("Column Identifier Name", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                                    dbc.Input(id="new-col-name-input", type="text", placeholder="e.g. C1_C4_Iso_Ratio or Custom_Dryness", className="mb-2"),
+                                ]),
+                                html.Div([
+                                    html.Div([
+                                        html.Label("Unit / Dimension", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                                        dbc.Input(id="new-col-unit-input", type="text", placeholder="e.g. ratio, %, ppm, score", className="mb-2"),
+                                    ], className="col-4 pe-2"),
+                                    html.Div([
+                                        html.Label("Scale Type", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                                        dbc.Select(
+                                            id="new-col-scale-select",
+                                            options=[
+                                                {"label": "Logarithmic Scale (log)", "value": "log"},
+                                                {"label": "Linear Scale (linear)", "value": "linear"},
+                                            ],
+                                            value="log",
+                                            className="mb-2",
+                                        ),
+                                    ], className="col-5 pe-2"),
+                                    html.Div([
+                                        html.Label("Track Color", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                                        dbc.Input(id="new-col-color-input", type="color", value="#38bdf8", style={"height": "36px", "padding": "2px"}, className="mb-2"),
+                                    ], className="col-3"),
+                                ], className="row g-0"),
+                                html.Div([
+                                    html.Label("Computation Expression (Python / Math Syntax)", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                                    dbc.Input(id="new-col-expr-input", type="text", placeholder="e.g. C1 / (IC4 + NC4 + 0.001)", style={"fontFamily": "'JetBrains Mono', monospace"}, className="mb-1"),
+                                    html.Div([
+                                        html.Span("Quick Insert: ", style={"fontSize": "11px", "color": CLR_MUTED, "marginRight": "4px"}),
+                                        html.Span("C1", id={"type": "btn-newcol-token", "token": "C1"}, className="var-tag"),
+                                        html.Span("C2", id={"type": "btn-newcol-token", "token": "C2"}, className="var-tag"),
+                                        html.Span("C3", id={"type": "btn-newcol-token", "token": "C3"}, className="var-tag"),
+                                        html.Span("IC4", id={"type": "btn-newcol-token", "token": "IC4"}, className="var-tag"),
+                                        html.Span("NC4", id={"type": "btn-newcol-token", "token": "NC4"}, className="var-tag"),
+                                        html.Span("IC5", id={"type": "btn-newcol-token", "token": "IC5"}, className="var-tag"),
+                                        html.Span("NC5", id={"type": "btn-newcol-token", "token": "NC5"}, className="var-tag"),
+                                        html.Span("TG", id={"type": "btn-newcol-token", "token": "TG"}, className="var-tag"),
+                                        html.Span("WH", id={"type": "btn-newcol-token", "token": "WH"}, className="var-tag"),
+                                        html.Span("BH", id={"type": "btn-newcol-token", "token": "BH"}, className="var-tag"),
+                                    ], className="d-flex align-items-center flex-wrap mb-3"),
+                                ]),
+                                dbc.Button(
+                                    [html.I(className="fa-solid fa-plus me-2"), "Add Graph Column"],
+                                    id="btn-submit-new-column",
+                                    color="primary",
+                                    size="sm",
+                                    style={"borderRadius": "8px", "fontWeight": "600", "background": "#6366f1", "border": "none"},
+                                ),
+                                html.Div(id="add-column-status", className="mt-2"),
+                            ], className="py-3"),
+                        ],
+                    ),
+                    dbc.Tab(
+                        label="Remove Columns",
+                        tab_id="tab-col-remove",
+                        children=[
+                            html.Div([
+                                html.Div("Delete custom or non-essential columns from the current schema:", style={"fontSize": "12px", "color": CLR_MUTED, "marginBottom": "12px", "marginTop": "12px"}),
+                                html.Div(id="remove-columns-container", style={"maxHeight": "320px", "overflowY": "auto"}),
+                            ]),
+                        ],
+                    ),
+                ],
+                id="column-tabs",
+                active_tab="tab-col-visibility",
+            ),
+        ], style={"background": CLR_SURFACE, "padding": "20px"}),
+        dbc.ModalFooter([
+            dbc.Button("Close", id="btn-close-col-modal", color="secondary", outline=True, size="sm", style={"borderRadius": "8px"}),
+            dbc.Button(
+                [html.I(className="fa-solid fa-floppy-disk me-2"), "Apply & Update Log Tracks"],
+                id="btn-apply-columns",
+                color="primary",
+                size="sm",
+                style={"borderRadius": "8px", "fontWeight": "600", "background": "#6366f1", "border": "none"},
+            ),
+        ], style={"background": CLR_SURFACE, "borderTop": f"1px solid {CLR_BORDER}"}),
+    ],
+    id="columns-modal",
+    is_open=False,
+    centered=True,
+    size="lg",
+    style={"backdropFilter": "blur(8px)"},
+)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Modal 2: Petrophysical Formula & Indicator Manager (16 Derived Indicators)
+# ──────────────────────────────────────────────────────────────────────
+FORMULA_SELECT_OPTIONS = [
+    {"label": "Methane Gas Channel (C1) — Raw Hydrocarbon", "value": "C1"},
+    {"label": "Haworth Wetness (Wh) — Richness Indicator", "value": "WH"},
+    {"label": "Haworth Balance (Bh) — Gas-Oil Contact", "value": "BH"},
+    {"label": "Haworth Character (Ch) — Fluid Confirmation", "value": "CH"},
+    {"label": "Pixler R1 (C1 / C2) — Dry Gas Delineation", "value": "R1_C1_C2"},
+    {"label": "Pixler R2 (C1 / C3) — Gas-Liquid Contact", "value": "R2_C1_C3"},
+    {"label": "Pixler R3 (C3 / C1) — Light-to-Heavy Ratio", "value": "R3_C3_C1"},
+    {"label": "Pixler R4 (C2 / C1) — Methane-Ethane Inverse", "value": "R4_C2_C1"},
+    {"label": "Expanded Ratio iC4 (C1 / iC4) — Iso-Butane Sensitivity", "value": "RATIO_IC4"},
+    {"label": "Expanded Ratio nC4 (C1 / nC4) — Normal-Butane Sensitivity", "value": "RATIO_NC4"},
+    {"label": "Total Gas Volume (TG) — Hydrocarbon Summation", "value": "TG"},
+    {"label": "Dryness Ratio (DR = C1 / TG) — Methane Purity", "value": "DRYNESS"},
+    {"label": "Carbon Density Index (Icarbon) — Molecular Density", "value": "CARBON_INDEX"},
+    {"label": "Composite GOW — Heavy Fraction Volume", "value": "GOW"},
+    {"label": "GOW No-TG (Normalized Heavy Fraction)", "value": "GOW_NOTG"},
+    {"label": "Wetness-Balance Score (WBS) — Crossplot Index", "value": "WBS"},
+    {"label": "Gas-Oil Ratio (GOR) — Screening Flag", "value": "GOR"},
+]
+
+formulas_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(
+            dbc.ModalTitle(
+                html.Div([
+                    html.I(className="fa-solid fa-sliders me-2", style={"color": CLR_WARNING}),
+                    "Petrophysical Formula & Threshold Manager",
+                ]),
+                style={"color": CLR_TEXT, "fontSize": "16px", "fontWeight": "700"},
+            ),
+            close_button=True,
+            style={"background": CLR_SURFACE, "borderBottom": f"1px solid {CLR_BORDER}"},
+        ),
+        dbc.ModalBody([
+            dbc.Tabs([
+                # TAB 1: FORMULAS
+                dbc.Tab(
+                    label="Formula Expressions",
+                    tab_id="tab-edit-formulas",
+                    children=[
+                        html.Div([
+                            html.Label("Select Petrophysical Indicator Formula to Edit", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "6px", "marginTop": "10px"}),
+                            dbc.Select(
+                                id="formula-select",
+                                options=FORMULA_SELECT_OPTIONS,
+                                value="WH",
+                                className="mb-3",
+                            ),
+
+                            html.Label("Mathematical Expression (Python / LaTeX Engine Syntax)", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                            dbc.Input(
+                                id="formula-expr-input",
+                                type="text",
+                                value=DEFAULT_FORMULAS["WH"]["expr"],
+                                style={"fontFamily": "'JetBrains Mono', monospace", "fontSize": "13px"},
+                                className="mb-1",
+                            ),
+
+                            # Quick Variable Insert Tags
+                            html.Div([
+                                html.Span("Insert Variable: ", style={"fontSize": "11px", "color": CLR_MUTED, "marginRight": "4px"}),
+                                html.Span("C1", id={"type": "btn-formula-token", "token": "C1"}, className="var-tag"),
+                                html.Span("C2", id={"type": "btn-formula-token", "token": "C2"}, className="var-tag"),
+                                html.Span("C3", id={"type": "btn-formula-token", "token": "C3"}, className="var-tag"),
+                                html.Span("IC4", id={"type": "btn-formula-token", "token": "IC4"}, className="var-tag"),
+                                html.Span("NC4", id={"type": "btn-formula-token", "token": "NC4"}, className="var-tag"),
+                                html.Span("IC5", id={"type": "btn-formula-token", "token": "IC5"}, className="var-tag"),
+                                html.Span("NC5", id={"type": "btn-formula-token", "token": "NC5"}, className="var-tag"),
+                                html.Span("TG", id={"type": "btn-formula-token", "token": "TG"}, className="var-tag"),
+                                html.Span("WH", id={"type": "btn-formula-token", "token": "WH"}, className="var-tag"),
+                                html.Span("BH", id={"type": "btn-formula-token", "token": "BH"}, className="var-tag"),
+                                html.Span("CH", id={"type": "btn-formula-token", "token": "CH"}, className="var-tag"),
+                                html.Span("log10(", id={"type": "btn-formula-token", "token": "log10("}, className="var-tag"),
+                                html.Span("sqrt(", id={"type": "btn-formula-token", "token": "sqrt("}, className="var-tag"),
+                                html.Span("where(", id={"type": "btn-formula-token", "token": "where("}, className="var-tag"),
+                            ], className="d-flex align-items-center flex-wrap mb-3"),
+
+                            # Boundary Cutoff Reference for selected formula
+                            html.Div([
+                                html.Div("Standard Fluid Indicator Thresholds", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
+                                html.Div([
+                                    html.Div([
+                                        html.Span("🔴 Gas Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
+                                        html.Span(id="formula-thresh-gas", children=DEFAULT_FORMULAS["WH"]["gas"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                    ], className="col-4"),
+                                    html.Div([
+                                        html.Span("🟢 Oil Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
+                                        html.Span(id="formula-thresh-oil", children=DEFAULT_FORMULAS["WH"]["oil"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                    ], className="col-4"),
+                                    html.Div([
+                                        html.Span("🔵 Water Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
+                                        html.Span(id="formula-thresh-water", children=DEFAULT_FORMULAS["WH"]["water"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                    ], className="col-4"),
+                                ], className="row g-2"),
+                            ], style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px", "marginBottom": "14px"}),
+
+                            # Live Evaluation Test Box
+                            html.Div([
+                                html.Label("Live Verification on Well Log Sample Interval", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "textTransform": "uppercase", "marginBottom": "4px"}),
+                                html.Div(
+                                    id="formula-live-preview",
+                                    style={
+                                        "background": "#070c18",
+                                        "border": f"1px solid {CLR_BORDER}",
+                                        "borderRadius": "8px",
+                                        "padding": "10px 14px",
+                                        "fontSize": "12px",
+                                        "fontFamily": "'JetBrains Mono', monospace",
+                                        "color": "#38bdf8",
+                                        "minHeight": "48px",
+                                    },
+                                ),
+                            ]),
+                        ]),
+                    ],
+                ),
+                # TAB 2: FLUID CLASSIFICATION THRESHOLDS
+                dbc.Tab(
+                    label="Classification Thresholds",
+                    tab_id="tab-edit-thresholds",
+                    children=[
+                        html.Div([
+                            html.Div("Configure numerical cutoffs for majority-vote fluid typing (Gas, Oil, Water, No Show):", style={"fontSize": "12px", "color": CLR_MUTED, "marginTop": "10px", "marginBottom": "12px"}),
+                            
+                            # Row 1: Haworth Ratios
+                            html.Div([
+                                html.Div([
+                                    html.Div("Haworth Wetness & Balance (Wh & Bh)", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("Wh Gas Min Spike (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wh-gas-min", type="number", value=0.5, step=0.1, size="sm"),
+                                        ], className="col-4 mb-2"),
+                                        html.Div([
+                                            html.Label("Wh Gas Max (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wh-gas", type="number", value=17.5, step=0.5, size="sm"),
+                                        ], className="col-4 mb-2"),
+                                        html.Div([
+                                            html.Label("Wh Oil Max (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wh-oil", type="number", value=40.0, step=0.5, size="sm"),
+                                        ], className="col-4 mb-2"),
+                                        html.Div([
+                                            html.Label("Bh Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-bh-gas", type="number", value=15.0, step=0.5, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Bh Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-bh-oil", type="number", value=0.5, step=0.1, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Ch Gas Cutoff", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-ch-gas", type="number", value=0.5, step=0.05, size="sm"),
+                                        ], className="col-6"),
+                                        html.Div([
+                                            html.Label("Ratio nC4 Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-ratio-nc4-gas", type="number", value=100.0, step=10.0, size="sm"),
+                                        ], className="col-6"),
+                                    ], className="row g-2"),
+                                ], className="col-md-6 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
+
+                                # Row 2: Pixler, Dryness & Screening
+                                html.Div([
+                                    html.Div("Pixler R1, R4 Bump, Dryness & WBS", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("Dryness Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-dry-gas", type="number", value=0.85, step=0.05, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Dryness Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-dry-oil", type="number", value=0.50, step=0.05, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Pixler R1 Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-r1-gas", type="number", value=15.0, step=0.5, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Pixler R1 Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-r1-oil", type="number", value=2.0, step=0.2, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Pixler R4 Oil Bump Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-r4-oil-bump", type="number", value=0.067, step=0.01, size="sm"),
+                                        ], className="col-4"),
+                                        html.Div([
+                                            html.Label("WBS Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wbs-gas", type="number", value=0.0, step=0.1, size="sm"),
+                                        ], className="col-4"),
+                                        html.Div([
+                                            html.Label("WBS Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wbs-oil", type="number", value=-0.5, step=0.1, size="sm"),
+                                        ], className="col-4"),
+                                    ], className="row g-2"),
+                                ], className="col-md-6 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
+                            ], className="row g-2"),
+
+                            # Row 3: Heavy Gas & Noise Floors
+                            html.Div([
+                                html.Div([
+                                    html.Div("Normalized Heavy Gas (GOW_noTG) & Noise Floors", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("GOW No-TG Gas Max", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-gow-notg-gas", type="number", value=0.015, step=0.005, size="sm"),
+                                        ], className="col-3"),
+                                        html.Div([
+                                            html.Label("GOW No-TG Oil Max", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-gow-notg-oil", type="number", value=0.08, step=0.01, size="sm"),
+                                        ], className="col-3"),
+                                        html.Div([
+                                            html.Label("TG Noise Floor (ppm)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-tg-noise", type="number", value=300.0, step=50, size="sm"),
+                                        ], className="col-3"),
+                                        html.Div([
+                                            html.Label("C1 Noise Floor (ppm)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-c1-noise", type="number", value=200.0, step=50, size="sm"),
+                                        ], className="col-3"),
+                                    ], className="row g-2"),
+                                ], className="col-12 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
+                            ], className="row g-2"),
+
+                            # Real-Time Fluid Facies Distribution Preview
+                            html.Div(id="threshold-zone-preview-container", className="mt-2"),
+                        ]),
+                    ],
+                ),
+            ], id="formula-threshold-tabs", active_tab="tab-edit-formulas"),
+
+            html.Div(id="formula-status-msg", className="mt-2"),
+        ], style={"background": CLR_SURFACE, "padding": "20px"}),
+        dbc.ModalFooter([
+            dbc.Button(
+                [html.I(className="fa-solid fa-rotate-left me-1"), "Restore Skripsi Default"],
+                id="btn-restore-formula-default",
+                color="secondary",
+                outline=True,
+                size="sm",
+                style={"borderRadius": "8px", "fontSize": "12px"},
+            ),
+            dbc.Button(
+                [html.I(className="fa-solid fa-check-double me-1"), "Save & Recompute Log Zones"],
+                id="btn-save-formula",
+                color="primary",
+                size="sm",
+                style={"borderRadius": "8px", "fontSize": "12px", "fontWeight": "600", "background": "#6366f1", "border": "none"},
+            ),
+        ], style={"background": CLR_SURFACE, "borderTop": f"1px solid {CLR_BORDER}"}),
+    ],
+    id="formulas-modal",
+    is_open=False,
+    centered=True,
+    size="lg",
+    style={"backdropFilter": "blur(8px)"},
+)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Top Navbar with Configuration Dropdown
 # ──────────────────────────────────────────────────────────────────────
 navbar = html.Header(
     html.Div([
         # Brand
         html.Div([
+            html.Div([
+                html.I(className="fa-solid fa-gas-pump", style={"fontSize": "16px", "color": "#ffffff"}),
+            ], style={
+                "width": "32px", "height": "32px", "borderRadius": "8px",
+                "background": "linear-gradient(135deg, #6366f1 0%, #10b981 100%)",
+                "display": "flex", "alignItems": "center", "justifyContent": "center",
+                "marginRight": "10px"
+            }),
             html.H1(
                 "Mudlogging",
                 style={
@@ -277,8 +902,41 @@ navbar = html.Header(
             ),
         ], style={"display": "flex", "alignItems": "center"}),
 
-        # Controls (Upload Modal Button + Export CSV)
+        # Controls (Configuration Dropdown + Upload Modal Button + Export CSV)
         html.Div([
+            # Configuration Dropdown
+            dbc.DropdownMenu(
+                label="Configuration",
+                children=[
+                    dbc.DropdownMenuItem([
+                        html.Div([
+                            html.I(className="fa-solid fa-table-columns me-2", style={"color": CLR_CYAN}),
+                            html.Span("Edit Columns", style={"fontWeight": "600"}),
+                            html.Div("Hide, show, add or remove tracks", style={"fontSize": "10px", "color": CLR_MUTED}),
+                        ]),
+                    ], id="dropdown-item-columns"),
+                    dbc.DropdownMenuItem([
+                        html.Div([
+                            html.I(className="fa-solid fa-square-root-variable me-2", style={"color": CLR_WARNING}),
+                            html.Span("Edit Formulas", style={"fontWeight": "600"}),
+                            html.Div("Customize petrophysical ratios", style={"fontSize": "10px", "color": CLR_MUTED}),
+                        ]),
+                    ], id="dropdown-item-formulas"),
+                    dbc.DropdownMenuItem(divider=True),
+                    dbc.DropdownMenuItem([
+                        html.Div([
+                            html.I(className="fa-solid fa-rotate-left me-2", style={"color": CLR_DANGER}),
+                            html.Span("Reset to Skripsi Defaults"),
+                            html.Div("Restore standard indicators & schema", style={"fontSize": "10px", "color": CLR_MUTED}),
+                        ]),
+                    ], id="dropdown-item-reset"),
+                ],
+                size="sm",
+                color="secondary",
+                className="me-2",
+                toggle_style={"borderRadius": "8px", "fontSize": "12px", "fontWeight": "600", "borderColor": "rgba(51, 65, 85, 0.8)", "background": "rgba(30, 41, 59, 0.8)"},
+            ),
+
             dbc.Button(
                 [html.I(className="fa-solid fa-upload me-2"), "Upload File"],
                 id="btn-open-upload",
@@ -308,6 +966,8 @@ navbar = html.Header(
 # ──────────────────────────────────────────────────────────────────────
 app.layout = html.Div([
     upload_modal,
+    columns_modal,
+    formulas_modal,
     navbar,
 
     # Main Body Container (Full Width Responsive with Padding)
@@ -322,15 +982,47 @@ app.layout = html.Div([
                 html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#475569", "display": "inline-block", "marginRight": "4px"}), "No Show"], style={"fontSize": "11px", "fontWeight": "600", "color": "#94a3b8"}),
             ], className="d-flex align-items-center flex-wrap"),
 
-            html.Div(id="track-header-info", className="d-none d-md-flex align-items-center text-muted", style={"fontSize": "11px"}),
+            html.Div([
+                html.Div([
+                    html.I(className="fa-solid fa-filter me-1 text-info", style={"fontSize": "11px"}),
+                    html.Span("Plot Filter:", style={"fontSize": "11px", "fontWeight": "600", "color": CLR_MUTED, "marginRight": "6px"}),
+                    dbc.Select(
+                        id="select-percentile-cutoff",
+                        options=[
+                            {"label": "Top 25% Percentile (P75 Cutoff)", "value": 75},
+                            {"label": "Top 10% Percentile (P90 Cutoff)", "value": 90},
+                            {"label": "Top 50% Percentile (P50 Cutoff)", "value": 50},
+                            {"label": "Show All Data (0% Cutoff)", "value": 0},
+                        ],
+                        value=75,
+                        size="sm",
+                        style={
+                            "fontSize": "11px",
+                            "padding": "2px 8px",
+                            "height": "28px",
+                            "width": "210px",
+                            "background": "rgba(30, 41, 59, 0.8)",
+                            "color": "#f1f5f9",
+                            "borderColor": "rgba(51, 65, 85, 0.8)",
+                            "borderRadius": "6px",
+                            "fontWeight": "600"
+                        },
+                    ),
+                ], className="d-flex align-items-center me-3"),
+                html.Div(id="track-header-info", className="d-none d-md-flex align-items-center text-muted", style={"fontSize": "11px"}),
+            ], className="d-flex align-items-center flex-wrap"),
         ], className="glass-card px-3 py-2 mb-2 d-flex align-items-center justify-content-between flex-wrap gap-2"),
 
         # 2. Dedicated Full-Screen Continuous Multi-Track Well Log
         html.Div(id="tracks-container"),
 
-        # 3. Hidden Data Stores & Download Component
+        # 3. Dynamic State Stores
         dcc.Store(id="store-raw", data=INIT_RAW_DF.to_json(orient="split", date_format="iso")),
         dcc.Store(id="store-computed", data=INIT_COMPUTED_DF.to_json(orient="split", date_format="iso")),
+        dcc.Store(id="store-schema", data=DEFAULT_TRACK_SCHEMA),
+        dcc.Store(id="store-formulas", data={k: v["expr"] for k, v in DEFAULT_FORMULAS.items()}),
+        dcc.Store(id="store-thresholds", data=DEFAULT_THRESHOLDS),
+        dcc.Store(id="store-custom-cols", data=[]),
         dcc.Download(id="download-report"),
 
     ], style={"width": "100%", "padding": "10px 18px 30px 18px"}),
@@ -338,66 +1030,89 @@ app.layout = html.Div([
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Data Filtering Utility
-# ──────────────────────────────────────────────────────────────────────
-def filter_df_by_depth(df: pd.DataFrame, depth_filter: str) -> pd.DataFrame:
-    if df is None or len(df) == 0:
-        return df
-    if depth_filter == "target":
-        return df[(df["DEPTH"] >= 2100) & (df["DEPTH"] <= 2450)].reset_index(drop=True)
-    elif depth_filter == "upper":
-        return df[df["DEPTH"] < 2100].reset_index(drop=True)
-    elif depth_filter == "lower":
-        return df[df["DEPTH"] > 2450].reset_index(drop=True)
-    return df
-
-
-# ──────────────────────────────────────────────────────────────────────
 #  Header Info Callback
 # ──────────────────────────────────────────────────────────────────────
 @app.callback(
     Output("track-header-info", "children"),
-    [Input("store-computed", "data")]
+    [Input("store-computed", "data"),
+     Input("store-schema", "data")]
 )
-def update_header_info(json_computed):
+def update_header_info(json_computed, schema):
     if not json_computed:
         return ""
     df = pd.read_json(io.StringIO(json_computed), orient="split")
     d_min = df["DEPTH"].min()
     d_max = df["DEPTH"].max()
     pts = len(df)
+    active_count = sum(1 for s in (schema or []) if s.get("visible", True))
     return [
         html.I(className="fa-solid fa-ruler-vertical text-info me-1"),
-        f"Depth: {d_min:.0f}m – {d_max:.0f}m ({d_max - d_min:.0f}m span • {pts} intervals) • All 23 individual tracks fitted to screen width",
+        f"Depth: {d_min:.0f}m – {d_max:.0f}m ({d_max - d_min:.0f}m span • {pts} intervals) • {active_count} tracks active",
     ]
 
 
 # ──────────────────────────────────────────────────────────────────────
 #  Full Continuous Multi-Track Well Log Builder (Fits 100% Screen Width)
 # ──────────────────────────────────────────────────────────────────────
+def build_well_log_polygons(x_vals, y_depths):
+    """
+    Constructs isolated closed polygons for each contiguous non-zero peak segment.
+    Guarantees clean horizontal top and bottom cutoffs and complete separation at zeroes.
+    """
+    valid = np.isfinite(x_vals) & (~np.isnan(x_vals)) & (x_vals > 0)
+    if not np.any(valid):
+        return [], []
+
+    base_x = 0.0
+    diff = np.diff(valid.astype(int))
+    starts = np.where(diff == 1)[0] + 1
+    if valid[0]:
+        starts = np.r_[0, starts]
+    ends = np.where(diff == -1)[0] + 1
+    if valid[-1]:
+        ends = np.r_[ends, len(valid)]
+
+    poly_x, poly_y = [], []
+    for s, e in zip(starts, ends):
+        seg_x = list(x_vals[s:e])
+        seg_y = list(y_depths[s:e])
+        if len(seg_x) == 0:
+            continue
+        poly_x.extend([base_x] + seg_x + [base_x, base_x, np.nan])
+        poly_y.extend([seg_y[0]] + seg_y + [seg_y[-1], seg_y[0], np.nan])
+    return poly_x, poly_y
+
+
 @app.callback(
     Output("tracks-container", "children"),
-    [Input("store-computed", "data")]
+    [Input("store-computed", "data"),
+     Input("store-schema", "data"),
+     Input("select-percentile-cutoff", "value")]
 )
-def render_full_continuous_tracks(json_computed):
+def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
     if not json_computed:
         return html.Div("No data loaded.", style={"color": CLR_MUTED, "padding": "40px", "textAlign": "center"})
+
+    try:
+        cutoff = float(percentile_cutoff) if percentile_cutoff is not None else 75.0
+    except (ValueError, TypeError):
+        cutoff = 75.0
 
     df = pd.read_json(io.StringIO(json_computed), orient="split")
     filtered_df = df
 
     depth = filtered_df["DEPTH"].values
-    grid_clr = "rgba(51, 65, 85, 0.22)"
     chart_height = 840
 
-    active_specs = [s for s in CONTINUOUS_TRACK_SPECS if s[0] in filtered_df.columns]
+    track_specs = schema if schema else DEFAULT_TRACK_SCHEMA
+    active_specs = [s for s in track_specs if s.get("visible", True) and s.get("key") in filtered_df.columns]
     has_zone = "ZONE" in filtered_df.columns
     total_cols = len(active_specs) + (1 if has_zone else 0)
 
     if total_cols == 0:
-        return html.Div("No valid track data available.", style={"color": CLR_MUTED, "padding": "20px"})
+        return html.Div("No active tracks selected. Open Configuration > Edit Columns to enable tracks.", style={"color": CLR_MUTED, "padding": "40px", "textAlign": "center"})
 
-    titles = [s[1] for s in active_specs] + (["Zone"] if has_zone else [])
+    titles = [s.get("name", s.get("key")) for s in active_specs] + (["Zone"] if has_zone else [])
 
     # Proportional column widths totaling 1.0 (fitting 100% of the screen width)
     raw_widths = [1.0] * len(active_specs) + ([0.7] if has_zone else [])
@@ -408,34 +1123,105 @@ def render_full_continuous_tracks(json_computed):
         rows=1,
         cols=total_cols,
         shared_yaxes=True,
-        horizontal_spacing=0.0035,
+        horizontal_spacing=0.0028,
         subplot_titles=titles,
         column_widths=norm_widths,
     )
 
-    for i, (col_key, title, color, scale_type) in enumerate(active_specs, start=1):
-        vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
-        x_plot = np.where(vals > 0, vals, np.nan) if scale_type == "log" else vals
+    input_gas_keys = {"C1", "C2", "C3", "IC4", "NC4", "IC5", "NC5", "TG", "TG_USED"}
 
+    for i, spec in enumerate(active_specs, start=1):
+        col_key = spec.get("key")
+        col_id = spec.get("id")
+        title = spec.get("name", col_key)
+        color = spec.get("color", "#0284c7")
+        scale_type = spec.get("scale", "linear")
+
+        vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
+        is_input_col = (col_key in input_gas_keys) or (col_id in input_gas_keys)
+
+        # 25% rule ONLY applies to input columns if LESS THAN 25% of the data on that column are 0
+        total_pts = len(vals)
+        zero_pts = np.sum((vals <= 0) | np.isnan(vals) | ~np.isfinite(vals))
+        zero_fraction = (zero_pts / total_pts) if total_pts > 0 else 0.0
+        apply_25_rule = is_input_col and (cutoff > 0) and (zero_fraction < 0.25)
+
+        if apply_25_rule:
+            valid_mask = np.isfinite(vals) & (vals > 0)
+            if np.any(valid_mask):
+                p_thresh = float(np.percentile(vals[valid_mask], cutoff))
+                top_mask = valid_mask & (vals >= p_thresh)
+                if np.any(top_mask):
+                    min_remaining = float(np.min(vals[top_mask]))
+                    vals_plot = np.where(top_mask, vals - min_remaining, 0.0)
+                else:
+                    vals_plot = np.zeros_like(vals)
+            else:
+                vals_plot = np.zeros_like(vals)
+            x_plot = np.where((vals_plot > 0) & np.isfinite(vals_plot), vals_plot, np.nan)
+        else:
+            # When >= 25% of column is already 0, or for generated columns, plot data as-is
+            vals_plot = np.where(np.isfinite(vals) & (vals > 0), vals, 0.0)
+            x_plot = np.where(np.isfinite(vals) & (vals > 0), vals, np.nan)
+
+        # 1. Closed fill polygons for every track (protruding from left baseline x=0, clean zero cutoffs)
+        try:
+            r = int(color[1:3], 16)
+            g = int(color[3:5], 16)
+            b = int(color[5:7], 16)
+            fill_color = f"rgba({r}, {g}, {b}, 0.72)"
+        except Exception:
+            fill_color = "rgba(22, 163, 74, 0.72)"
+
+        poly_x, poly_y = build_well_log_polygons(vals_plot, depth)
+        if len(poly_x) > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=poly_x, y=poly_y, mode="lines",
+                    line=dict(width=0, color=fill_color),
+                    fill="toself", fillcolor=fill_color,
+                    connectgaps=False,
+                    showlegend=False,
+                    hoverinfo="skip",
+                ),
+                row=1, col=i,
+            )
+
+        # 2. Precise curve trace with isolated segments (no diagonal bridging across zeroes)
         fig.add_trace(
             go.Scatter(
                 x=x_plot, y=depth, mode="lines", name=title,
                 line=dict(color=color, width=1.4),
-                fill="tozerox", fillcolor=f"rgba({int(color[1:3],16)}, {int(color[3:5],16)}, {int(color[5:7],16)}, 0.18)",
+                connectgaps=False,
                 showlegend=False,
                 hovertemplate=f"Depth: %{{y:.1f}}m<br>{title}: %{{x:.3g}}<extra></extra>",
             ),
             row=1, col=i,
         )
         xname = "xaxis" if i == 1 else f"xaxis{i}"
-        fig.update_layout(**{xname: dict(
+        axis_dict = dict(
             type="log" if scale_type == "log" else "linear",
-            gridcolor=grid_clr,
-            tickfont=dict(size=7, color=CLR_MUTED),
+            showline=True,
+            linewidth=1.4,
+            linecolor="#000000",
+            mirror=True,
+            gridcolor="#e2e8f0",
+            gridwidth=0.8,
+            tickfont=dict(size=7.5, color="#000000", family="'JetBrains Mono', monospace"),
+            tickcolor="#000000",
             nticks=3,
             showgrid=True,
             zeroline=False,
-        )})
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikedash="dot",
+            spikethickness=1.2,
+            spikecolor="#000000",
+        )
+        if scale_type == "linear":
+            axis_dict["rangemode"] = "tozero"
+        fig.update_layout(**{xname: axis_dict})
 
     if has_zone:
         ci = total_cols
@@ -451,35 +1237,88 @@ def render_full_continuous_tracks(json_computed):
             ),
             row=1, col=ci,
         )
-        fig.update_layout(**{f"xaxis{ci}": dict(showticklabels=False, zeroline=False, gridcolor=grid_clr)})
+        fig.update_layout(**{f"xaxis{ci}": dict(
+            showticklabels=False, zeroline=False,
+            showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
+            gridcolor="#e2e8f0",
+            showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
+        )})
 
-    # Invert Y-axis for well depth on all subplots
-    fig.update_yaxes(autorange="reversed", gridcolor=grid_clr, title_text="Depth (m)", row=1, col=1, tickfont=dict(size=8.5, color=CLR_TEXT))
+    # Invert Y-axis for well depth on all subplots with crisp track borders
+    fig.update_yaxes(
+        autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8,
+        title_text="DEPTH (m)", title_font=dict(size=9.5, color="#000000", family="Inter, sans-serif", weight="bold"),
+        row=1, col=1,
+        showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
+        tickfont=dict(size=8, color="#000000", family="'JetBrains Mono', monospace"),
+        tickcolor="#000000",
+        showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
+    )
     for c_idx in range(2, total_cols + 1):
-        fig.update_layout(**{f"yaxis{c_idx}": dict(autorange="reversed", gridcolor=grid_clr, showgrid=True, zeroline=False, tickfont=dict(size=7.5, color=CLR_MUTED))})
+        fig.update_layout(**{f"yaxis{c_idx}": dict(
+            autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8, showgrid=True, zeroline=False,
+            showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
+            tickfont=dict(size=7.5, color="#000000", family="'JetBrains Mono', monospace"),
+            tickcolor="#000000",
+            showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
+        )})
 
     fig.update_layout(
         height=chart_height,
         autosize=True,
-        template="plotly_dark",
-        paper_bgcolor=CLR_BG,
-        plot_bgcolor="#070c18",
-        font=dict(family="Inter, sans-serif", size=8.5, color=CLR_TEXT),
-        margin=dict(l=55, r=15, t=40, b=25),
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        font=dict(family="Inter, sans-serif", size=8.5, color="#000000"),
+        margin=dict(l=52, r=15, t=55, b=25),
         hovermode="y unified",
     )
 
+    # Boxed Track Headers matching petrophysical well log layout
     for ann in fig.layout.annotations:
-        ann.font = dict(size=9.5, color="#818cf8", family="Inter, sans-serif", weight="bold")
+        ann.font = dict(size=8, color="#000000", family="Inter, sans-serif", weight="bold")
+        ann.bgcolor = "#f8fafc"
+        ann.bordercolor = "#000000"
+        ann.borderwidth = 1.2
+        ann.borderpad = 3
+
+    depth_zone_pairs = []
+    if "ZONE" in filtered_df.columns:
+        for d, z in zip(filtered_df["DEPTH"].values, filtered_df["ZONE"].values):
+            if pd.notna(d) and pd.notna(z):
+                depth_zone_pairs.append({"d": float(d), "z": str(z)})
+    depth_zone_json = json.dumps(depth_zone_pairs)
 
     return html.Div([
+        html.Div(id="global-crosshair-line"),
+        html.Div(id="global-crosshair-badge", children="Depth: -- m"),
+        html.Div(id="global-crosshair-zone-badge", children="--"),
+        html.Div(id="zone-data-holder", style={"display": "none"}, children=depth_zone_json),
         dcc.Graph(
+            id="log-graph",
             figure=fig,
             responsive=True,
             config={"scrollZoom": True, "displayModeBar": True},
             style={"width": "100%", "height": f"{chart_height}px"},
         ),
-    ], className="glass-card p-3")
+    ], id="log-graph-container", className="log-card p-2", **{"data-zone-data": depth_zone_json})
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Dynamic Recomputation Callback (Raw Data + Formulas + Custom Columns + Thresholds)
+# ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    Output("store-computed", "data"),
+    [Input("store-raw", "data"),
+     Input("store-formulas", "data"),
+     Input("store-custom-cols", "data"),
+     Input("store-thresholds", "data")]
+)
+def recompute_dataset(json_raw, formulas, custom_cols, thresholds):
+    if not json_raw:
+        return no_update
+    df_raw = pd.read_json(io.StringIO(json_raw), orient="split")
+    computed_df = compute_all(df_raw, formula_overrides=formulas, custom_columns=custom_cols, threshold_overrides=thresholds)
+    return computed_df.to_json(orient="split", date_format="iso")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -497,7 +1336,6 @@ def toggle_upload_modal(n_clicks, is_open):
 
 @app.callback(
     [Output("store-raw", "data"),
-     Output("store-computed", "data"),
      Output("upload-status", "children"),
      Output("upload-modal", "is_open", allow_duplicate=True)],
     [Input("upload-data", "contents")],
@@ -506,7 +1344,7 @@ def toggle_upload_modal(n_clicks, is_open):
 )
 def handle_mudlog_upload(contents, filename):
     if not contents:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     try:
         content_type, content_string = contents.split(",")
@@ -536,19 +1374,560 @@ def handle_mudlog_upload(contents, filename):
             df["TG"] = pd.to_numeric(df["TG"], errors="coerce").fillna(0.0)
 
         df = df.sort_values("DEPTH").reset_index(drop=True)
-        computed_df = compute_all(df)
-
         status_msg = dbc.Alert(f"✅ Successfully loaded {filename} ({len(df)} depth intervals).", color="success", style={"fontSize": "12px", "borderRadius": "8px"})
 
         return (
             df.to_json(orient="split", date_format="iso"),
-            computed_df.to_json(orient="split", date_format="iso"),
             status_msg,
             False
         )
     except Exception as e:
         status_msg = dbc.Alert(f"❌ Error loading file: {str(e)}", color="danger", style={"fontSize": "12px", "borderRadius": "8px"})
-        return no_update, no_update, status_msg, no_update
+        return no_update, status_msg, no_update
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Modal Toggles & Reset Defaults (Configuration Dropdown)
+# ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    Output("columns-modal", "is_open"),
+    [Input("dropdown-item-columns", "n_clicks"),
+     Input("btn-close-col-modal", "n_clicks"),
+     Input("btn-apply-columns", "n_clicks")],
+    [State("columns-modal", "is_open")],
+    prevent_initial_call=True
+)
+def toggle_columns_modal(n_open, n_close, n_apply, is_open):
+    return not is_open
+
+
+@app.callback(
+    Output("formulas-modal", "is_open"),
+    [Input("dropdown-item-formulas", "n_clicks"),
+     Input("btn-save-formula", "n_clicks")],
+    [State("formulas-modal", "is_open")],
+    prevent_initial_call=True
+)
+def toggle_formulas_modal(n_open, n_save, is_open):
+    return not is_open
+
+
+@app.callback(
+    [Output("store-schema", "data", allow_duplicate=True),
+     Output("store-formulas", "data", allow_duplicate=True),
+     Output("store-custom-cols", "data", allow_duplicate=True),
+     Output("store-thresholds", "data", allow_duplicate=True)],
+    [Input("dropdown-item-reset", "n_clicks")],
+    prevent_initial_call=True
+)
+def reset_to_defaults(n_clicks):
+    if not n_clicks:
+        return no_update, no_update, no_update, no_update
+    return (
+        DEFAULT_TRACK_SCHEMA,
+        {k: v["expr"] for k, v in DEFAULT_FORMULAS.items()},
+        [],
+        DEFAULT_THRESHOLDS
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Callbacks: Edit Formulas & Thresholds Modal (Select, Token, Sync, Save, Preview)
+# ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    [Output("formula-expr-input", "value"),
+     Output("formula-thresh-gas", "children"),
+     Output("formula-thresh-oil", "children"),
+     Output("formula-thresh-water", "children")],
+    [Input("formula-select", "value"),
+     Input("btn-restore-formula-default", "n_clicks")],
+    [State("store-formulas", "data")],
+    prevent_initial_call=False
+)
+def sync_formula_selection(selected_key, n_restore, current_formulas):
+    if not selected_key or selected_key not in DEFAULT_FORMULAS:
+        selected_key = "WH"
+
+    triggered = ctx.triggered_id
+    if triggered == "btn-restore-formula-default":
+        expr = DEFAULT_FORMULAS[selected_key]["expr"]
+    else:
+        expr = (current_formulas or {}).get(selected_key, DEFAULT_FORMULAS[selected_key]["expr"])
+
+    gas_lim = DEFAULT_FORMULAS[selected_key].get("gas", "-")
+    oil_lim = DEFAULT_FORMULAS[selected_key].get("oil", "-")
+    wat_lim = DEFAULT_FORMULAS[selected_key].get("water", "-")
+
+    return expr, gas_lim, oil_lim, wat_lim
+
+
+@app.callback(
+    [Output("th-wh-gas-min", "value"),
+     Output("th-wh-gas", "value"),
+     Output("th-wh-oil", "value"),
+     Output("th-bh-gas", "value"),
+     Output("th-bh-oil", "value"),
+     Output("th-ch-gas", "value"),
+     Output("th-ratio-nc4-gas", "value"),
+     Output("th-dry-gas", "value"),
+     Output("th-dry-oil", "value"),
+     Output("th-r1-gas", "value"),
+     Output("th-r1-oil", "value"),
+     Output("th-r4-oil-bump", "value"),
+     Output("th-wbs-gas", "value"),
+     Output("th-wbs-oil", "value"),
+     Output("th-gow-notg-gas", "value"),
+     Output("th-gow-notg-oil", "value"),
+     Output("th-tg-noise", "value"),
+     Output("th-c1-noise", "value")],
+    [Input("formulas-modal", "is_open"),
+     Input("btn-restore-formula-default", "n_clicks")],
+    [State("store-thresholds", "data")],
+    prevent_initial_call=False
+)
+def sync_threshold_inputs(is_open, n_restore, current_thresholds):
+    triggered = ctx.triggered_id
+    if triggered == "btn-restore-formula-default":
+        th = DEFAULT_THRESHOLDS
+    else:
+        th = current_thresholds or DEFAULT_THRESHOLDS
+
+    return (
+        th.get("wh_gas_min", 0.5),
+        th.get("wh_gas_max", 17.5),
+        th.get("wh_oil_max", 40.0),
+        th.get("bh_gas_min", 15.0),
+        th.get("bh_oil_min", 0.5),
+        th.get("ch_gas_max", 0.5),
+        th.get("ratio_nc4_gas_min", 100.0),
+        th.get("dry_gas_min", 0.85),
+        th.get("dry_oil_min", 0.50),
+        th.get("r1_gas_min", 15.0),
+        th.get("r1_oil_min", 2.0),
+        th.get("r4_oil_bump_min", 0.067),
+        th.get("wbs_gas_min", 0.0),
+        th.get("wbs_oil_min", -0.5),
+        th.get("gow_notg_gas_max", 0.015),
+        th.get("gow_notg_oil_max", 0.08),
+        th.get("tg_noise", 300.0),
+        th.get("c1_noise", 200.0),
+    )
+
+
+@app.callback(
+    Output("threshold-zone-preview-container", "children"),
+    [Input("th-wh-gas-min", "value"),
+     Input("th-wh-gas", "value"),
+     Input("th-wh-oil", "value"),
+     Input("th-bh-gas", "value"),
+     Input("th-bh-oil", "value"),
+     Input("th-ch-gas", "value"),
+     Input("th-ratio-nc4-gas", "value"),
+     Input("th-dry-gas", "value"),
+     Input("th-dry-oil", "value"),
+     Input("th-r1-gas", "value"),
+     Input("th-r1-oil", "value"),
+     Input("th-r4-oil-bump", "value"),
+     Input("th-wbs-gas", "value"),
+     Input("th-wbs-oil", "value"),
+     Input("th-gow-notg-gas", "value"),
+     Input("th-gow-notg-oil", "value"),
+     Input("th-tg-noise", "value"),
+     Input("th-c1-noise", "value"),
+     Input("store-computed", "data")]
+)
+def update_threshold_zone_preview(wh_g_min, wh_g, wh_o, bh_g, bh_o, ch_g, r_nc4_g, dry_g, dry_o, r1_g, r1_o, r4_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, json_computed):
+    if not json_computed:
+        return html.Div()
+    try:
+        df = pd.read_json(io.StringIO(json_computed), orient="split")
+        active_th = {
+            "wh_gas_min": float(wh_g_min if wh_g_min is not None else 0.5),
+            "wh_gas_max": float(wh_g if wh_g is not None else 17.5),
+            "wh_oil_max": float(wh_o if wh_o is not None else 40.0),
+            "bh_gas_min": float(bh_g if bh_g is not None else 15.0),
+            "bh_oil_min": float(bh_o if bh_o is not None else 0.5),
+            "ch_gas_max": float(ch_g if ch_g is not None else 0.5),
+            "ratio_nc4_gas_min": float(r_nc4_g if r_nc4_g is not None else 100.0),
+            "dry_gas_min": float(dry_g if dry_g is not None else 0.85),
+            "dry_oil_min": float(dry_o if dry_o is not None else 0.50),
+            "r1_gas_min": float(r1_g if r1_g is not None else 15.0),
+            "r1_oil_min": float(r1_o if r1_o is not None else 2.0),
+            "r4_oil_bump_min": float(r4_o if r4_o is not None else 0.067),
+            "wbs_gas_min": float(wbs_g if wbs_g is not None else 0.0),
+            "wbs_oil_min": float(wbs_o if wbs_o is not None else -0.5),
+            "gow_notg_gas_max": float(gow_g if gow_g is not None else 0.015),
+            "gow_notg_oil_max": float(gow_o if gow_o is not None else 0.08),
+            "tg_noise": float(tg_n if tg_n is not None else 300.0),
+            "c1_noise": float(c1_n if c1_n is not None else 200.0),
+        }
+        from engine import _classify_zones
+        test_zones = _classify_zones(df, thresholds=active_th)
+        total = len(test_zones)
+        if total == 0:
+            return html.Div()
+        vc = test_zones.value_counts().to_dict()
+        n_gas = vc.get("Gas", 0)
+        n_oil = vc.get("Oil", 0)
+        n_wat = vc.get("Water", 0)
+        n_ns  = vc.get("No Show", 0)
+
+        p_gas = (n_gas / total) * 100.0
+        p_oil = (n_oil / total) * 100.0
+        p_wat = (n_wat / total) * 100.0
+        p_ns  = (n_ns / total) * 100.0
+
+        return html.Div([
+            html.Div("Live Fluid Facies Breakdown on Current Dataset", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
+            html.Div([
+                html.Span(f"🟢 Gas: {n_gas} ({p_gas:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
+                html.Span(f"🔴 Oil: {n_oil} ({p_oil:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
+                html.Span(f"🔵 Water: {n_wat} ({p_wat:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
+                html.Span(f"⚪ No Show: {n_ns} ({p_ns:.1f}%)", style={"fontSize": "12px", "fontWeight": "600", "color": "#94a3b8"}),
+            ], className="d-flex align-items-center flex-wrap"),
+        ], style={"background": "#070c18", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px"})
+    except Exception:
+        return html.Div()
+
+
+@app.callback(
+    Output("formula-expr-input", "value", allow_duplicate=True),
+    [Input({"type": "btn-formula-token", "token": ALL}, "n_clicks")],
+    [State("formula-expr-input", "value")],
+    prevent_initial_call=True
+)
+def insert_formula_token(clicks, current_expr):
+    if not ctx.triggered or not any(c for c in (clicks or []) if c is not None and c > 0):
+        return no_update
+    triggered_item = ctx.triggered[0]
+    if not triggered_item.get("value") or triggered_item.get("value") <= 0:
+        return no_update
+    prop_id = triggered_item["prop_id"]
+    token = json.loads(prop_id.rsplit(".", 1)[0])["token"]
+    cur = current_expr or ""
+    if cur and not cur.endswith((" ", "(", "+", "-", "*", "/", ",")):
+        cur += " "
+    return cur + token
+
+
+@app.callback(
+    Output("formula-live-preview", "children"),
+    [Input("formula-expr-input", "value"),
+     Input("formula-select", "value")],
+    [State("store-computed", "data")]
+)
+def update_formula_live_preview(expr, selected_key, json_computed):
+    if not expr or not json_computed:
+        return "Expression is empty."
+
+    try:
+        df = pd.read_json(io.StringIO(json_computed), orient="split")
+        sample_df = df.head(10).copy()
+        res = eval_expr(expr, sample_df)
+        if len(res) == 0:
+            return "No data points to evaluate."
+
+        valid = [v for v in res if not np.isnan(v)]
+        if valid:
+            mean_val = float(np.mean(valid))
+            min_val = float(np.min(valid))
+            max_val = float(np.max(valid))
+            sample_val = float(valid[0])
+            return f"✅ Valid Formula • First Interval: {sample_val:.4g} | Mean: {mean_val:.4g} (Min: {min_val:.4g}, Max: {max_val:.4g})"
+        else:
+            return "⚠️ Evaluated to NaN / zeroes on sample intervals."
+    except Exception as e:
+        return f"❌ Evaluation Error: {str(e)}"
+
+
+@app.callback(
+    [Output("store-formulas", "data"),
+     Output("store-thresholds", "data"),
+     Output("formula-status-msg", "children")],
+    [Input("btn-save-formula", "n_clicks")],
+    [State("formula-select", "value"),
+     State("formula-expr-input", "value"),
+     State("store-formulas", "data"),
+     State("th-wh-gas-min", "value"),
+     State("th-wh-gas", "value"),
+     State("th-wh-oil", "value"),
+     State("th-bh-gas", "value"),
+     State("th-bh-oil", "value"),
+     State("th-ch-gas", "value"),
+     State("th-ratio-nc4-gas", "value"),
+     State("th-dry-gas", "value"),
+     State("th-dry-oil", "value"),
+     State("th-r1-gas", "value"),
+     State("th-r1-oil", "value"),
+     State("th-r4-oil-bump", "value"),
+     State("th-wbs-gas", "value"),
+     State("th-wbs-oil", "value"),
+     State("th-gow-notg-gas", "value"),
+     State("th-gow-notg-oil", "value"),
+     State("th-tg-noise", "value"),
+     State("th-c1-noise", "value"),
+     State("store-thresholds", "data")],
+    prevent_initial_call=True
+)
+def save_formula_and_thresholds(n_clicks, selected_key, expr, current_formulas,
+                                wh_g_min, wh_g, wh_o, bh_g, bh_o, ch_g, r_nc4_g, dry_g, dry_o, r1_g, r1_o, r4_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, current_thresholds):
+    if not n_clicks:
+        return no_update, no_update, no_update
+
+    formulas = dict(current_formulas or {})
+    if selected_key and expr and expr.strip():
+        formulas[selected_key] = expr.strip()
+
+    thresholds = dict(current_thresholds or DEFAULT_THRESHOLDS)
+    if wh_g_min is not None: thresholds["wh_gas_min"] = float(wh_g_min)
+    if wh_g is not None: thresholds["wh_gas_max"] = float(wh_g)
+    if wh_o is not None: thresholds["wh_oil_max"] = float(wh_o)
+    if bh_g is not None: thresholds["bh_gas_min"] = float(bh_g)
+    if bh_o is not None: thresholds["bh_oil_min"] = float(bh_o)
+    if ch_g is not None: thresholds["ch_gas_max"] = float(ch_g)
+    if r_nc4_g is not None: thresholds["ratio_nc4_gas_min"] = float(r_nc4_g)
+    if dry_g is not None: thresholds["dry_gas_min"] = float(dry_g)
+    if dry_o is not None: thresholds["dry_oil_min"] = float(dry_o)
+    if r1_g is not None: thresholds["r1_gas_min"] = float(r1_g)
+    if r1_o is not None: thresholds["r1_oil_min"] = float(r1_o)
+    if r4_o is not None: thresholds["r4_oil_bump_min"] = float(r4_o)
+    if wbs_g is not None: thresholds["wbs_gas_min"] = float(wbs_g)
+    if wbs_o is not None: thresholds["wbs_oil_min"] = float(wbs_o)
+    if gow_g is not None: thresholds["gow_notg_gas_max"] = float(gow_g)
+    if gow_o is not None: thresholds["gow_notg_oil_max"] = float(gow_o)
+    if tg_n is not None: thresholds["tg_noise"] = float(tg_n)
+    if c1_n is not None: thresholds["c1_noise"] = float(c1_n)
+
+    status = dbc.Alert("✅ Saved formulas & classification thresholds and recomputed well log zones.", color="success", duration=3500, style={"fontSize": "12px", "borderRadius": "8px"})
+    return formulas, thresholds, status
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  Callbacks: Column Configuration Modal (Checklist, Add, Delete, Apply)
+# ──────────────────────────────────────────────────────────────────────
+@app.callback(
+    Output("column-checklist-container", "children"),
+    [Input("columns-modal", "is_open"),
+     Input("store-schema", "data")]
+)
+def render_column_checklist(is_open, schema):
+    tracks = schema or DEFAULT_TRACK_SCHEMA
+    rows = []
+    for s in tracks:
+        col_id = s.get("id")
+        name = s.get("name", s.get("key"))
+        unit = s.get("unit", "")
+        color = s.get("color", "#38bdf8")
+        vis = s.get("visible", True)
+
+        row = html.Div([
+            dbc.Checkbox(
+                id={"type": "col-vis-check", "id": col_id},
+                label=html.Span([
+                    html.Span(style={"width": "10px", "height": "10px", "borderRadius": "50%", "background": color, "display": "inline-block", "marginRight": "8px"}),
+                    html.Span(name, style={"fontWeight": "600", "color": CLR_TEXT, "marginRight": "6px"}),
+                    html.Small(f"({unit})", style={"color": CLR_MUTED}) if unit else None,
+                ], style={"fontSize": "12px"}),
+                value=vis,
+            ),
+        ], className="col-6 mb-2")
+        rows.append(row)
+
+    return html.Div(rows, className="row g-2")
+
+
+@app.callback(
+    Output({"type": "col-vis-check", "id": ALL}, "value"),
+    [Input("btn-col-select-all", "n_clicks"),
+     Input("btn-col-deselect-all", "n_clicks")],
+    [State({"type": "col-vis-check", "id": ALL}, "value")],
+    prevent_initial_call=True
+)
+def select_deselect_all_columns(n_sel, n_desel, current_values):
+    triggered = ctx.triggered_id
+    if triggered == "btn-col-select-all" and n_sel:
+        return [True] * len(current_values)
+    elif triggered == "btn-col-deselect-all" and n_desel:
+        return [False] * len(current_values)
+    return no_update
+
+
+@app.callback(
+    Output("new-col-expr-input", "value", allow_duplicate=True),
+    [Input({"type": "btn-newcol-token", "token": ALL}, "n_clicks")],
+    [State("new-col-expr-input", "value")],
+    prevent_initial_call=True
+)
+def insert_newcol_token(clicks, current_expr):
+    if not ctx.triggered or not any(c for c in (clicks or []) if c is not None and c > 0):
+        return no_update
+    triggered_item = ctx.triggered[0]
+    if not triggered_item.get("value") or triggered_item.get("value") <= 0:
+        return no_update
+    prop_id = triggered_item["prop_id"]
+    token = json.loads(prop_id.rsplit(".", 1)[0])["token"]
+    cur = current_expr or ""
+    if cur and not cur.endswith((" ", "(", "+", "-", "*", "/", ",")):
+        cur += " "
+    return cur + token
+
+
+@app.callback(
+    [Output("store-schema", "data", allow_duplicate=True),
+     Output("store-custom-cols", "data", allow_duplicate=True),
+     Output("add-column-status", "children"),
+     Output("new-col-name-input", "value"),
+     Output("new-col-unit-input", "value"),
+     Output("new-col-expr-input", "value")],
+    [Input("btn-submit-new-column", "n_clicks")],
+    [State("new-col-name-input", "value"),
+     State("new-col-unit-input", "value"),
+     State("new-col-scale-select", "value"),
+     State("new-col-color-input", "value"),
+     State("new-col-expr-input", "value"),
+     State("store-schema", "data"),
+     State("store-custom-cols", "data"),
+     State("store-computed", "data")],
+    prevent_initial_call=True
+)
+def add_new_custom_column(n_clicks, name, unit, scale, color, expr, schema, custom_cols, json_computed):
+    if not n_clicks:
+        return no_update, no_update, no_update, no_update, no_update, no_update
+
+    if not name or not name.strip():
+        return no_update, no_update, dbc.Alert("Please provide a valid column name.", color="warning", style={"fontSize": "12px"}), no_update, no_update, no_update
+
+    if not expr or not expr.strip():
+        return no_update, no_update, dbc.Alert("Please provide a mathematical computation expression.", color="warning", style={"fontSize": "12px"}), no_update, no_update, no_update
+
+    col_key = name.strip().replace(" ", "_").upper()
+    
+    # Test formula evaluation
+    try:
+        df = pd.read_json(io.StringIO(json_computed), orient="split")
+        test_res = eval_expr(expr.strip(), df.head(5))
+    except Exception as e:
+        return no_update, no_update, dbc.Alert(f"Invalid formula expression: {str(e)}", color="danger", style={"fontSize": "12px"}), no_update, no_update, no_update
+
+    new_track = {
+        "id": col_key,
+        "key": col_key,
+        "name": name.strip(),
+        "unit": unit.strip() if unit else "",
+        "color": color or "#38bdf8",
+        "scale": scale or "log",
+        "visible": True,
+        "is_custom": True,
+    }
+
+    updated_schema = list(schema or DEFAULT_TRACK_SCHEMA)
+    # If already exists, replace; else append
+    existing_idx = next((i for i, s in enumerate(updated_schema) if s.get("key") == col_key), None)
+    if existing_idx is not None:
+        updated_schema[existing_idx] = new_track
+    else:
+        updated_schema.append(new_track)
+
+    new_custom_item = {
+        "key": col_key,
+        "name": name.strip(),
+        "unit": unit.strip() if unit else "",
+        "color": color or "#38bdf8",
+        "scale": scale or "log",
+        "expr": expr.strip(),
+    }
+    updated_custom_cols = [c for c in (custom_cols or []) if c.get("key") != col_key]
+    updated_custom_cols.append(new_custom_item)
+
+    status = dbc.Alert(f"✅ Added column '{name}' successfully!", color="success", duration=3000, style={"fontSize": "12px"})
+    return updated_schema, updated_custom_cols, status, "", "", ""
+
+
+@app.callback(
+    Output("remove-columns-container", "children"),
+    [Input("columns-modal", "is_open"),
+     Input("store-schema", "data")]
+)
+def render_remove_columns_list(is_open, schema):
+    tracks = schema or DEFAULT_TRACK_SCHEMA
+    items = []
+    for s in tracks:
+        col_id = s.get("id")
+        name = s.get("name", s.get("key"))
+        unit = s.get("unit", "")
+        color = s.get("color", "#38bdf8")
+        is_custom = s.get("is_custom", False)
+
+        item = html.Div([
+            html.Div([
+                html.Span(style={"width": "10px", "height": "10px", "borderRadius": "50%", "background": color, "display": "inline-block", "marginRight": "8px"}),
+                html.Span(name, style={"fontWeight": "600", "color": CLR_TEXT, "marginRight": "6px", "fontSize": "13px"}),
+                html.Span("Custom" if is_custom else "Standard", className=f"badge {'bg-primary' if is_custom else 'bg-secondary'} me-2", style={"fontSize": "10px"}),
+                html.Small(f"({unit})", style={"color": CLR_MUTED}) if unit else None,
+            ], className="d-flex align-items-center"),
+            dbc.Button(
+                [html.I(className="fa-solid fa-trash-can me-1"), "Delete"],
+                id={"type": "btn-delete-col", "id": col_id},
+                color="danger",
+                outline=True,
+                size="sm",
+                className="py-1 px-2",
+                style={"fontSize": "11px", "borderRadius": "6px"},
+            ),
+        ], className="d-flex align-items-center justify-content-between p-2 mb-2 rounded", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"})
+        items.append(item)
+
+    return items if items else html.Div("No columns available to remove.", style={"color": CLR_MUTED, "fontSize": "12px"})
+
+
+@app.callback(
+    [Output("store-schema", "data", allow_duplicate=True),
+     Output("store-custom-cols", "data", allow_duplicate=True)],
+    [Input({"type": "btn-delete-col", "id": ALL}, "n_clicks")],
+    [State("store-schema", "data"),
+     State("store-custom-cols", "data")],
+    prevent_initial_call=True
+)
+def delete_column(clicks, schema, custom_cols):
+    if not ctx.triggered or not any(c for c in (clicks or []) if c is not None and c > 0):
+        return no_update, no_update
+
+    triggered_item = ctx.triggered[0]
+    if not triggered_item.get("value") or triggered_item.get("value") <= 0:
+        return no_update, no_update
+
+    prop_id = triggered_item["prop_id"]
+    try:
+        target_id = json.loads(prop_id.rsplit(".", 1)[0])["id"]
+    except Exception:
+        return no_update, no_update
+
+    updated_schema = [s for s in (schema or []) if s.get("id") != target_id]
+    updated_custom_cols = [c for c in (custom_cols or []) if c.get("key") != target_id]
+
+    return updated_schema, updated_custom_cols
+
+
+@app.callback(
+    Output("store-schema", "data", allow_duplicate=True),
+    [Input("btn-apply-columns", "n_clicks")],
+    [State({"type": "col-vis-check", "id": ALL}, "value"),
+     State({"type": "col-vis-check", "id": ALL}, "id"),
+     State("store-schema", "data")],
+    prevent_initial_call=True
+)
+def apply_column_visibility_changes(n_clicks, check_values, check_ids, schema):
+    if not n_clicks or not check_ids:
+        return no_update
+
+    vis_map = {cid["id"]: val for cid, val in zip(check_ids, check_values)}
+    updated_schema = list(schema or DEFAULT_TRACK_SCHEMA)
+
+    for s in updated_schema:
+        if s.get("id") in vis_map:
+            s["visible"] = bool(vis_map[s["id"]])
+
+    return updated_schema
 
 
 # ──────────────────────────────────────────────────────────────────────
