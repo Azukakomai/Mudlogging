@@ -237,11 +237,13 @@ def eval_expr(expr: str, df: pd.DataFrame):
 #  Default Fluid Classification Thresholds (Chapter 3 Standard)
 # ---------------------------------------------------------------------------
 DEFAULT_THRESHOLDS = {
-    # Noise and Pure Methane Cutoffs
+    # Noise, C4/C5 Detection Limits and Pure Methane Cutoffs
     "tg_noise": 300.0,
     "c1_noise": 200.0,
     "c1_pure_gas": 2000.0,
+    "c4_c5_detection_limit": 0.05,
     # Haworth Wetness (Wh) Limits (%)
+    "wh_gas_min": 0.5,
     "wh_gas_max": 17.5,
     "wh_oil_max": 40.0,
     # Haworth Balance (Bh) Limits
@@ -255,6 +257,10 @@ DEFAULT_THRESHOLDS = {
     # Pixler R1 (C1 / C2) Limits
     "r1_gas_min": 15.0,
     "r1_oil_min": 2.0,
+    # Pixler R4 (C2 / C1) Bump Limit for Oil
+    "r4_oil_bump_min": 0.067,
+    # Expanded Butane Ratio (C1 / nC4) Spike for Gas
+    "ratio_nc4_gas_min": 100.0,
     # Wetness-Balance Score (WBS) Limits
     "wbs_gas_min": 0.0,
     "wbs_oil_min": -0.5,
@@ -398,9 +404,25 @@ def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns
 
 def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     """
-    Applies rule-based expert decision logic per depth row.
-    Cross-references Haworth (Wh, Bh, Ch), Dryness, Pixler (C1/C2), WBS, GOR, and GOW_noTG.
-    Outputs: 'No Show', 'Gas', 'Oil', or 'Water'.
+    Applies rule-based expert decision logic per depth row matching Chapter 3 criteria:
+    Both Oil and Gas require heavier hydrocarbon fractions (iC4, nC4, iC5, nC5) data:
+    Gas:
+      - Has iC4, nC4, and iC5 (sometimes even nC5)
+      - Spike in C1, C2, C3 and TG
+      - Normal Pixler R1-R4 ratios (R1 >= 15.0, R4 < 0.067)
+      - Spike in Ratio nC4 (C1 / nC4 >= 100.0)
+      - Normal Dryness (DR >= 0.85) & Carbon Index (Ci >= 0.85)
+      - Active spike in Wh% (0.5% <= Wh < 17.5%)
+      - Reverse dip in Bh (Bh >= 15.0)
+      - Spike in Ch (Ch < 0.5), GOW, and GOW_noTG (< 0.015)
+    Oil:
+      - Has iC4 and nC4, but absence / none in iC5 & nC5
+      - Ordinary TG / reverse dip in TG/Dryness
+      - Reverse spike in R1 (2.0 <= R1 < 15.0)
+      - Bump in R4 (R4 >= 0.067)
+      - Heavier fraction indicators (17.5% <= Wh <= 40%, 0.5 <= Bh < 15.0, Ch >= 0.5)
+    No Show:
+      - Background intervals where iC4, nC4, iC5, and nC5 are absent (<= 0.05 ppm).
     """
     th = dict(DEFAULT_THRESHOLDS)
     if thresholds and isinstance(thresholds, dict):
@@ -409,7 +431,9 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     tg_noise = float(th.get("tg_noise", 300.0))
     c1_noise = float(th.get("c1_noise", 200.0))
     c1_pure_gas = float(th.get("c1_pure_gas", 2000.0))
+    det_lim = float(th.get("c4_c5_detection_limit", 0.05))
 
+    wh_gas_min = float(th.get("wh_gas_min", 0.5))
     wh_gas_max = float(th.get("wh_gas_max", 17.5))
     wh_oil_max = float(th.get("wh_oil_max", 40.0))
 
@@ -424,6 +448,9 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     r1_gas_min = float(th.get("r1_gas_min", 15.0))
     r1_oil_min = float(th.get("r1_oil_min", 2.0))
 
+    r4_oil_bump_min = float(th.get("r4_oil_bump_min", 0.067))
+    ratio_nc4_gas_min = float(th.get("ratio_nc4_gas_min", 100.0))
+
     wbs_gas_min = float(th.get("wbs_gas_min", 0.0))
     wbs_oil_min = float(th.get("wbs_oil_min", -0.5))
 
@@ -433,17 +460,16 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     n = len(df)
     zones = []
 
-    Wh       = df['WH'].values.astype(float)
-    Bh       = df['BH'].values.astype(float)
-    Ch       = df['CH'].values.astype(float)
-    Wbs      = df['WBS'].values.astype(float)
-    Dry      = df['DRYNESS'].values.astype(float)
+    Wh       = df['WH'].values.astype(float) if 'WH' in df.columns else np.full(n, np.nan)
+    Bh       = df['BH'].values.astype(float) if 'BH' in df.columns else np.full(n, np.nan)
+    Ch       = df['CH'].values.astype(float) if 'CH' in df.columns else np.full(n, np.nan)
+    Wbs      = df['WBS'].values.astype(float) if 'WBS' in df.columns else np.full(n, np.nan)
+    Dry      = df['DRYNESS'].values.astype(float) if 'DRYNESS' in df.columns else np.full(n, np.nan)
     Gow_notg = df['GOW_NOTG'].values.astype(float) if 'GOW_NOTG' in df.columns else np.full(n, np.nan)
-    Gor      = df['GOR'].values.astype(int) if 'GOR' in df.columns else np.ones(n, dtype=int)
 
-    C1  = df['C1'].values.astype(float)
-    C2  = df['C2'].values.astype(float)
-    C3  = df['C3'].values.astype(float)
+    C1  = df['C1'].values.astype(float) if 'C1' in df.columns else np.zeros(n)
+    C2  = df['C2'].values.astype(float) if 'C2' in df.columns else np.zeros(n)
+    C3  = df['C3'].values.astype(float) if 'C3' in df.columns else np.zeros(n)
     IC4 = df['IC4'].values.astype(float) if 'IC4' in df.columns else np.zeros(n)
     NC4 = df['NC4'].values.astype(float) if 'NC4' in df.columns else np.zeros(n)
     IC5 = df['IC5'].values.astype(float) if 'IC5' in df.columns else np.zeros(n)
@@ -451,6 +477,8 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
 
     if 'DERIVED_TG' in df.columns:
         derived_tg = df['DERIVED_TG'].values.astype(float)
+    elif 'TG' in df.columns:
+        derived_tg = df['TG'].values.astype(float)
     else:
         derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
 
@@ -459,51 +487,106 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     for i in range(n):
         tg = derived_tg[i]
         c1 = C1[i]
+        c2 = C2[i]
+        c3 = C3[i]
+        ic4 = IC4[i]
+        nc4 = NC4[i]
+        ic5 = IC5[i]
+        nc5 = NC5[i]
 
         # 1. Background Noise / Low Gas Cutoff:
-        if tg < tg_noise or c1 < c1_noise:
+        if (tg < tg_noise and c1 < c1_noise) or c1 <= 0:
             zones.append("No Show")
             continue
 
-        # 2. Zero Heavy Gas Intervals (Pure Methane):
-        if heavy_sum[i] == 0:
-            if c1 >= c1_pure_gas:
-                zones.append("Gas")
-            else:
-                zones.append("No Show")
+        # 2. Check presence of Butanes (iC4, nC4) and Pentanes (iC5, nC5)
+        has_ic4 = (ic4 > det_lim) and np.isfinite(ic4)
+        has_nc4 = (nc4 > det_lim) and np.isfinite(nc4)
+        has_ic5 = (ic5 > det_lim) and np.isfinite(ic5)
+        has_nc5 = (nc5 > det_lim) and np.isfinite(nc5)
+
+        has_c4 = has_ic4 or has_nc4
+        has_c5 = has_ic5 or has_nc5
+
+        # STRICT RULE: Must have ic4, nc4, ic5, or nc5 data present to assign Gas or Oil.
+        # If all C4 & C5 channels are missing / zero / below detection limit -> No Show
+        if not has_c4 and not has_c5:
+            zones.append("No Show")
             continue
 
         gas_votes = 0
         oil_votes = 0
         water_votes = 0
 
-        # --- Indicator 1: Haworth Wetness (Wh) ---
+        # --- Rule 1: Hydrocarbon Speciation (iC4, nC4, iC5, nC5) ---
+        if has_c4 and not has_c5:
+            # Classic Oil fingerprint: present iC4/nC4, but absence of iC5/nC5
+            oil_votes += 4
+        elif has_c5:
+            # Gas fingerprint: includes light pentane traces (iC5 and sometimes nC5)
+            gas_votes += 3
+
+        # Special case: nothing in ic4 sometimes, but spike in nc4 ratio
+        if ic4 <= det_lim and nc4 > det_lim and c1 > 0:
+            r_nc4_check = c1 / nc4
+            if r_nc4_check >= ratio_nc4_gas_min:
+                gas_votes += 1
+
+        # --- Rule 2: C1, C2, C3 Spike & TG Spike ---
+        if c1 >= 1000 and c2 > 0 and c3 > 0:
+            gas_votes += 2
+        if tg >= 1500:
+            gas_votes += 2
+        elif tg < 1500:
+            oil_votes += 1
+
+        # --- Rule 3: Pixler R1 (C1/C2) & Pixler R4 (C2/C1 Bump) ---
+        if c2 > 0 and c1 > 0:
+            r1 = c1 / c2
+            r4 = c2 / c1
+            if r1 >= r1_gas_min and r4 < r4_oil_bump_min:
+                # Normal Gas trend for R1 and R4
+                gas_votes += 2
+            elif r1_oil_min <= r1 < r1_gas_min:
+                # Reverse spike in R1 -> Oil
+                oil_votes += 2
+            elif r1 < r1_oil_min:
+                water_votes += 3
+
+            if r4 >= r4_oil_bump_min:
+                # Bump in R4 (C2/C1) -> Oil
+                oil_votes += 2
+
+        # --- Rule 4: Spike in Ratio nC4 (C1 / nC4) ---
+        if nc4 > 0 and c1 > 0:
+            r_nc4 = c1 / nc4
+            if r_nc4 >= ratio_nc4_gas_min:
+                gas_votes += 2
+
+        # --- Rule 5: Haworth Wetness (Wh) & Wh% Spike ---
         wh = Wh[i]
         if not np.isnan(wh):
-            if wh < 0.5:
-                if c1 < c1_pure_gas:
-                    zones.append("No Show")
-                    continue
-                else:
-                    gas_votes += 1
-            elif wh < wh_gas_max:
+            if wh < wh_gas_min:
                 gas_votes += 1
-            elif wh <= wh_oil_max:
-                oil_votes += 1
+            elif wh_gas_min <= wh < wh_gas_max:
+                # Active Wh% spike for Gas
+                gas_votes += 2
+            elif wh_gas_max <= wh <= wh_oil_max:
+                oil_votes += 2
             else:
-                water_votes += 1
+                water_votes += 3
 
-        # --- Indicator 2: Haworth Balance (Bh) ---
+        # --- Rule 6: Haworth Balance (Bh) Reverse Dip ---
         bh = Bh[i]
         if not np.isnan(bh):
             if bh >= bh_gas_min:
-                gas_votes += 1
-            elif bh >= bh_oil_min:
-                oil_votes += 1
+                gas_votes += 2
+            elif bh_oil_min <= bh < bh_gas_min:
+                oil_votes += 2
             else:
-                water_votes += 1
+                water_votes += 3
 
-        # --- Indicator 3: Haworth Character (Ch) ---
+        # --- Rule 7: Haworth Character (Ch) Spike ---
         ch = Ch[i]
         if not np.isnan(ch):
             if ch < ch_gas_max:
@@ -511,7 +594,7 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
             else:
                 oil_votes += 1
 
-        # --- Indicator 4: Dryness Ratio (C1 / TG) ---
+        # --- Rule 8: Dryness Ratio (C1 / TG) ---
         dry = Dry[i]
         if not np.isnan(dry):
             if dry >= dry_gas_min:
@@ -519,20 +602,19 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
             elif dry >= dry_oil_min:
                 oil_votes += 1
             else:
-                water_votes += 1
+                water_votes += 2
 
-        # --- Indicator 5: Pixler C1/C2 (R1) ---
-        c2 = C2[i]
-        if c2 > 0:
-            r1 = c1 / c2
-            if r1 >= r1_gas_min:
+        # --- Rule 9: Normalized Heavy Gas (GOW_noTG) ---
+        gow_n = Gow_notg[i]
+        if not np.isnan(gow_n):
+            if gow_n < gow_notg_gas_max:
                 gas_votes += 1
-            elif r1 >= r1_oil_min:
+            elif gow_n <= gow_notg_oil_max:
                 oil_votes += 1
             else:
-                water_votes += 1
+                water_votes += 2
 
-        # --- Indicator 6: Wetness-Balance Score (WBS) ---
+        # --- Rule 10: Wetness-Balance Score (WBS) ---
         wbs = Wbs[i]
         if not np.isnan(wbs):
             if wbs > wbs_gas_min:
@@ -542,32 +624,59 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
             else:
                 water_votes += 1
 
-        # --- Indicator 7: Gas-Oil Ratio Index (GOR) ---
-        if Gor[i] == 0:
-            gas_votes += 1
-
-        # --- Indicator 8: Normalized Heavy Gas (GOW_noTG) ---
-        gow_n = Gow_notg[i]
-        if not np.isnan(gow_n):
-            if gow_n < gow_notg_gas_max:
-                gas_votes += 1
-            elif gow_n <= gow_notg_oil_max:
-                oil_votes += 1
-            else:
-                water_votes += 1
-
-        # --- Determine winning class from expert matrix votes ---
-        votes = {"Gas": gas_votes, "Oil": oil_votes, "Water": water_votes}
-        max_v = max(votes.values())
-        if max_v == 0:
-            zones.append("No Show")
-        else:
-            winners = [k for k, v in votes.items() if v == max_v]
-            if "Gas" in winners:
+        # --- Decision matrix ---
+        if water_votes > gas_votes and water_votes > oil_votes and water_votes >= 4:
+            zones.append("Water")
+        elif gas_votes > oil_votes:
+            zones.append("Gas")
+        elif oil_votes > gas_votes:
+            zones.append("Oil")
+        elif gas_votes == oil_votes and gas_votes > 0:
+            if has_c5:
                 zones.append("Gas")
-            elif "Oil" in winners:
-                zones.append("Oil")
             else:
-                zones.append("Water")
+                zones.append("Oil")
+        else:
+            zones.append("No Show")
 
-    return pd.Series(zones, index=df.index)
+    # -----------------------------------------------------------------------
+    # Spatial Cluster & Neighbor Rule:
+    # If an active continuous hydrocarbon package (contiguous non-"No Show" intervals)
+    # contains any "Gas" prediction, then ALL "Oil" predictions in that same contiguous
+    # package are switched to "Gas" regardless of individual point votes.
+    # -----------------------------------------------------------------------
+    adjusted_zones = list(zones)
+    n_pts = len(adjusted_zones)
+
+    # 1. Cluster-level propagation: any continuous pay package with Gas becomes solid Gas
+    start = None
+    for i in range(n_pts):
+        if adjusted_zones[i] in ("Gas", "Oil"):
+            if start is None:
+                start = i
+        else:
+            if start is not None:
+                end = i  # segment is start..end-1
+                cluster = adjusted_zones[start:end]
+                if "Gas" in cluster:
+                    for k in range(start, end):
+                        if adjusted_zones[k] == "Oil":
+                            adjusted_zones[k] = "Gas"
+                start = None
+    if start is not None:
+        cluster = adjusted_zones[start:n_pts]
+        if "Gas" in cluster:
+            for k in range(start, n_pts):
+                if adjusted_zones[k] == "Oil":
+                    adjusted_zones[k] = "Gas"
+
+    # 2. Secondary neighborhood smoothing pass (within +/-3 samples)
+    for i in range(n_pts):
+        if adjusted_zones[i] == "Oil":
+            w_start = max(0, i - 3)
+            w_end = min(n_pts, i + 4)
+            surrounding = adjusted_zones[w_start:w_end]
+            if "Gas" in surrounding:
+                adjusted_zones[i] = "Gas"
+
+    return pd.Series(adjusted_zones, index=df.index)

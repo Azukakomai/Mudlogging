@@ -50,8 +50,8 @@ CLR_MUTED      = "#94a3b8"  # Slate 400
 CLR_DARK_MUTED = "#64748b"  # Slate 500
 
 ZONE_COLORS = {
-    "Gas":     "#10b981",
-    "Oil":     "#f43f5e",
+    "Gas":     "#f43f5e",
+    "Oil":     "#10b981",
     "Water":   "#0284c7",
     "No Show": "#475569",
 }
@@ -69,13 +69,13 @@ DEFAULT_TRACK_SCHEMA = [
     # Derived / Measured Total Gas (Indicator 7, Eq 86) — Vibrant Green Linear Peak
     {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
     # Classic & Expanded Pixler Ratios (Indicators 1–4, Eq 74) — Vibrant Green
-    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R3_C3_C1",     "key": "R3_C3_C1",     "name": "R3 (C3/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "R4_C2_C1",     "key": "R4_C2_C1",     "name": "R4 (C2/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "R3_C3_C1",     "key": "R3_C3_C1",     "name": "R3 (C3/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "R4_C2_C1",     "key": "R4_C2_C1",     "name": "R4 (C2/C1)",   "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
     # Expanded Butane Isomer Multipliers (Indicators 5–6, Eq 80) — Vibrant Green
-    {"id": "RATIO_IC4",    "key": "RATIO_IC4",    "name": "Ratio iC4",    "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "RATIO_NC4",    "key": "RATIO_NC4",    "name": "Ratio nC4",    "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "RATIO_IC4",    "key": "RATIO_IC4",    "name": "Ratio iC4",    "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "RATIO_NC4",    "key": "RATIO_NC4",    "name": "Ratio nC4",    "unit": "ratio", "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
     # Core Fluid Typing & Show Indicators (Indicators 8–12, Eq 92, 98, 104, 107, 110) — Blue/Cyan
     {"id": "DRYNESS",      "key": "DRYNESS",      "name": "Dryness (DR)", "unit": "ratio", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
     {"id": "CARBON_INDEX", "key": "CARBON_INDEX", "name": "Ci",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
@@ -83,7 +83,7 @@ DEFAULT_TRACK_SCHEMA = [
     {"id": "BH",           "key": "BH",           "name": "Bh",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
     {"id": "CH",           "key": "CH",           "name": "Ch",           "unit": "index", "color": "#0284c7", "scale": "linear", "visible": True,  "is_custom": False},
     # Composite Screening Indicators (Indicators 13–16, Eq 117, 118, 122, 125) — Vibrant Orange
-    {"id": "GOW",          "key": "GOW",          "name": "GOW",          "unit": "index", "color": "#ea580c", "scale": "log",    "visible": True,  "is_custom": False},
+    {"id": "GOW",          "key": "GOW",          "name": "GOW",          "unit": "index", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
     {"id": "GOW_NOTG",     "key": "GOW_NOTG",     "name": "GOW/TG",       "unit": "ratio", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
     {"id": "WBS",          "key": "WBS",          "name": "WBS",          "unit": "score", "color": "#ea580c", "scale": "linear", "visible": True,  "is_custom": False},
     {"id": "GOR",          "key": "GOR",          "name": "GOR",          "unit": "flag",  "color": "#64748b", "scale": "linear", "visible": True,  "is_custom": False},
@@ -393,13 +393,13 @@ app.index_string = """<!DOCTYPE html>
                                     if (zone) {
                                         zoneBadge.innerText = zone;
                                         if (zone === 'Gas') {
-                                            zoneBadge.style.background = '#065f46';
-                                            zoneBadge.style.color = '#6ee7b7';
-                                            zoneBadge.style.borderColor = '#10b981';
-                                        } else if (zone === 'Oil') {
                                             zoneBadge.style.background = '#881337';
                                             zoneBadge.style.color = '#fca5a5';
                                             zoneBadge.style.borderColor = '#f43f5e';
+                                        } else if (zone === 'Oil') {
+                                            zoneBadge.style.background = '#065f46';
+                                            zoneBadge.style.color = '#6ee7b7';
+                                            zoneBadge.style.borderColor = '#10b981';
                                         } else if (zone === 'Water') {
                                             zoneBadge.style.background = '#0c4a6e';
                                             zoneBadge.style.color = '#7dd3fc';
@@ -700,11 +700,11 @@ formulas_modal = dbc.Modal(
                                 html.Div("Standard Fluid Indicator Thresholds", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
                                 html.Div([
                                     html.Div([
-                                        html.Span("🟢 Gas Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
+                                        html.Span("🔴 Gas Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
                                         html.Span(id="formula-thresh-gas", children=DEFAULT_FORMULAS["WH"]["gas"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
                                     ], className="col-4"),
                                     html.Div([
-                                        html.Span("🔴 Oil Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
+                                        html.Span("🟢 Oil Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
                                         html.Span(id="formula-thresh-oil", children=DEFAULT_FORMULAS["WH"]["oil"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
                                     ], className="col-4"),
                                     html.Div([
@@ -748,13 +748,17 @@ formulas_modal = dbc.Modal(
                                     html.Div("Haworth Wetness & Balance (Wh & Bh)", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
                                     html.Div([
                                         html.Div([
+                                            html.Label("Wh Gas Min Spike (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wh-gas-min", type="number", value=0.5, step=0.1, size="sm"),
+                                        ], className="col-4 mb-2"),
+                                        html.Div([
                                             html.Label("Wh Gas Max (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
                                             dbc.Input(id="th-wh-gas", type="number", value=17.5, step=0.5, size="sm"),
-                                        ], className="col-6 mb-2"),
+                                        ], className="col-4 mb-2"),
                                         html.Div([
                                             html.Label("Wh Oil Max (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
                                             dbc.Input(id="th-wh-oil", type="number", value=40.0, step=0.5, size="sm"),
-                                        ], className="col-6 mb-2"),
+                                        ], className="col-4 mb-2"),
                                         html.Div([
                                             html.Label("Bh Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
                                             dbc.Input(id="th-bh-gas", type="number", value=15.0, step=0.5, size="sm"),
@@ -767,12 +771,16 @@ formulas_modal = dbc.Modal(
                                             html.Label("Ch Gas Cutoff", style={"fontSize": "11px", "color": CLR_MUTED}),
                                             dbc.Input(id="th-ch-gas", type="number", value=0.5, step=0.05, size="sm"),
                                         ], className="col-6"),
+                                        html.Div([
+                                            html.Label("Ratio nC4 Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-ratio-nc4-gas", type="number", value=100.0, step=10.0, size="sm"),
+                                        ], className="col-6"),
                                     ], className="row g-2"),
                                 ], className="col-md-6 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
 
                                 # Row 2: Pixler, Dryness & Screening
                                 html.Div([
-                                    html.Div("Pixler R1, Dryness & WBS Score", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div("Pixler R1, R4 Bump, Dryness & WBS", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
                                     html.Div([
                                         html.Div([
                                             html.Label("Dryness Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
@@ -791,13 +799,17 @@ formulas_modal = dbc.Modal(
                                             dbc.Input(id="th-r1-oil", type="number", value=2.0, step=0.2, size="sm"),
                                         ], className="col-6 mb-2"),
                                         html.Div([
+                                            html.Label("Pixler R4 Oil Bump Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-r4-oil-bump", type="number", value=0.067, step=0.01, size="sm"),
+                                        ], className="col-4"),
+                                        html.Div([
                                             html.Label("WBS Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
                                             dbc.Input(id="th-wbs-gas", type="number", value=0.0, step=0.1, size="sm"),
-                                        ], className="col-6"),
+                                        ], className="col-4"),
                                         html.Div([
                                             html.Label("WBS Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
                                             dbc.Input(id="th-wbs-oil", type="number", value=-0.5, step=0.1, size="sm"),
-                                        ], className="col-6"),
+                                        ], className="col-4"),
                                     ], className="row g-2"),
                                 ], className="col-md-6 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
                             ], className="row g-2"),
@@ -1042,21 +1054,16 @@ def update_header_info(json_computed, schema):
 # ──────────────────────────────────────────────────────────────────────
 #  Full Continuous Multi-Track Well Log Builder (Fits 100% Screen Width)
 # ──────────────────────────────────────────────────────────────────────
-def build_well_log_polygons(x_vals, y_depths, scale_type="log"):
+def build_well_log_polygons(x_vals, y_depths):
     """
-    Constructs isolated closed polygons for each contiguous non-zero data segment.
+    Constructs isolated closed polygons for each contiguous non-zero peak segment.
     Guarantees clean horizontal top and bottom cutoffs and complete separation at zeroes.
     """
-    valid = (~np.isnan(x_vals)) & (x_vals > 0) & np.isfinite(x_vals)
+    valid = np.isfinite(x_vals) & (~np.isnan(x_vals)) & (x_vals > 0)
     if not np.any(valid):
         return [], []
 
-    if scale_type == "log":
-        min_pos = float(np.min(x_vals[valid]))
-        base_x = max(1e-4, 10.0 ** (np.floor(np.log10(min_pos)) - 1))
-    else:
-        base_x = 0.0
-
+    base_x = 0.0
     diff = np.diff(valid.astype(int))
     starts = np.where(diff == 1)[0] + 1
     if valid[0]:
@@ -1073,7 +1080,6 @@ def build_well_log_polygons(x_vals, y_depths, scale_type="log"):
             continue
         poly_x.extend([base_x] + seg_x + [base_x, base_x, np.nan])
         poly_y.extend([seg_y[0]] + seg_y + [seg_y[-1], seg_y[0], np.nan])
-
     return poly_x, poly_y
 
 
@@ -1129,39 +1135,45 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         col_id = spec.get("id")
         title = spec.get("name", col_key)
         color = spec.get("color", "#0284c7")
-        scale_type = spec.get("scale", "log")
+        scale_type = spec.get("scale", "linear")
 
         vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
-        valid_mask = np.isfinite(vals) & (vals > 0)
-
-        # 25% rule ONLY applies to input columns; generated columns do not follow this rule
         is_input_col = (col_key in input_gas_keys) or (col_id in input_gas_keys)
-        if is_input_col and cutoff > 0 and np.any(valid_mask):
-            p_thresh = float(np.percentile(vals[valid_mask], cutoff))
-            top_mask = valid_mask & (vals >= p_thresh)
-            if np.any(top_mask):
-                # Subtract minimum remaining data in the top 25% from all remaining data for this column
-                min_remaining = float(np.min(vals[top_mask]))
-                vals_plot = np.where(top_mask, vals - min_remaining, 0.0)
+
+        # 25% rule ONLY applies to input columns if LESS THAN 25% of the data on that column are 0
+        total_pts = len(vals)
+        zero_pts = np.sum((vals <= 0) | np.isnan(vals) | ~np.isfinite(vals))
+        zero_fraction = (zero_pts / total_pts) if total_pts > 0 else 0.0
+        apply_25_rule = is_input_col and (cutoff > 0) and (zero_fraction < 0.25)
+
+        if apply_25_rule:
+            valid_mask = np.isfinite(vals) & (vals > 0)
+            if np.any(valid_mask):
+                p_thresh = float(np.percentile(vals[valid_mask], cutoff))
+                top_mask = valid_mask & (vals >= p_thresh)
+                if np.any(top_mask):
+                    min_remaining = float(np.min(vals[top_mask]))
+                    vals_plot = np.where(top_mask, vals - min_remaining, 0.0)
+                else:
+                    vals_plot = np.zeros_like(vals)
             else:
                 vals_plot = np.zeros_like(vals)
+            x_plot = np.where((vals_plot > 0) & np.isfinite(vals_plot), vals_plot, np.nan)
         else:
-            # Generated columns and un-filtered plots keep all valid data
-            vals_plot = np.where(valid_mask, vals, 0.0)
+            # When >= 25% of column is already 0, or for generated columns, plot data as-is
+            vals_plot = np.where(np.isfinite(vals) & (vals > 0), vals, 0.0)
+            x_plot = np.where(np.isfinite(vals) & (vals > 0), vals, np.nan)
 
-        x_plot = np.where((vals_plot > 0) & np.isfinite(vals_plot), vals_plot, np.nan)
-
-        # Rich vibrant fill matching petrophysical presentation
+        # 1. Closed fill polygons for every track (protruding from left baseline x=0, clean zero cutoffs)
         try:
             r = int(color[1:3], 16)
             g = int(color[3:5], 16)
             b = int(color[5:7], 16)
             fill_color = f"rgba({r}, {g}, {b}, 0.72)"
         except Exception:
-            fill_color = "rgba(2, 132, 199, 0.72)"
+            fill_color = "rgba(22, 163, 74, 0.72)"
 
-        # 1. Closed fill polygons with clean horizontal top/bottom cutoffs
-        poly_x, poly_y = build_well_log_polygons(vals_plot, depth, scale_type)
+        poly_x, poly_y = build_well_log_polygons(vals_plot, depth)
         if len(poly_x) > 0:
             fig.add_trace(
                 go.Scatter(
@@ -1450,15 +1462,18 @@ def sync_formula_selection(selected_key, n_restore, current_formulas):
 
 
 @app.callback(
-    [Output("th-wh-gas", "value"),
+    [Output("th-wh-gas-min", "value"),
+     Output("th-wh-gas", "value"),
      Output("th-wh-oil", "value"),
      Output("th-bh-gas", "value"),
      Output("th-bh-oil", "value"),
      Output("th-ch-gas", "value"),
+     Output("th-ratio-nc4-gas", "value"),
      Output("th-dry-gas", "value"),
      Output("th-dry-oil", "value"),
      Output("th-r1-gas", "value"),
      Output("th-r1-oil", "value"),
+     Output("th-r4-oil-bump", "value"),
      Output("th-wbs-gas", "value"),
      Output("th-wbs-oil", "value"),
      Output("th-gow-notg-gas", "value"),
@@ -1478,15 +1493,18 @@ def sync_threshold_inputs(is_open, n_restore, current_thresholds):
         th = current_thresholds or DEFAULT_THRESHOLDS
 
     return (
+        th.get("wh_gas_min", 0.5),
         th.get("wh_gas_max", 17.5),
         th.get("wh_oil_max", 40.0),
         th.get("bh_gas_min", 15.0),
         th.get("bh_oil_min", 0.5),
         th.get("ch_gas_max", 0.5),
+        th.get("ratio_nc4_gas_min", 100.0),
         th.get("dry_gas_min", 0.85),
         th.get("dry_oil_min", 0.50),
         th.get("r1_gas_min", 15.0),
         th.get("r1_oil_min", 2.0),
+        th.get("r4_oil_bump_min", 0.067),
         th.get("wbs_gas_min", 0.0),
         th.get("wbs_oil_min", -0.5),
         th.get("gow_notg_gas_max", 0.015),
@@ -1498,15 +1516,18 @@ def sync_threshold_inputs(is_open, n_restore, current_thresholds):
 
 @app.callback(
     Output("threshold-zone-preview-container", "children"),
-    [Input("th-wh-gas", "value"),
+    [Input("th-wh-gas-min", "value"),
+     Input("th-wh-gas", "value"),
      Input("th-wh-oil", "value"),
      Input("th-bh-gas", "value"),
      Input("th-bh-oil", "value"),
      Input("th-ch-gas", "value"),
+     Input("th-ratio-nc4-gas", "value"),
      Input("th-dry-gas", "value"),
      Input("th-dry-oil", "value"),
      Input("th-r1-gas", "value"),
      Input("th-r1-oil", "value"),
+     Input("th-r4-oil-bump", "value"),
      Input("th-wbs-gas", "value"),
      Input("th-wbs-oil", "value"),
      Input("th-gow-notg-gas", "value"),
@@ -1515,21 +1536,24 @@ def sync_threshold_inputs(is_open, n_restore, current_thresholds):
      Input("th-c1-noise", "value"),
      Input("store-computed", "data")]
 )
-def update_threshold_zone_preview(wh_g, wh_o, bh_g, bh_o, ch_g, dry_g, dry_o, r1_g, r1_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, json_computed):
+def update_threshold_zone_preview(wh_g_min, wh_g, wh_o, bh_g, bh_o, ch_g, r_nc4_g, dry_g, dry_o, r1_g, r1_o, r4_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, json_computed):
     if not json_computed:
         return html.Div()
     try:
         df = pd.read_json(io.StringIO(json_computed), orient="split")
         active_th = {
+            "wh_gas_min": float(wh_g_min if wh_g_min is not None else 0.5),
             "wh_gas_max": float(wh_g if wh_g is not None else 17.5),
             "wh_oil_max": float(wh_o if wh_o is not None else 40.0),
             "bh_gas_min": float(bh_g if bh_g is not None else 15.0),
             "bh_oil_min": float(bh_o if bh_o is not None else 0.5),
             "ch_gas_max": float(ch_g if ch_g is not None else 0.5),
+            "ratio_nc4_gas_min": float(r_nc4_g if r_nc4_g is not None else 100.0),
             "dry_gas_min": float(dry_g if dry_g is not None else 0.85),
             "dry_oil_min": float(dry_o if dry_o is not None else 0.50),
             "r1_gas_min": float(r1_g if r1_g is not None else 15.0),
             "r1_oil_min": float(r1_o if r1_o is not None else 2.0),
+            "r4_oil_bump_min": float(r4_o if r4_o is not None else 0.067),
             "wbs_gas_min": float(wbs_g if wbs_g is not None else 0.0),
             "wbs_oil_min": float(wbs_o if wbs_o is not None else -0.5),
             "gow_notg_gas_max": float(gow_g if gow_g is not None else 0.015),
@@ -1624,15 +1648,18 @@ def update_formula_live_preview(expr, selected_key, json_computed):
     [State("formula-select", "value"),
      State("formula-expr-input", "value"),
      State("store-formulas", "data"),
+     State("th-wh-gas-min", "value"),
      State("th-wh-gas", "value"),
      State("th-wh-oil", "value"),
      State("th-bh-gas", "value"),
      State("th-bh-oil", "value"),
      State("th-ch-gas", "value"),
+     State("th-ratio-nc4-gas", "value"),
      State("th-dry-gas", "value"),
      State("th-dry-oil", "value"),
      State("th-r1-gas", "value"),
      State("th-r1-oil", "value"),
+     State("th-r4-oil-bump", "value"),
      State("th-wbs-gas", "value"),
      State("th-wbs-oil", "value"),
      State("th-gow-notg-gas", "value"),
@@ -1643,7 +1670,7 @@ def update_formula_live_preview(expr, selected_key, json_computed):
     prevent_initial_call=True
 )
 def save_formula_and_thresholds(n_clicks, selected_key, expr, current_formulas,
-                                wh_g, wh_o, bh_g, bh_o, ch_g, dry_g, dry_o, r1_g, r1_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, current_thresholds):
+                                wh_g_min, wh_g, wh_o, bh_g, bh_o, ch_g, r_nc4_g, dry_g, dry_o, r1_g, r1_o, r4_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, current_thresholds):
     if not n_clicks:
         return no_update, no_update, no_update
 
@@ -1652,15 +1679,18 @@ def save_formula_and_thresholds(n_clicks, selected_key, expr, current_formulas,
         formulas[selected_key] = expr.strip()
 
     thresholds = dict(current_thresholds or DEFAULT_THRESHOLDS)
+    if wh_g_min is not None: thresholds["wh_gas_min"] = float(wh_g_min)
     if wh_g is not None: thresholds["wh_gas_max"] = float(wh_g)
     if wh_o is not None: thresholds["wh_oil_max"] = float(wh_o)
     if bh_g is not None: thresholds["bh_gas_min"] = float(bh_g)
     if bh_o is not None: thresholds["bh_oil_min"] = float(bh_o)
     if ch_g is not None: thresholds["ch_gas_max"] = float(ch_g)
+    if r_nc4_g is not None: thresholds["ratio_nc4_gas_min"] = float(r_nc4_g)
     if dry_g is not None: thresholds["dry_gas_min"] = float(dry_g)
     if dry_o is not None: thresholds["dry_oil_min"] = float(dry_o)
     if r1_g is not None: thresholds["r1_gas_min"] = float(r1_g)
     if r1_o is not None: thresholds["r1_oil_min"] = float(r1_o)
+    if r4_o is not None: thresholds["r4_oil_bump_min"] = float(r4_o)
     if wbs_g is not None: thresholds["wbs_gas_min"] = float(wbs_g)
     if wbs_o is not None: thresholds["wbs_oil_min"] = float(wbs_o)
     if gow_g is not None: thresholds["gow_notg_gas_max"] = float(gow_g)

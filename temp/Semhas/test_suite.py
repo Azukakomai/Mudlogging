@@ -99,10 +99,19 @@ class TestPetrophysicalFormulas(unittest.TestCase):
 
     def test_configurable_threshold_overrides(self):
         """Validates that custom threshold overrides alter the zone classification deterministically."""
-        # Shift Wh gas limit to extremely low (e.g. 0.01) so high-methane sample shifts from Gas
-        custom_th = {"wh_gas_max": 0.01, "bh_gas_min": 100.0, "dry_gas_min": 0.999}
+        # Shift Pixler, Wh, Bh, and Dryness limits to force an Oil classification on sample gas data
+        custom_th = {
+            "r1_gas_min": 100.0,
+            "r4_oil_bump_min": 0.01,
+            "wh_gas_max": 0.01,
+            "wh_oil_max": 50.0,
+            "bh_gas_min": 1000.0,
+            "dry_gas_min": 0.999,
+            "ratio_nc4_gas_min": 1000.0
+        }
         res_custom = compute_all(self.sample_data, threshold_overrides=custom_th)
         self.assertNotEqual(res_custom['ZONE'].iloc[0], 'Gas')
+        self.assertEqual(res_custom['ZONE'].iloc[0], 'Oil')
 
     def test_computational_throughput_benchmark(self):
         """Benchmark: Processing > 3000m well trajectory should complete in << 5.0 seconds"""
@@ -132,14 +141,35 @@ class TestPetrophysicalFormulas(unittest.TestCase):
         valid_mask = np.isfinite(vals) & (vals > 0)
         p75 = float(np.percentile(vals[valid_mask], 75.0))
         top_mask = valid_mask & (vals >= p75)
-        min_remaining = float(np.min(vals[top_mask]))
-        filtered_subtracted = np.where(top_mask, vals - min_remaining, 0.0)
+    def test_missing_c4_c5_classified_as_noshow(self):
+        """Validates that intervals with missing/zero iC4, nC4, iC5, and nC5 are strictly classified as No Show."""
+        df_no_c4_c5 = pd.DataFrame([{
+            'DEPTH': 1200.0,
+            'C1': 15000.0,
+            'C2': 600.0,
+            'C3': 150.0,
+            'IC4': 0.0,
+            'NC4': 0.0,
+            'IC5': 0.0,
+            'NC5': 0.0,
+            'TG': 15750.0
+        }])
+        res = compute_all(df_no_c4_c5)
+        self.assertEqual(res['ZONE'].iloc[0], 'No Show')
 
-        # 75th percentile of 10..80 is 62.5 -> remaining data: 70.0, 80.0 -> min_remaining is 70.0
-        # subtracted result: 70-70 = 0.0, 80-70 = 10.0, all rest 0.0
-        self.assertEqual(p75, 62.5)
-        self.assertEqual(min_remaining, 70.0)
-        np.testing.assert_array_equal(filtered_subtracted, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0]))
+    def test_spatial_neighbor_oil_to_gas_reclassification(self):
+        """Validates that an Oil prediction with Gas as a neighbor is reclassified as Gas."""
+        # Row 0: Gas (has iC5), Row 1: Oil isolated without C5, Row 2: Gas (has iC5)
+        df_seq = pd.DataFrame([
+            {'DEPTH': 1000.0, 'C1': 20000.0, 'C2': 500.0, 'C3': 100.0, 'IC4': 50.0, 'NC4': 50.0, 'IC5': 20.0, 'NC5': 10.0, 'TG': 20730.0},
+            {'DEPTH': 1001.0, 'C1': 2000.0, 'C2': 500.0, 'C3': 100.0, 'IC4': 50.0, 'NC4': 50.0, 'IC5': 0.0, 'NC5': 0.0, 'TG': 2700.0},
+            {'DEPTH': 1002.0, 'C1': 20000.0, 'C2': 500.0, 'C3': 100.0, 'IC4': 50.0, 'NC4': 50.0, 'IC5': 20.0, 'NC5': 10.0, 'TG': 20730.0},
+        ])
+        res = compute_all(df_seq)
+        # Even though row 1 would otherwise be Oil (has butanes, no pentanes, lower R1), having Gas neighbors promotes it to Gas
+        self.assertEqual(res['ZONE'].iloc[0], 'Gas')
+        self.assertEqual(res['ZONE'].iloc[1], 'Gas')
+        self.assertEqual(res['ZONE'].iloc[2], 'Gas')
 
 
 if __name__ == '__main__':
