@@ -30,7 +30,7 @@ from plotly.subplots import make_subplots
 
 # Local imports
 from parser import parse_mudlog_file
-from engine import compute_all, eval_expr, DEFAULT_FORMULAS
+from engine import compute_all, eval_expr, DEFAULT_FORMULAS, DEFAULT_THRESHOLDS
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -58,16 +58,16 @@ ZONE_COLORS = {
 
 # Default Multi-Track Specifications (All input columns & 16 Chapter 3 derived ratios)
 DEFAULT_TRACK_SCHEMA = [
-    # Input Gas Curves (FR-02, Ch3 Section 3.3.2) — Blue/Cyan
-    {"id": "C1",           "key": "C1",           "name": "C1",           "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C2",           "key": "C2",           "name": "C2",           "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "C3",           "key": "C3",           "name": "C3",           "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "IC4",          "key": "IC4",          "name": "iC4",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "NC4",          "key": "NC4",          "name": "nC4",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "IC5",          "key": "IC5",          "name": "iC5",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    {"id": "NC5",          "key": "NC5",          "name": "nC5",          "unit": "ppm",   "color": "#0096c7", "scale": "log",    "visible": True,  "is_custom": False},
-    # Derived / Measured Total Gas (Indicator 7, Eq 86) — Blue/Cyan
-    {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#0284c7", "scale": "log",    "visible": True,  "is_custom": False},
+    # Input Gas Curves (FR-02, Ch3 Section 3.3.2) — Vibrant Green Linear Protruding Peaks
+    {"id": "C1",           "key": "C1",           "name": "C1",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "C2",           "key": "C2",           "name": "C2",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "C3",           "key": "C3",           "name": "C3",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "IC4",          "key": "IC4",          "name": "iC4",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "NC4",          "key": "NC4",          "name": "nC4",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "IC5",          "key": "IC5",          "name": "iC5",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    {"id": "NC5",          "key": "NC5",          "name": "nC5",          "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
+    # Derived / Measured Total Gas (Indicator 7, Eq 86) — Vibrant Green Linear Peak
+    {"id": "TG",           "key": "TG_USED",      "name": "TG",           "unit": "ppm",   "color": "#16a34a", "scale": "linear", "visible": True,  "is_custom": False},
     # Classic & Expanded Pixler Ratios (Indicators 1–4, Eq 74) — Vibrant Green
     {"id": "R1_C1_C2",     "key": "R1_C1_C2",     "name": "R1 (C1/C2)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
     {"id": "R2_C1_C3",     "key": "R2_C1_C3",     "name": "R2 (C1/C3)",   "unit": "ratio", "color": "#16a34a", "scale": "log",    "visible": True,  "is_custom": False},
@@ -348,38 +348,42 @@ app.index_string = """<!DOCTYPE html>
                         const crosshair = document.getElementById('global-crosshair-line');
                         const badge = document.getElementById('global-crosshair-badge');
                         const zoneBadge = document.getElementById('global-crosshair-zone-badge');
-                        const graphDiv = document.querySelector('#log-graph .js-plotly-plot') || document.querySelector('#log-graph');
                         
-                        if (!container || !crosshair || !badge || !zoneBadge || !graphDiv) return;
+                        if (!container || !crosshair || !badge || !zoneBadge) return;
                         if (container.dataset.tracked === 'true') return;
                         container.dataset.tracked = 'true';
 
                         container.addEventListener('mousemove', function(e) {
+                            const activePlot = document.querySelector('#log-graph .js-plotly-plot') || document.querySelector('#log-graph');
+                            if (!activePlot) return;
+                            const fullLayout = activePlot._fullLayout;
+                            if (!fullLayout || !fullLayout.yaxis) return;
+
                             const contRect = container.getBoundingClientRect();
-                            const graphRect = graphDiv.getBoundingClientRect();
+                            const graphRect = activePlot.getBoundingClientRect();
                             
                             const mousePlotY = e.clientY - graphRect.top;
                             const mouseContY = e.clientY - contRect.top;
                             
-                            if (graphDiv._fullLayout && graphDiv._fullLayout.yaxis) {
-                                const yaxis = graphDiv._fullLayout.yaxis;
-                                const plotTop = yaxis._offset;
-                                const plotHeight = yaxis._length;
-                                const rel = (mousePlotY - plotTop) / plotHeight;
+                            const yaxis = fullLayout.yaxis;
+                            const plotTop = (yaxis._offset !== undefined) ? yaxis._offset : 0;
+                            const plotHeight = (yaxis._length !== undefined) ? yaxis._length : graphRect.height;
+                            const rel = (mousePlotY - plotTop) / plotHeight;
+                            
+                            if (rel >= 0 && rel <= 1) {
+                                crosshair.style.top = mouseContY + 'px';
+                                crosshair.style.display = 'block';
                                 
-                                if (rel >= 0 && rel <= 1) {
-                                    crosshair.style.top = mouseContY + 'px';
-                                    crosshair.style.display = 'block';
-                                    
-                                    let currentDepth;
-                                    if (typeof yaxis.p2d === 'function') {
-                                        currentDepth = yaxis.p2d(mousePlotY - plotTop);
-                                    } else {
-                                        const minDepth = Math.min(yaxis.range[0], yaxis.range[1]);
-                                        const maxDepth = Math.max(yaxis.range[0], yaxis.range[1]);
-                                        currentDepth = minDepth + rel * (maxDepth - minDepth);
-                                    }
-                                    
+                                let currentDepth;
+                                if (typeof yaxis.p2d === 'function') {
+                                    currentDepth = yaxis.p2d(mousePlotY - plotTop);
+                                } else if (yaxis.range) {
+                                    const d0 = yaxis.range[0];
+                                    const d1 = yaxis.range[1];
+                                    currentDepth = d0 + rel * (d1 - d0);
+                                }
+                                
+                                if (currentDepth !== undefined && !isNaN(currentDepth)) {
                                     badge.innerText = currentDepth.toFixed(1) + ' m';
                                     badge.style.top = (mouseContY - 10) + 'px';
                                     badge.style.display = 'block';
@@ -410,11 +414,11 @@ app.index_string = """<!DOCTYPE html>
                                     } else {
                                         zoneBadge.style.display = 'none';
                                     }
-                                } else {
-                                    crosshair.style.display = 'none';
-                                    badge.style.display = 'none';
-                                    zoneBadge.style.display = 'none';
                                 }
+                            } else {
+                                crosshair.style.display = 'none';
+                                badge.style.display = 'none';
+                                zoneBadge.style.display = 'none';
                             }
                         });
 
@@ -425,7 +429,7 @@ app.index_string = """<!DOCTYPE html>
                         });
                     }
 
-                    setInterval(attachCrosshairTracker, 500);
+                    setInterval(attachCrosshairTracker, 300);
                 })();
             </script>
         </footer>
@@ -639,8 +643,8 @@ formulas_modal = dbc.Modal(
         dbc.ModalHeader(
             dbc.ModalTitle(
                 html.Div([
-                    html.I(className="fa-solid fa-square-root-variable me-2", style={"color": CLR_WARNING}),
-                    "Petrophysical Formula & Indicator Manager",
+                    html.I(className="fa-solid fa-sliders me-2", style={"color": CLR_WARNING}),
+                    "Petrophysical Formula & Threshold Manager",
                 ]),
                 style={"color": CLR_TEXT, "fontSize": "16px", "fontWeight": "700"},
             ),
@@ -648,82 +652,189 @@ formulas_modal = dbc.Modal(
             style={"background": CLR_SURFACE, "borderBottom": f"1px solid {CLR_BORDER}"},
         ),
         dbc.ModalBody([
-            html.Div([
-                html.Label("Select Petrophysical Indicator Formula to Edit", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "6px"}),
-                dbc.Select(
-                    id="formula-select",
-                    options=FORMULA_SELECT_OPTIONS,
-                    value="WH",
-                    className="mb-3",
+            dbc.Tabs([
+                # TAB 1: FORMULAS
+                dbc.Tab(
+                    label="Formula Expressions",
+                    tab_id="tab-edit-formulas",
+                    children=[
+                        html.Div([
+                            html.Label("Select Petrophysical Indicator Formula to Edit", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "6px", "marginTop": "10px"}),
+                            dbc.Select(
+                                id="formula-select",
+                                options=FORMULA_SELECT_OPTIONS,
+                                value="WH",
+                                className="mb-3",
+                            ),
+
+                            html.Label("Mathematical Expression (Python / LaTeX Engine Syntax)", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
+                            dbc.Input(
+                                id="formula-expr-input",
+                                type="text",
+                                value=DEFAULT_FORMULAS["WH"]["expr"],
+                                style={"fontFamily": "'JetBrains Mono', monospace", "fontSize": "13px"},
+                                className="mb-1",
+                            ),
+
+                            # Quick Variable Insert Tags
+                            html.Div([
+                                html.Span("Insert Variable: ", style={"fontSize": "11px", "color": CLR_MUTED, "marginRight": "4px"}),
+                                html.Span("C1", id={"type": "btn-formula-token", "token": "C1"}, className="var-tag"),
+                                html.Span("C2", id={"type": "btn-formula-token", "token": "C2"}, className="var-tag"),
+                                html.Span("C3", id={"type": "btn-formula-token", "token": "C3"}, className="var-tag"),
+                                html.Span("IC4", id={"type": "btn-formula-token", "token": "IC4"}, className="var-tag"),
+                                html.Span("NC4", id={"type": "btn-formula-token", "token": "NC4"}, className="var-tag"),
+                                html.Span("IC5", id={"type": "btn-formula-token", "token": "IC5"}, className="var-tag"),
+                                html.Span("NC5", id={"type": "btn-formula-token", "token": "NC5"}, className="var-tag"),
+                                html.Span("TG", id={"type": "btn-formula-token", "token": "TG"}, className="var-tag"),
+                                html.Span("WH", id={"type": "btn-formula-token", "token": "WH"}, className="var-tag"),
+                                html.Span("BH", id={"type": "btn-formula-token", "token": "BH"}, className="var-tag"),
+                                html.Span("CH", id={"type": "btn-formula-token", "token": "CH"}, className="var-tag"),
+                                html.Span("log10(", id={"type": "btn-formula-token", "token": "log10("}, className="var-tag"),
+                                html.Span("sqrt(", id={"type": "btn-formula-token", "token": "sqrt("}, className="var-tag"),
+                                html.Span("where(", id={"type": "btn-formula-token", "token": "where("}, className="var-tag"),
+                            ], className="d-flex align-items-center flex-wrap mb-3"),
+
+                            # Boundary Cutoff Reference for selected formula
+                            html.Div([
+                                html.Div("Standard Fluid Indicator Thresholds", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
+                                html.Div([
+                                    html.Div([
+                                        html.Span("🟢 Gas Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
+                                        html.Span(id="formula-thresh-gas", children=DEFAULT_FORMULAS["WH"]["gas"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                    ], className="col-4"),
+                                    html.Div([
+                                        html.Span("🔴 Oil Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
+                                        html.Span(id="formula-thresh-oil", children=DEFAULT_FORMULAS["WH"]["oil"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                    ], className="col-4"),
+                                    html.Div([
+                                        html.Span("🔵 Water Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
+                                        html.Span(id="formula-thresh-water", children=DEFAULT_FORMULAS["WH"]["water"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                    ], className="col-4"),
+                                ], className="row g-2"),
+                            ], style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px", "marginBottom": "14px"}),
+
+                            # Live Evaluation Test Box
+                            html.Div([
+                                html.Label("Live Verification on Well Log Sample Interval", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "textTransform": "uppercase", "marginBottom": "4px"}),
+                                html.Div(
+                                    id="formula-live-preview",
+                                    style={
+                                        "background": "#070c18",
+                                        "border": f"1px solid {CLR_BORDER}",
+                                        "borderRadius": "8px",
+                                        "padding": "10px 14px",
+                                        "fontSize": "12px",
+                                        "fontFamily": "'JetBrains Mono', monospace",
+                                        "color": "#38bdf8",
+                                        "minHeight": "48px",
+                                    },
+                                ),
+                            ]),
+                        ]),
+                    ],
                 ),
+                # TAB 2: FLUID CLASSIFICATION THRESHOLDS
+                dbc.Tab(
+                    label="Classification Thresholds",
+                    tab_id="tab-edit-thresholds",
+                    children=[
+                        html.Div([
+                            html.Div("Configure numerical cutoffs for majority-vote fluid typing (Gas, Oil, Water, No Show):", style={"fontSize": "12px", "color": CLR_MUTED, "marginTop": "10px", "marginBottom": "12px"}),
+                            
+                            # Row 1: Haworth Ratios
+                            html.Div([
+                                html.Div([
+                                    html.Div("Haworth Wetness & Balance (Wh & Bh)", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("Wh Gas Max (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wh-gas", type="number", value=17.5, step=0.5, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Wh Oil Max (%)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wh-oil", type="number", value=40.0, step=0.5, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Bh Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-bh-gas", type="number", value=15.0, step=0.5, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Bh Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-bh-oil", type="number", value=0.5, step=0.1, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Ch Gas Cutoff", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-ch-gas", type="number", value=0.5, step=0.05, size="sm"),
+                                        ], className="col-6"),
+                                    ], className="row g-2"),
+                                ], className="col-md-6 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
 
-                html.Label("Mathematical Expression (Python / LaTeX Engine Syntax)", style={"fontSize": "12px", "fontWeight": "600", "color": CLR_TEXT, "marginBottom": "4px"}),
-                dbc.Input(
-                    id="formula-expr-input",
-                    type="text",
-                    value=DEFAULT_FORMULAS["WH"]["expr"],
-                    style={"fontFamily": "'JetBrains Mono', monospace", "fontSize": "13px"},
-                    className="mb-1",
+                                # Row 2: Pixler, Dryness & Screening
+                                html.Div([
+                                    html.Div("Pixler R1, Dryness & WBS Score", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("Dryness Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-dry-gas", type="number", value=0.85, step=0.05, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Dryness Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-dry-oil", type="number", value=0.50, step=0.05, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Pixler R1 Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-r1-gas", type="number", value=15.0, step=0.5, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("Pixler R1 Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-r1-oil", type="number", value=2.0, step=0.2, size="sm"),
+                                        ], className="col-6 mb-2"),
+                                        html.Div([
+                                            html.Label("WBS Gas Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wbs-gas", type="number", value=0.0, step=0.1, size="sm"),
+                                        ], className="col-6"),
+                                        html.Div([
+                                            html.Label("WBS Oil Min", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-wbs-oil", type="number", value=-0.5, step=0.1, size="sm"),
+                                        ], className="col-6"),
+                                    ], className="row g-2"),
+                                ], className="col-md-6 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
+                            ], className="row g-2"),
+
+                            # Row 3: Heavy Gas & Noise Floors
+                            html.Div([
+                                html.Div([
+                                    html.Div("Normalized Heavy Gas (GOW_noTG) & Noise Floors", style={"fontSize": "11.5px", "fontWeight": "700", "color": CLR_CYAN, "marginBottom": "8px"}),
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("GOW No-TG Gas Max", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-gow-notg-gas", type="number", value=0.015, step=0.005, size="sm"),
+                                        ], className="col-3"),
+                                        html.Div([
+                                            html.Label("GOW No-TG Oil Max", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-gow-notg-oil", type="number", value=0.08, step=0.01, size="sm"),
+                                        ], className="col-3"),
+                                        html.Div([
+                                            html.Label("TG Noise Floor (ppm)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-tg-noise", type="number", value=300.0, step=50, size="sm"),
+                                        ], className="col-3"),
+                                        html.Div([
+                                            html.Label("C1 Noise Floor (ppm)", style={"fontSize": "11px", "color": CLR_MUTED}),
+                                            dbc.Input(id="th-c1-noise", type="number", value=200.0, step=50, size="sm"),
+                                        ], className="col-3"),
+                                    ], className="row g-2"),
+                                ], className="col-12 p-3 rounded mb-2", style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}"}),
+                            ], className="row g-2"),
+
+                            # Real-Time Fluid Facies Distribution Preview
+                            html.Div(id="threshold-zone-preview-container", className="mt-2"),
+                        ]),
+                    ],
                 ),
+            ], id="formula-threshold-tabs", active_tab="tab-edit-formulas"),
 
-                # Quick Variable Insert Tags
-                html.Div([
-                    html.Span("Insert Variable: ", style={"fontSize": "11px", "color": CLR_MUTED, "marginRight": "4px"}),
-                    html.Span("C1", id={"type": "btn-formula-token", "token": "C1"}, className="var-tag"),
-                    html.Span("C2", id={"type": "btn-formula-token", "token": "C2"}, className="var-tag"),
-                    html.Span("C3", id={"type": "btn-formula-token", "token": "C3"}, className="var-tag"),
-                    html.Span("IC4", id={"type": "btn-formula-token", "token": "IC4"}, className="var-tag"),
-                    html.Span("NC4", id={"type": "btn-formula-token", "token": "NC4"}, className="var-tag"),
-                    html.Span("IC5", id={"type": "btn-formula-token", "token": "IC5"}, className="var-tag"),
-                    html.Span("NC5", id={"type": "btn-formula-token", "token": "NC5"}, className="var-tag"),
-                    html.Span("TG", id={"type": "btn-formula-token", "token": "TG"}, className="var-tag"),
-                    html.Span("WH", id={"type": "btn-formula-token", "token": "WH"}, className="var-tag"),
-                    html.Span("BH", id={"type": "btn-formula-token", "token": "BH"}, className="var-tag"),
-                    html.Span("CH", id={"type": "btn-formula-token", "token": "CH"}, className="var-tag"),
-                    html.Span("log10(", id={"type": "btn-formula-token", "token": "log10("}, className="var-tag"),
-                    html.Span("sqrt(", id={"type": "btn-formula-token", "token": "sqrt("}, className="var-tag"),
-                    html.Span("where(", id={"type": "btn-formula-token", "token": "where("}, className="var-tag"),
-                ], className="d-flex align-items-center flex-wrap mb-3"),
-
-                # Boundary Cutoff Thresholds Display
-                html.Div([
-                    html.Div("Deterministic Fluid Classification Thresholds", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
-                    html.Div([
-                        html.Div([
-                            html.Span("🟢 Gas Zone Limit: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
-                            html.Span(id="formula-thresh-gas", children=DEFAULT_FORMULAS["WH"]["gas"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
-                        ], className="col-4"),
-                        html.Div([
-                            html.Span("🔴 Oil Zone Limit: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
-                            html.Span(id="formula-thresh-oil", children=DEFAULT_FORMULAS["WH"]["oil"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
-                        ], className="col-4"),
-                        html.Div([
-                            html.Span("🔵 Water Limit: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
-                            html.Span(id="formula-thresh-water", children=DEFAULT_FORMULAS["WH"]["water"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
-                        ], className="col-4"),
-                    ], className="row g-2"),
-                ], style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px", "marginBottom": "14px"}),
-
-                # Live Evaluation Test Box
-                html.Div([
-                    html.Label("Live Verification on Well Log Sample Interval", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "textTransform": "uppercase", "marginBottom": "4px"}),
-                    html.Div(
-                        id="formula-live-preview",
-                        style={
-                            "background": "#070c18",
-                            "border": f"1px solid {CLR_BORDER}",
-                            "borderRadius": "8px",
-                            "padding": "10px 14px",
-                            "fontSize": "12px",
-                            "fontFamily": "'JetBrains Mono', monospace",
-                            "color": "#38bdf8",
-                            "minHeight": "48px",
-                        },
-                    ),
-                ]),
-
-                html.Div(id="formula-status-msg", className="mt-2"),
-            ]),
+            html.Div(id="formula-status-msg", className="mt-2"),
         ], style={"background": CLR_SURFACE, "padding": "20px"}),
         dbc.ModalFooter([
             dbc.Button(
@@ -735,7 +846,7 @@ formulas_modal = dbc.Modal(
                 style={"borderRadius": "8px", "fontSize": "12px"},
             ),
             dbc.Button(
-                [html.I(className="fa-solid fa-check-double me-1"), "Save & Recompute Log Curves"],
+                [html.I(className="fa-solid fa-check-double me-1"), "Save & Recompute Log Zones"],
                 id="btn-save-formula",
                 color="primary",
                 size="sm",
@@ -859,7 +970,35 @@ app.layout = html.Div([
                 html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#475569", "display": "inline-block", "marginRight": "4px"}), "No Show"], style={"fontSize": "11px", "fontWeight": "600", "color": "#94a3b8"}),
             ], className="d-flex align-items-center flex-wrap"),
 
-            html.Div(id="track-header-info", className="d-none d-md-flex align-items-center text-muted", style={"fontSize": "11px"}),
+            html.Div([
+                html.Div([
+                    html.I(className="fa-solid fa-filter me-1 text-info", style={"fontSize": "11px"}),
+                    html.Span("Plot Filter:", style={"fontSize": "11px", "fontWeight": "600", "color": CLR_MUTED, "marginRight": "6px"}),
+                    dbc.Select(
+                        id="select-percentile-cutoff",
+                        options=[
+                            {"label": "Top 25% Percentile (P75 Cutoff)", "value": 75},
+                            {"label": "Top 10% Percentile (P90 Cutoff)", "value": 90},
+                            {"label": "Top 50% Percentile (P50 Cutoff)", "value": 50},
+                            {"label": "Show All Data (0% Cutoff)", "value": 0},
+                        ],
+                        value=75,
+                        size="sm",
+                        style={
+                            "fontSize": "11px",
+                            "padding": "2px 8px",
+                            "height": "28px",
+                            "width": "210px",
+                            "background": "rgba(30, 41, 59, 0.8)",
+                            "color": "#f1f5f9",
+                            "borderColor": "rgba(51, 65, 85, 0.8)",
+                            "borderRadius": "6px",
+                            "fontWeight": "600"
+                        },
+                    ),
+                ], className="d-flex align-items-center me-3"),
+                html.Div(id="track-header-info", className="d-none d-md-flex align-items-center text-muted", style={"fontSize": "11px"}),
+            ], className="d-flex align-items-center flex-wrap"),
         ], className="glass-card px-3 py-2 mb-2 d-flex align-items-center justify-content-between flex-wrap gap-2"),
 
         # 2. Dedicated Full-Screen Continuous Multi-Track Well Log
@@ -870,6 +1009,7 @@ app.layout = html.Div([
         dcc.Store(id="store-computed", data=INIT_COMPUTED_DF.to_json(orient="split", date_format="iso")),
         dcc.Store(id="store-schema", data=DEFAULT_TRACK_SCHEMA),
         dcc.Store(id="store-formulas", data={k: v["expr"] for k, v in DEFAULT_FORMULAS.items()}),
+        dcc.Store(id="store-thresholds", data=DEFAULT_THRESHOLDS),
         dcc.Store(id="store-custom-cols", data=[]),
         dcc.Download(id="download-report"),
 
@@ -940,11 +1080,17 @@ def build_well_log_polygons(x_vals, y_depths, scale_type="log"):
 @app.callback(
     Output("tracks-container", "children"),
     [Input("store-computed", "data"),
-     Input("store-schema", "data")]
+     Input("store-schema", "data"),
+     Input("select-percentile-cutoff", "value")]
 )
-def render_full_continuous_tracks(json_computed, schema):
+def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
     if not json_computed:
         return html.Div("No data loaded.", style={"color": CLR_MUTED, "padding": "40px", "textAlign": "center"})
+
+    try:
+        cutoff = float(percentile_cutoff) if percentile_cutoff is not None else 75.0
+    except (ValueError, TypeError):
+        cutoff = 75.0
 
     df = pd.read_json(io.StringIO(json_computed), orient="split")
     filtered_df = df
@@ -976,14 +1122,34 @@ def render_full_continuous_tracks(json_computed, schema):
         column_widths=norm_widths,
     )
 
+    input_gas_keys = {"C1", "C2", "C3", "IC4", "NC4", "IC5", "NC5", "TG", "TG_USED"}
+
     for i, spec in enumerate(active_specs, start=1):
         col_key = spec.get("key")
+        col_id = spec.get("id")
         title = spec.get("name", col_key)
         color = spec.get("color", "#0284c7")
         scale_type = spec.get("scale", "log")
 
         vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
-        x_plot = np.where((vals > 0) & np.isfinite(vals), vals, np.nan)
+        valid_mask = np.isfinite(vals) & (vals > 0)
+
+        # 25% rule ONLY applies to input columns; generated columns do not follow this rule
+        is_input_col = (col_key in input_gas_keys) or (col_id in input_gas_keys)
+        if is_input_col and cutoff > 0 and np.any(valid_mask):
+            p_thresh = float(np.percentile(vals[valid_mask], cutoff))
+            top_mask = valid_mask & (vals >= p_thresh)
+            if np.any(top_mask):
+                # Subtract minimum remaining data in the top 25% from all remaining data for this column
+                min_remaining = float(np.min(vals[top_mask]))
+                vals_plot = np.where(top_mask, vals - min_remaining, 0.0)
+            else:
+                vals_plot = np.zeros_like(vals)
+        else:
+            # Generated columns and un-filtered plots keep all valid data
+            vals_plot = np.where(valid_mask, vals, 0.0)
+
+        x_plot = np.where((vals_plot > 0) & np.isfinite(vals_plot), vals_plot, np.nan)
 
         # Rich vibrant fill matching petrophysical presentation
         try:
@@ -995,7 +1161,7 @@ def render_full_continuous_tracks(json_computed, schema):
             fill_color = "rgba(2, 132, 199, 0.72)"
 
         # 1. Closed fill polygons with clean horizontal top/bottom cutoffs
-        poly_x, poly_y = build_well_log_polygons(vals, depth, scale_type)
+        poly_x, poly_y = build_well_log_polygons(vals_plot, depth, scale_type)
         if len(poly_x) > 0:
             fig.add_trace(
                 go.Scatter(
@@ -1021,7 +1187,7 @@ def render_full_continuous_tracks(json_computed, schema):
             row=1, col=i,
         )
         xname = "xaxis" if i == 1 else f"xaxis{i}"
-        fig.update_layout(**{xname: dict(
+        axis_dict = dict(
             type="log" if scale_type == "log" else "linear",
             showline=True,
             linewidth=1.4,
@@ -1040,7 +1206,10 @@ def render_full_continuous_tracks(json_computed, schema):
             spikedash="dot",
             spikethickness=1.2,
             spikecolor="#000000",
-        )})
+        )
+        if scale_type == "linear":
+            axis_dict["rangemode"] = "tozero"
+        fig.update_layout(**{xname: axis_dict})
 
     if has_zone:
         ci = total_cols
@@ -1123,19 +1292,20 @@ def render_full_continuous_tracks(json_computed, schema):
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Dynamic Recomputation Callback (Raw Data + Formulas + Custom Columns)
+#  Dynamic Recomputation Callback (Raw Data + Formulas + Custom Columns + Thresholds)
 # ──────────────────────────────────────────────────────────────────────
 @app.callback(
     Output("store-computed", "data"),
     [Input("store-raw", "data"),
      Input("store-formulas", "data"),
-     Input("store-custom-cols", "data")]
+     Input("store-custom-cols", "data"),
+     Input("store-thresholds", "data")]
 )
-def recompute_dataset(json_raw, formulas, custom_cols):
+def recompute_dataset(json_raw, formulas, custom_cols, thresholds):
     if not json_raw:
         return no_update
     df_raw = pd.read_json(io.StringIO(json_raw), orient="split")
-    computed_df = compute_all(df_raw, formula_overrides=formulas, custom_columns=custom_cols)
+    computed_df = compute_all(df_raw, formula_overrides=formulas, custom_columns=custom_cols, threshold_overrides=thresholds)
     return computed_df.to_json(orient="split", date_format="iso")
 
 
@@ -1233,22 +1403,24 @@ def toggle_formulas_modal(n_open, n_save, is_open):
 @app.callback(
     [Output("store-schema", "data", allow_duplicate=True),
      Output("store-formulas", "data", allow_duplicate=True),
-     Output("store-custom-cols", "data", allow_duplicate=True)],
+     Output("store-custom-cols", "data", allow_duplicate=True),
+     Output("store-thresholds", "data", allow_duplicate=True)],
     [Input("dropdown-item-reset", "n_clicks")],
     prevent_initial_call=True
 )
 def reset_to_defaults(n_clicks):
     if not n_clicks:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
     return (
         DEFAULT_TRACK_SCHEMA,
         {k: v["expr"] for k, v in DEFAULT_FORMULAS.items()},
-        []
+        [],
+        DEFAULT_THRESHOLDS
     )
 
 
 # ──────────────────────────────────────────────────────────────────────
-#  Callbacks: Edit Formulas Modal (Select, Token Insert, Live Preview, Save)
+#  Callbacks: Edit Formulas & Thresholds Modal (Select, Token, Sync, Save, Preview)
 # ──────────────────────────────────────────────────────────────────────
 @app.callback(
     [Output("formula-expr-input", "value"),
@@ -1275,6 +1447,123 @@ def sync_formula_selection(selected_key, n_restore, current_formulas):
     wat_lim = DEFAULT_FORMULAS[selected_key].get("water", "-")
 
     return expr, gas_lim, oil_lim, wat_lim
+
+
+@app.callback(
+    [Output("th-wh-gas", "value"),
+     Output("th-wh-oil", "value"),
+     Output("th-bh-gas", "value"),
+     Output("th-bh-oil", "value"),
+     Output("th-ch-gas", "value"),
+     Output("th-dry-gas", "value"),
+     Output("th-dry-oil", "value"),
+     Output("th-r1-gas", "value"),
+     Output("th-r1-oil", "value"),
+     Output("th-wbs-gas", "value"),
+     Output("th-wbs-oil", "value"),
+     Output("th-gow-notg-gas", "value"),
+     Output("th-gow-notg-oil", "value"),
+     Output("th-tg-noise", "value"),
+     Output("th-c1-noise", "value")],
+    [Input("formulas-modal", "is_open"),
+     Input("btn-restore-formula-default", "n_clicks")],
+    [State("store-thresholds", "data")],
+    prevent_initial_call=False
+)
+def sync_threshold_inputs(is_open, n_restore, current_thresholds):
+    triggered = ctx.triggered_id
+    if triggered == "btn-restore-formula-default":
+        th = DEFAULT_THRESHOLDS
+    else:
+        th = current_thresholds or DEFAULT_THRESHOLDS
+
+    return (
+        th.get("wh_gas_max", 17.5),
+        th.get("wh_oil_max", 40.0),
+        th.get("bh_gas_min", 15.0),
+        th.get("bh_oil_min", 0.5),
+        th.get("ch_gas_max", 0.5),
+        th.get("dry_gas_min", 0.85),
+        th.get("dry_oil_min", 0.50),
+        th.get("r1_gas_min", 15.0),
+        th.get("r1_oil_min", 2.0),
+        th.get("wbs_gas_min", 0.0),
+        th.get("wbs_oil_min", -0.5),
+        th.get("gow_notg_gas_max", 0.015),
+        th.get("gow_notg_oil_max", 0.08),
+        th.get("tg_noise", 300.0),
+        th.get("c1_noise", 200.0),
+    )
+
+
+@app.callback(
+    Output("threshold-zone-preview-container", "children"),
+    [Input("th-wh-gas", "value"),
+     Input("th-wh-oil", "value"),
+     Input("th-bh-gas", "value"),
+     Input("th-bh-oil", "value"),
+     Input("th-ch-gas", "value"),
+     Input("th-dry-gas", "value"),
+     Input("th-dry-oil", "value"),
+     Input("th-r1-gas", "value"),
+     Input("th-r1-oil", "value"),
+     Input("th-wbs-gas", "value"),
+     Input("th-wbs-oil", "value"),
+     Input("th-gow-notg-gas", "value"),
+     Input("th-gow-notg-oil", "value"),
+     Input("th-tg-noise", "value"),
+     Input("th-c1-noise", "value"),
+     Input("store-computed", "data")]
+)
+def update_threshold_zone_preview(wh_g, wh_o, bh_g, bh_o, ch_g, dry_g, dry_o, r1_g, r1_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, json_computed):
+    if not json_computed:
+        return html.Div()
+    try:
+        df = pd.read_json(io.StringIO(json_computed), orient="split")
+        active_th = {
+            "wh_gas_max": float(wh_g if wh_g is not None else 17.5),
+            "wh_oil_max": float(wh_o if wh_o is not None else 40.0),
+            "bh_gas_min": float(bh_g if bh_g is not None else 15.0),
+            "bh_oil_min": float(bh_o if bh_o is not None else 0.5),
+            "ch_gas_max": float(ch_g if ch_g is not None else 0.5),
+            "dry_gas_min": float(dry_g if dry_g is not None else 0.85),
+            "dry_oil_min": float(dry_o if dry_o is not None else 0.50),
+            "r1_gas_min": float(r1_g if r1_g is not None else 15.0),
+            "r1_oil_min": float(r1_o if r1_o is not None else 2.0),
+            "wbs_gas_min": float(wbs_g if wbs_g is not None else 0.0),
+            "wbs_oil_min": float(wbs_o if wbs_o is not None else -0.5),
+            "gow_notg_gas_max": float(gow_g if gow_g is not None else 0.015),
+            "gow_notg_oil_max": float(gow_o if gow_o is not None else 0.08),
+            "tg_noise": float(tg_n if tg_n is not None else 300.0),
+            "c1_noise": float(c1_n if c1_n is not None else 200.0),
+        }
+        from engine import _classify_zones
+        test_zones = _classify_zones(df, thresholds=active_th)
+        total = len(test_zones)
+        if total == 0:
+            return html.Div()
+        vc = test_zones.value_counts().to_dict()
+        n_gas = vc.get("Gas", 0)
+        n_oil = vc.get("Oil", 0)
+        n_wat = vc.get("Water", 0)
+        n_ns  = vc.get("No Show", 0)
+
+        p_gas = (n_gas / total) * 100.0
+        p_oil = (n_oil / total) * 100.0
+        p_wat = (n_wat / total) * 100.0
+        p_ns  = (n_ns / total) * 100.0
+
+        return html.Div([
+            html.Div("Live Fluid Facies Breakdown on Current Dataset", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
+            html.Div([
+                html.Span(f"🟢 Gas: {n_gas} ({p_gas:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
+                html.Span(f"🔴 Oil: {n_oil} ({p_oil:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
+                html.Span(f"🔵 Water: {n_wat} ({p_wat:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
+                html.Span(f"⚪ No Show: {n_ns} ({p_ns:.1f}%)", style={"fontSize": "12px", "fontWeight": "600", "color": "#94a3b8"}),
+            ], className="d-flex align-items-center flex-wrap"),
+        ], style={"background": "#070c18", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px"})
+    except Exception:
+        return html.Div()
 
 
 @app.callback(
@@ -1329,21 +1618,58 @@ def update_formula_live_preview(expr, selected_key, json_computed):
 
 @app.callback(
     [Output("store-formulas", "data"),
+     Output("store-thresholds", "data"),
      Output("formula-status-msg", "children")],
     [Input("btn-save-formula", "n_clicks")],
     [State("formula-select", "value"),
      State("formula-expr-input", "value"),
-     State("store-formulas", "data")],
+     State("store-formulas", "data"),
+     State("th-wh-gas", "value"),
+     State("th-wh-oil", "value"),
+     State("th-bh-gas", "value"),
+     State("th-bh-oil", "value"),
+     State("th-ch-gas", "value"),
+     State("th-dry-gas", "value"),
+     State("th-dry-oil", "value"),
+     State("th-r1-gas", "value"),
+     State("th-r1-oil", "value"),
+     State("th-wbs-gas", "value"),
+     State("th-wbs-oil", "value"),
+     State("th-gow-notg-gas", "value"),
+     State("th-gow-notg-oil", "value"),
+     State("th-tg-noise", "value"),
+     State("th-c1-noise", "value"),
+     State("store-thresholds", "data")],
     prevent_initial_call=True
 )
-def save_formula_override(n_clicks, selected_key, expr, current_formulas):
-    if not n_clicks or not selected_key or not expr:
-        return no_update, no_update
+def save_formula_and_thresholds(n_clicks, selected_key, expr, current_formulas,
+                                wh_g, wh_o, bh_g, bh_o, ch_g, dry_g, dry_o, r1_g, r1_o, wbs_g, wbs_o, gow_g, gow_o, tg_n, c1_n, current_thresholds):
+    if not n_clicks:
+        return no_update, no_update, no_update
 
     formulas = dict(current_formulas or {})
-    formulas[selected_key] = expr.strip()
-    status = dbc.Alert(f"✅ Saved formula for {selected_key} and recomputed well log.", color="success", duration=3000, style={"fontSize": "12px", "borderRadius": "8px"})
-    return formulas, status
+    if selected_key and expr and expr.strip():
+        formulas[selected_key] = expr.strip()
+
+    thresholds = dict(current_thresholds or DEFAULT_THRESHOLDS)
+    if wh_g is not None: thresholds["wh_gas_max"] = float(wh_g)
+    if wh_o is not None: thresholds["wh_oil_max"] = float(wh_o)
+    if bh_g is not None: thresholds["bh_gas_min"] = float(bh_g)
+    if bh_o is not None: thresholds["bh_oil_min"] = float(bh_o)
+    if ch_g is not None: thresholds["ch_gas_max"] = float(ch_g)
+    if dry_g is not None: thresholds["dry_gas_min"] = float(dry_g)
+    if dry_o is not None: thresholds["dry_oil_min"] = float(dry_o)
+    if r1_g is not None: thresholds["r1_gas_min"] = float(r1_g)
+    if r1_o is not None: thresholds["r1_oil_min"] = float(r1_o)
+    if wbs_g is not None: thresholds["wbs_gas_min"] = float(wbs_g)
+    if wbs_o is not None: thresholds["wbs_oil_min"] = float(wbs_o)
+    if gow_g is not None: thresholds["gow_notg_gas_max"] = float(gow_g)
+    if gow_o is not None: thresholds["gow_notg_oil_max"] = float(gow_o)
+    if tg_n is not None: thresholds["tg_noise"] = float(tg_n)
+    if c1_n is not None: thresholds["c1_noise"] = float(c1_n)
+
+    status = dbc.Alert("✅ Saved formulas & classification thresholds and recomputed well log zones.", color="success", duration=3500, style={"fontSize": "12px", "borderRadius": "8px"})
+    return formulas, thresholds, status
 
 
 # ──────────────────────────────────────────────────────────────────────

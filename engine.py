@@ -233,11 +233,42 @@ def eval_expr(expr: str, df: pd.DataFrame):
         raise ValueError(f"Expression evaluation error: {str(e)}")
 
 
-def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns: list = None) -> pd.DataFrame:
+# ---------------------------------------------------------------------------
+#  Default Fluid Classification Thresholds (Chapter 3 Standard)
+# ---------------------------------------------------------------------------
+DEFAULT_THRESHOLDS = {
+    # Noise and Pure Methane Cutoffs
+    "tg_noise": 300.0,
+    "c1_noise": 200.0,
+    "c1_pure_gas": 2000.0,
+    # Haworth Wetness (Wh) Limits (%)
+    "wh_gas_max": 17.5,
+    "wh_oil_max": 40.0,
+    # Haworth Balance (Bh) Limits
+    "bh_gas_min": 15.0,
+    "bh_oil_min": 0.5,
+    # Haworth Character (Ch) Cutoff
+    "ch_gas_max": 0.5,
+    # Dryness (DR = C1 / TG) Limits
+    "dry_gas_min": 0.85,
+    "dry_oil_min": 0.50,
+    # Pixler R1 (C1 / C2) Limits
+    "r1_gas_min": 15.0,
+    "r1_oil_min": 2.0,
+    # Wetness-Balance Score (WBS) Limits
+    "wbs_gas_min": 0.0,
+    "wbs_oil_min": -0.5,
+    # Normalized Heavy Gas (GOW_noTG) Limits
+    "gow_notg_gas_max": 0.015,
+    "gow_notg_oil_max": 0.08,
+}
+
+
+def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns: list = None, threshold_overrides: dict = None) -> pd.DataFrame:
     """
     Takes a cleaned DataFrame with columns:
         DEPTH, C1, C2, C3, IC4, NC4, IC5, NC5 (and optionally TG)
-    Accepts optional formula_overrides {key: expr_str} and custom_columns [{key, expr}].
+    Accepts optional formula_overrides, custom_columns, and threshold_overrides.
     Returns a new DataFrame with all original columns plus derived columns & Zone.
     """
     out = df.copy()
@@ -356,21 +387,49 @@ def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns
     # ------------------------------------------------------------------
     #  Zone Classification — majority-vote expert matrix
     # ------------------------------------------------------------------
-    out['ZONE'] = _classify_zones(out)
+    out['ZONE'] = _classify_zones(out, thresholds=threshold_overrides)
 
     return out
 
 
 # ---------------------------------------------------------------------------
-#  Majority-vote zone classifier
+#  Majority-vote zone classifier with configurable threshold limits
 # ---------------------------------------------------------------------------
 
-def _classify_zones(df: pd.DataFrame) -> pd.Series:
+def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     """
     Applies rule-based expert decision logic per depth row.
     Cross-references Haworth (Wh, Bh, Ch), Dryness, Pixler (C1/C2), WBS, GOR, and GOW_noTG.
     Outputs: 'No Show', 'Gas', 'Oil', or 'Water'.
     """
+    th = dict(DEFAULT_THRESHOLDS)
+    if thresholds and isinstance(thresholds, dict):
+        th.update(thresholds)
+
+    tg_noise = float(th.get("tg_noise", 300.0))
+    c1_noise = float(th.get("c1_noise", 200.0))
+    c1_pure_gas = float(th.get("c1_pure_gas", 2000.0))
+
+    wh_gas_max = float(th.get("wh_gas_max", 17.5))
+    wh_oil_max = float(th.get("wh_oil_max", 40.0))
+
+    bh_gas_min = float(th.get("bh_gas_min", 15.0))
+    bh_oil_min = float(th.get("bh_oil_min", 0.5))
+
+    ch_gas_max = float(th.get("ch_gas_max", 0.5))
+
+    dry_gas_min = float(th.get("dry_gas_min", 0.85))
+    dry_oil_min = float(th.get("dry_oil_min", 0.50))
+
+    r1_gas_min = float(th.get("r1_gas_min", 15.0))
+    r1_oil_min = float(th.get("r1_oil_min", 2.0))
+
+    wbs_gas_min = float(th.get("wbs_gas_min", 0.0))
+    wbs_oil_min = float(th.get("wbs_oil_min", -0.5))
+
+    gow_notg_gas_max = float(th.get("gow_notg_gas_max", 0.015))
+    gow_notg_oil_max = float(th.get("gow_notg_oil_max", 0.08))
+
     n = len(df)
     zones = []
 
@@ -385,10 +444,10 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
     C1  = df['C1'].values.astype(float)
     C2  = df['C2'].values.astype(float)
     C3  = df['C3'].values.astype(float)
-    IC4 = df['IC4'].values.astype(float)
-    NC4 = df['NC4'].values.astype(float)
-    IC5 = df['IC5'].values.astype(float)
-    NC5 = df['NC5'].values.astype(float)
+    IC4 = df['IC4'].values.astype(float) if 'IC4' in df.columns else np.zeros(n)
+    NC4 = df['NC4'].values.astype(float) if 'NC4' in df.columns else np.zeros(n)
+    IC5 = df['IC5'].values.astype(float) if 'IC5' in df.columns else np.zeros(n)
+    NC5 = df['NC5'].values.astype(float) if 'NC5' in df.columns else np.zeros(n)
 
     if 'DERIVED_TG' in df.columns:
         derived_tg = df['DERIVED_TG'].values.astype(float)
@@ -402,13 +461,13 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         c1 = C1[i]
 
         # 1. Background Noise / Low Gas Cutoff:
-        if tg < 300 or c1 < 200:
+        if tg < tg_noise or c1 < c1_noise:
             zones.append("No Show")
             continue
 
         # 2. Zero Heavy Gas Intervals (Pure Methane):
         if heavy_sum[i] == 0:
-            if c1 >= 2000:
+            if c1 >= c1_pure_gas:
                 zones.append("Gas")
             else:
                 zones.append("No Show")
@@ -422,14 +481,14 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         wh = Wh[i]
         if not np.isnan(wh):
             if wh < 0.5:
-                if c1 < 2000:
+                if c1 < c1_pure_gas:
                     zones.append("No Show")
                     continue
                 else:
                     gas_votes += 1
-            elif wh < 17.5:
+            elif wh < wh_gas_max:
                 gas_votes += 1
-            elif wh <= 40.0:
+            elif wh <= wh_oil_max:
                 oil_votes += 1
             else:
                 water_votes += 1
@@ -437,9 +496,9 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         # --- Indicator 2: Haworth Balance (Bh) ---
         bh = Bh[i]
         if not np.isnan(bh):
-            if bh >= 15.0:
+            if bh >= bh_gas_min:
                 gas_votes += 1
-            elif bh >= 0.5:
+            elif bh >= bh_oil_min:
                 oil_votes += 1
             else:
                 water_votes += 1
@@ -447,7 +506,7 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         # --- Indicator 3: Haworth Character (Ch) ---
         ch = Ch[i]
         if not np.isnan(ch):
-            if ch < 0.5:
+            if ch < ch_gas_max:
                 gas_votes += 1
             else:
                 oil_votes += 1
@@ -455,9 +514,9 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         # --- Indicator 4: Dryness Ratio (C1 / TG) ---
         dry = Dry[i]
         if not np.isnan(dry):
-            if dry >= 0.85:
+            if dry >= dry_gas_min:
                 gas_votes += 1
-            elif dry >= 0.50:
+            elif dry >= dry_oil_min:
                 oil_votes += 1
             else:
                 water_votes += 1
@@ -466,9 +525,9 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         c2 = C2[i]
         if c2 > 0:
             r1 = c1 / c2
-            if r1 >= 15.0:
+            if r1 >= r1_gas_min:
                 gas_votes += 1
-            elif r1 >= 2.0:
+            elif r1 >= r1_oil_min:
                 oil_votes += 1
             else:
                 water_votes += 1
@@ -476,9 +535,9 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         # --- Indicator 6: Wetness-Balance Score (WBS) ---
         wbs = Wbs[i]
         if not np.isnan(wbs):
-            if wbs > 0:
+            if wbs > wbs_gas_min:
                 gas_votes += 1
-            elif wbs >= -0.5:
+            elif wbs >= wbs_oil_min:
                 oil_votes += 1
             else:
                 water_votes += 1
@@ -490,9 +549,9 @@ def _classify_zones(df: pd.DataFrame) -> pd.Series:
         # --- Indicator 8: Normalized Heavy Gas (GOW_noTG) ---
         gow_n = Gow_notg[i]
         if not np.isnan(gow_n):
-            if gow_n < 0.015:
+            if gow_n < gow_notg_gas_max:
                 gas_votes += 1
-            elif gow_n <= 0.08:
+            elif gow_n <= gow_notg_oil_max:
                 oil_votes += 1
             else:
                 water_votes += 1

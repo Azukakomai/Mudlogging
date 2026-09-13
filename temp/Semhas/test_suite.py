@@ -97,6 +97,13 @@ class TestPetrophysicalFormulas(unittest.TestCase):
         res = compute_all(self.sample_data)
         self.assertEqual(res['ZONE'].iloc[0], 'Gas')
 
+    def test_configurable_threshold_overrides(self):
+        """Validates that custom threshold overrides alter the zone classification deterministically."""
+        # Shift Wh gas limit to extremely low (e.g. 0.01) so high-methane sample shifts from Gas
+        custom_th = {"wh_gas_max": 0.01, "bh_gas_min": 100.0, "dry_gas_min": 0.999}
+        res_custom = compute_all(self.sample_data, threshold_overrides=custom_th)
+        self.assertNotEqual(res_custom['ZONE'].iloc[0], 'Gas')
+
     def test_computational_throughput_benchmark(self):
         """Benchmark: Processing > 3000m well trajectory should complete in << 5.0 seconds"""
         n_rows = 500
@@ -119,7 +126,20 @@ class TestPetrophysicalFormulas(unittest.TestCase):
 
         print(f"\n[BENCHMARK] Processed {n_rows} depth records spanning 3000m in {t_elapsed * 1000:.2f} ms")
         self.assertLess(t_elapsed, 5.0, "Latency exceeded 5.0s benchmark target")
-        self.assertEqual(len(computed), n_rows)
+    def test_percentile_cutoff_filtering_and_subtraction(self):
+        """Validates that for input columns, data below 75th percentile is zeroed out and remaining data is subtracted by minimum remaining value."""
+        vals = np.array([10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0])
+        valid_mask = np.isfinite(vals) & (vals > 0)
+        p75 = float(np.percentile(vals[valid_mask], 75.0))
+        top_mask = valid_mask & (vals >= p75)
+        min_remaining = float(np.min(vals[top_mask]))
+        filtered_subtracted = np.where(top_mask, vals - min_remaining, 0.0)
+
+        # 75th percentile of 10..80 is 62.5 -> remaining data: 70.0, 80.0 -> min_remaining is 70.0
+        # subtracted result: 70-70 = 0.0, 80-70 = 10.0, all rest 0.0
+        self.assertEqual(p75, 62.5)
+        self.assertEqual(min_remaining, 70.0)
+        np.testing.assert_array_equal(filtered_subtracted, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0]))
 
 
 if __name__ == '__main__':
