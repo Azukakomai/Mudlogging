@@ -94,17 +94,7 @@ DEFAULT_TRACK_SCHEMA = [
 #  Mock Dataset Generator (Realistic Gas While Drilling with Payzones)
 # ──────────────────────────────────────────────────────────────────────
 def generate_initial_mudlog_data():
-    """Loads actual test data if present, otherwise generates realistic synthetic GWD dataset."""
-    for cand in ["Test data Skripsi 1.csv", "test_data.csv"]:
-        if os.path.exists(cand):
-            try:
-                raw_df = parse_mudlog_file(cand)
-                if len(raw_df) > 0 and "DEPTH" in raw_df.columns:
-                    computed_df = compute_all(raw_df)
-                    return raw_df, computed_df
-            except Exception:
-                pass
-
+    """Generates realistic synthetic GWD dataset with target payzones."""
     np.random.seed(42)
     rows = []
     depth = 1800
@@ -199,7 +189,7 @@ app.index_string = """<!DOCTYPE html>
             }
             #global-crosshair-line {
                 position: absolute;
-                left: 52px;
+                left: 62px;
                 right: 50px;
                 height: 0px;
                 border-top: 1.5px dashed #0f172a;
@@ -1253,10 +1243,10 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
     # Invert Y-axis for well depth on all subplots with crisp track borders
     fig.update_yaxes(
         autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8,
-        title_text="DEPTH (m)", title_font=dict(size=9.5, color="#000000", family="Inter, sans-serif", weight="bold"),
+        title_text="DEPTH (m)", title_font=dict(size=12.5, color="#000000", family="Inter, sans-serif", weight="bold"),
         row=1, col=1,
         showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
-        tickfont=dict(size=8, color="#000000", family="'JetBrains Mono', monospace"),
+        tickfont=dict(size=11.5, color="#000000", family="'JetBrains Mono', monospace", weight="bold"),
         tickcolor="#000000",
         showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
     )
@@ -1264,7 +1254,7 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         fig.update_layout(**{f"yaxis{c_idx}": dict(
             autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8, showgrid=True, zeroline=False,
             showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
-            tickfont=dict(size=7.5, color="#000000", family="'JetBrains Mono', monospace"),
+            tickfont=dict(size=9.5, color="#000000", family="'JetBrains Mono', monospace"),
             tickcolor="#000000",
             showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
         )})
@@ -1274,18 +1264,18 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         autosize=True,
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        font=dict(family="Inter, sans-serif", size=8.5, color="#000000"),
-        margin=dict(l=52, r=15, t=55, b=25),
+        font=dict(family="Inter, sans-serif", size=9.5, color="#000000"),
+        margin=dict(l=62, r=15, t=65, b=25),
         hovermode="y unified",
     )
 
-    # Boxed Track Headers matching petrophysical well log layout
+    # Boxed Track Headers matching petrophysical well log layout (Enlarged Column Names)
     for ann in fig.layout.annotations:
-        ann.font = dict(size=8, color="#000000", family="Inter, sans-serif", weight="bold")
+        ann.font = dict(size=11.5, color="#000000", family="Inter, sans-serif", weight="bold")
         ann.bgcolor = "#f8fafc"
         ann.bordercolor = "#000000"
-        ann.borderwidth = 1.2
-        ann.borderpad = 3
+        ann.borderwidth = 1.3
+        ann.borderpad = 4.5
 
     depth_zone_pairs = []
     if "ZONE" in filtered_df.columns:
