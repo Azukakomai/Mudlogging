@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1600" viewBox="0 0 1800 1600" style="background: transparent;">
+<defs>
+  <!-- Card Drop Shadow for White / Light Background -->
+  <filter id="shadow" x="-5%" y="-5%" width="115%" height="120%">
+    <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.08"/>
+  </filter>
+
+  <style>
+    .title{font:800 28px Inter,Segoe UI,sans-serif;fill:#0F172A;letter-spacing:.2px}
+    .subtitle{font:500 14.5px Inter,Segoe UI,sans-serif;fill:#475569}
+    .stage{font:800 20px Inter,Segoe UI,sans-serif;letter-spacing:.2px}
+    .section{font:italic 13px Inter,Segoe UI,sans-serif;fill:#64748B}
+    .cardtitle{font:700 15.5px Inter,Segoe UI,sans-serif}
+    .body{font:450 13.5px Inter,Segoe UI,sans-serif;fill:#334155}
+    .bold{font-weight:700;fill:#0F172A}
+    .boldgreen{font-weight:700;fill:#047857}
+    .boldblue{font-weight:700;fill:#0369A1}
+    .boldamber{font-weight:700;fill:#B45309}
+    .small{font:400 12px Inter,Segoe UI,sans-serif;fill:#64748B}
+    .bannerhead{font:800 16px Inter,Segoe UI,sans-serif;fill:#92400E;letter-spacing:.3px}
+    .bannertxt{font:450 13.5px Inter,Segoe UI,sans-serif;fill:#1E293B}
+    .arrowtxt{font:700 12px Inter,Segoe UI,sans-serif;fill:#475569}
+  </style>
+</defs>
+
+<!-- Main Title Header -->
+<text x="75" y="52" class="title">CHAPTER 4: RESULTS, SYSTEM REALIZATION &amp; EMPIRICAL EVALUATION</text>
+<text x="75" y="78" class="subtitle">Mapping Chapter 3 Research Design to Verified Empirical Outcomes, Live In-Situ Calibration &amp; Audit Metrics</text>
+
+<!-- Governance Callout Banner -->
+<rect x="75" y="102" width="1650" height="145" rx="14" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2" filter="url(#shadow)"/>
+<text x="105" y="134" class="bannerhead">🛡 DATA GOVERNANCE &amp; IN-SITU EXPERT EVALUATION PROTOCOL (WHAT WAS DONE IN PRACTICE)</text>
+<text x="105" y="164" class="bannertxt">• <tspan class="bold">Zero Proprietary Data Acquisition:</tspan> Fully compliant with petroleum NDAs; researcher held <tspan class="bold">no private well logs</tspan>.</text>
+<text x="105" y="189" class="bannertxt">• <tspan class="bold">Zero-Installation Cloud Deployment:</tspan> Deployed on Vercel Edge; domain expert operated the software on <tspan class="bold">his authorized workstation</tspan>.</text>
+<text x="105" y="214" class="bannertxt">• <tspan class="bold">Live Collaborative Calibration:</tspan> Interactive screen-share &amp; whiteboard sessions; threshold cutoffs were tuned <tspan class="bold">live on the expert's active system</tspan>.</text>
+
+<!-- ========================================== -->
+<!-- STAGE 1: REQUIREMENTS REALIZATION -->
+<!-- ========================================== -->
+<rect x="75" y="275" width="790" height="360" rx="14" fill="#F0F9FF" stroke="#0284C7" stroke-width="2" filter="url(#shadow)"/>
+<text x="105" y="310" class="stage" fill="#0369A1">Stage 1: Requirements Realization</text>
+<text x="105" y="332" class="section">(Chapter 3 Design → Chapter 4 Result)</text>
+
+<rect x="100" y="355" width="740" height="110" rx="10" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5"/>
+<text x="125" y="384" class="cardtitle" fill="#0369A1">Functional Delivery (FR-01 to FR-07)</text>
+<text x="125" y="410" class="body">✓ Auto-ingestion (.csv, .las, .xlsx, .txt)</text>
+<text x="125" y="432" class="body">✓ Continuous 16-ratio calculation engine</text>
+<text x="125" y="454" class="body">✓ Deterministic 8-rule majority voting</text>
+<text x="435" y="410" class="body">✓ 21-track continuous depth-log visualizer</text>
+<text x="435" y="432" class="body">✓ Dynamic Column &amp; Formula Managers</text>
+<text x="435" y="454" class="body">✓ Standardized tabular CSV report export</text>
+
+<rect x="100" y="480" width="740" height="135" rx="10" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5"/>
+<text x="125" y="510" class="cardtitle" fill="#0369A1">Engineering Specs Verification</text>
+<text x="125" y="536" class="body">✓ NFR-01: Runtime <tspan class="boldgreen">1.52 s</tspan> (&lt; 5.0 s target)</text>
+<text x="125" y="558" class="body">✓ NFR-02: <tspan class="boldblue">100% Traceable PRMS</tspan> deterministic audit</text>
+<text x="125" y="580" class="body">✓ NFR-03: SUS Score <tspan class="boldamber">82.5</tspan> (&gt; 68.0 industry benchmark)</text>
+<text x="125" y="602" class="body">✓ NFR-04: Open-source MIT distribution (eliminating $15k/yr software fees)</text>
+
+<!-- ========================================== -->
+<!-- STAGE 2: INTERFACE & ARCHITECTURAL DELIVERY -->
+<!-- ========================================== -->
+<rect x="935" y="275" width="790" height="360" rx="14" fill="#F0FDFA" stroke="#0D9488" stroke-width="2" filter="url(#shadow)"/>
+<text x="965" y="310" class="stage" fill="#0F766E">Stage 2: Interface &amp; Architectural Delivery</text>
+<text x="965" y="332" class="section">(Section 4.2 Realization)</text>
+
+<rect x="960" y="355" width="740" height="125" rx="10" fill="#FFFFFF" stroke="#99F6E4" stroke-width="1.5"/>
+<text x="985" y="384" class="cardtitle" fill="#0F766E">21-Track Continuous Depth-Log UI</text>
+<text x="985" y="410" class="body">• API RP 31A standard vertical strip log</text>
+<text x="985" y="432" class="body">• High-contrast shaded envelopes (Green/Cyan/Orange)</text>
+<text x="985" y="454" class="body">• <tspan class="bold">25% Column Width Normalization Rule:</tspan></text>
+<text x="985" y="472" class="body">  Dynamically fits 100% screen with zero horizontal scroll</text>
+<text x="1370" y="410" class="body">• Synchronized depth gridlines</text>
+<text x="1370" y="432" class="body">• Hover crosshair tooltips</text>
+
+<rect x="960" y="495" width="740" height="120" rx="10" fill="#FFFFFF" stroke="#99F6E4" stroke-width="1.5"/>
+<text x="985" y="525" class="cardtitle" fill="#0F766E">Dynamic Configuration Modals</text>
+<text x="985" y="551" class="body">• <tspan class="bold">Column Manager:</tspan> Show/hide/add custom formula expressions</text>
+<text x="985" y="573" class="body">• <tspan class="bold">Formula Manager:</tspan> Live math editor with quick-insert tokens</text>
+<text x="1370" y="571" class="body">• <tspan class="bold">Threshold Tuning:</tspan> Configurable cutoffs &amp; show noise floor sliders</text>
+
+<!-- Arrow Top (Stage 1 -> Stage 2) -->
+<path d="M865 455 C895 455 905 455 935 455" fill="none" stroke="#0284C7" stroke-width="3"/>
+<polygon points="935,455 922,448 922,462" fill="#0284C7"/>
+
+<!-- ========================================== -->
+<!-- STAGE 3: CLOUD & SERVERLESS INFRASTRUCTURE -->
+<!-- ========================================== -->
+<rect x="75" y="665" width="790" height="260" rx="14" fill="#ECFDF5" stroke="#059669" stroke-width="2" filter="url(#shadow)"/>
+<text x="105" y="700" class="stage" fill="#047857">Stage 3: Cloud &amp; Serverless Infrastructure</text>
+<text x="105" y="722" class="section">(Section 4.2.6 Deployment)</text>
+
+<rect x="100" y="745" width="740" height="155" rx="10" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5"/>
+<text x="125" y="775" class="cardtitle" fill="#047857">Vercel Edge Cloud Deployment</text>
+<text x="125" y="803" class="body">• Serverless backend with global Edge CDN distribution</text>
+<text x="125" y="826" class="body">• Sub-second initial page load (&lt; 0.5 s) across remote rigs</text>
+<text x="125" y="849" class="body">• Zero local Python installation needed for asset teams</text>
+<text x="125" y="872" class="body">• Pure in-memory (RAM) execution with <tspan class="bold">zero persistent DB</tspan></text>
+
+<!-- Connector (Stage 2 -> Stage 3) -->
+<path d="M1330 635 C1330 655 1300 655 1300 665" fill="none" stroke="#059669" stroke-width="3"/>
+<polygon points="1300,665 1293,652 1307,652" fill="#059669"/>
+<text x="1380" y="652" class="arrowtxt" fill="#047857">Deployed to Cloud</text>
+
+<!-- ========================================== -->
+<!-- STAGE 4: EMPIRICAL CLASSIFICATION & EVALUATION -->
+<!-- ========================================== -->
+<rect x="935" y="665" width="790" height="705" rx="14" fill="#FFFBEB" stroke="#D97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="965" y="700" class="stage" fill="#B45309">Stage 4: Empirical Classification &amp; Evaluation</text>
+<text x="965" y="722" class="section">(Section 4.3 - 4.8 Outcomes)</text>
+
+<rect x="960" y="745" width="740" height="135" rx="10" fill="#FFFFFF" stroke="#FDE68A" stroke-width="1.5"/>
+<text x="985" y="775" class="cardtitle" fill="#B45309">Live Collaborative Session &amp; Tuning</text>
+<text x="985" y="803" class="body">• Whiteboard chromatographic ratio analysis (Fig 4.7)</text>
+<text x="985" y="826" class="body">• Live threshold calibration on expert's system (Fig 4.8)</text>
+<text x="985" y="849" class="body">• Real-time multi-track visual log validation (Fig 4.9)</text>
+
+<rect x="960" y="895" width="740" height="260" rx="10" fill="#FFFFFF" stroke="#FDE68A" stroke-width="1.5"/>
+<text x="985" y="925" class="cardtitle" fill="#B45309">Ground-Truth Formation Test Results (N = 16 MDT/RFT Verified Intervals)</text>
+<text x="985" y="953" class="body">• <tspan class="boldgreen">Oil Pay: 5/5 TP</tspan> (100% Precision | 100% Recall | F1 = 1.000)</text>
+<text x="985" y="976" class="body">• <tspan class="boldblue">Gas Pay: 8/8 TP</tspan> (72.7% Precision | 100% Recall | F1 = 0.842)</text>
+<text x="985" y="999" class="body">• <tspan class="bold">Non-Bearing: 3 FP</tspan> (Recycled mud gas blips in tight shale)</text>
+<text x="985" y="1022" class="body">• <tspan class="boldamber">Overall Accuracy: 81.3%</tspan> (13 / 16 intervals correctly classified)</text>
+<text x="985" y="1045" class="body">• <tspan class="boldgreen">Hydrocarbon Pay Sensitivity: 100.0%</tspan> (Zero missed commercial pay)</text>
+<text x="985" y="1068" class="body">• <tspan class="boldgreen">Hydrocarbon Discrimination (Oil vs Gas): 100.0%</tspan></text>
+<text x="985" y="1091" class="body">• <tspan class="bold">Pay Macro F1-Score: 0.921</tspan> (Exceeding 0.75 target benchmark)</text>
+
+<rect x="960" y="1170" width="740" height="145" rx="10" fill="#FFFFFF" stroke="#FDE68A" stroke-width="1.5"/>
+<text x="985" y="1200" class="cardtitle" fill="#B45309">Methodological Benchmarking</text>
+<text x="985" y="1228" class="body">• Proposed System (<tspan class="bold">81.3% Acc | PRMS Compliant &amp; Auditable</tspan>)</text>
+<text x="985" y="1251" class="body">• vs. Pixler Dual-Ratio (<tspan class="bold">62.5% Acc</tspan> | +18.8% accuracy advantage)</text>
+<text x="985" y="1274" class="body">• vs. Random Forest ML (<tspan class="bold">81.3% Acc | FAILED PRMS Reserve Audit</tspan>)</text>
+
+<!-- Arrow (Stage 3 -> Stage 4) -->
+<path d="M865 795 C895 795 905 795 935 795" fill="none" stroke="#D97706" stroke-width="3" stroke-dasharray="6 4"/>
+<polygon points="935,795 922,788 922,802" fill="#D97706"/>
+
+<!-- Tuning Connector inside Stage 4 -->
+<path d="M1330 880 L1330 895" fill="none" stroke="#D97706" stroke-width="2.5"/>
+<polygon points="1330,895 1324,884 1336,884" fill="#D97706"/>
+<text x="1350" y="890" class="arrowtxt" fill="#B45309">Directly produced</text>
+
+<path d="M1330 1155 L1330 1170" fill="none" stroke="#D97706" stroke-width="2.5"/>
+<polygon points="1330,1170 1324,1159 1336,1159" fill="#D97706"/>
+<text x="1350" y="1165" class="arrowtxt" fill="#B45309">Proves superiority over Pixler</text>
+
+<!-- ========================================== -->
+<!-- STAGE 5: USABILITY, AUDIT & OPEN RELEASE -->
+<!-- ========================================== -->
+<rect x="75" y="955" width="790" height="415" rx="14" fill="#FAF5FF" stroke="#9333EA" stroke-width="2" filter="url(#shadow)"/>
+<text x="105" y="990" class="stage" fill="#7E22CE">Stage 5: Usability, Audit &amp; Open Release</text>
+<text x="105" y="1012" class="section">(Section 4.7 - 4.9 Delivery)</text>
+
+<rect x="100" y="1035" width="740" height="150" rx="10" fill="#FFFFFF" stroke="#E9D5FF" stroke-width="1.5"/>
+<text x="125" y="1065" class="cardtitle" fill="#7E22CE">System Usability Scale (SUS) Results</text>
+<text x="125" y="1093" class="body">• Evaluated directly with Senior Practicing Petrophysicist</text>
+<text x="125" y="1116" class="body">• Sum of normalized item contributions: <tspan class="bold">33 / 40</tspan></text>
+<text x="125" y="1139" class="body">• <tspan class="boldgreen">Composite Score: 82.5 / 100.0 (Grade A / Top 10th Percentile)</tspan></text>
+<text x="125" y="1162" class="body">• Confirms intuitive single-click operational workflow without training</text>
+
+<rect x="100" y="1200" width="740" height="145" rx="10" fill="#FFFFFF" stroke="#E9D5FF" stroke-width="1.5"/>
+<text x="125" y="1230" class="cardtitle" fill="#7E22CE">Open-Source Distribution &amp; PRMS Audit</text>
+<text x="125" y="1258" class="body">• Public GitHub Repository (MIT Open-Source License)</text>
+<text x="125" y="1281" class="body">• Version-pinned requirements.txt (Python 3.10+ reproducible)</text>
+<text x="125" y="1304" class="body">• <tspan class="bold">100% Deterministic Lineage</tspan> compliant with SPE PRMS Chapter 4</text>
+
+<!-- Arrow (Stage 4 -> Stage 5) -->
+<path d="M935 1160 C905 1160 895 1160 865 1160" fill="none" stroke="#9333EA" stroke-width="3"/>
+<polygon points="865,1160 878,1153 878,1167" fill="#9333EA"/>
+
+</svg>
