@@ -1,0 +1,22 @@
+# Build artifacts and binaries
+dist/
+build/
+*.exe
+*.zip
+*.spec
+*.cer
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary folders and large presentation decks
+temp/
+*.pptx
+
+# Git and IDE
+.git/
+.vscode/
+.idea/
+desktop.ini

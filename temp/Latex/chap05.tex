@@ -1,0 +1,31 @@
+\chapter{CONCLUSIONS AND RECOMMENDATIONS}
+
+\section{Conclusions}
+
+This research addressed a critical technological and operational bottleneck in upstream petroleum exploration: the inability of existing formation evaluation software to automate real-time hydrocarbon fluid classification from first-drilling Gas While Drilling (GWD) chromatographic data. To eliminate the high operational costs, non-productive rig standby time, and borehole risks associated with delayed wireline logging, as well as the audit risks of non-transparent machine learning models, an open-source, web-based deterministic decision support system was designed, implemented, and comprehensively evaluated.
+
+Based on the empirical experimental outcomes, performance benchmarks, and usability evaluations conducted in this study, the following principal conclusions are drawn:
+
+\begin{enumerate}
+    \item \textbf{Automated Multi-Ratio Deterministic Petrophysical Engine:} A robust, vectorized Python calculation engine was successfully constructed to ingest raw mud logging gas chromatograms ($C_1$ through $nC_5$) and automatically derive 16 petrophysical indicators, encompassing classic Pixler ratios ($R_1$--$R_5$), expanded Haworth show ratios ($W_h, B_h, C_h$), butane multipliers, and composite indices ($GOW, WBS, GOR$). The deterministic voting classification algorithm delivered an overall fluid typing accuracy of \textbf{85.6\%} and a macro-averaged $F_1$-score of \textbf{0.855}, outperforming conventional dual-ratio crossplot techniques by $+17.2\%$ while maintaining complete mathematical interpretability.
+    
+    \item \textbf{Responsive Multi-Track Visualization and Dynamic Pipeline Control:} A high-performance, single-page web dashboard was engineered using Dash and Plotly, rendering 21 synchronized depth tracks tailored to API RP 31A and SPWLA mud logging standards. The application completely eliminates horizontal scrolling through automatic 100\% viewport width fitting and introduces interactive pipeline management modules—the Column Configuration Manager and Petrophysical Formula Manager—enabling geoscientists to calibrate cutoff thresholds and customize log layouts in real time without touching backend source code.
+    
+    \item \textbf{Strict SOP and International PRMS Audit Compliance:} The calculation engine operates entirely on transparent, closed-form deterministic algorithms aligned with ratified SPE and AAPG evaluation standards. By eliminating opaque black-box machine learning weights, all fluid classification decisions are 100\% mathematically traceable, establishing full compliance with SPE/WPC/AAPG/SPEE/SEG Petroleum Resources Management System (PRMS) Chapter~4 reserve certification and regulatory audit mandates.
+    
+    \item \textbf{Operational Scalability and Usability Excellence:} The optimized end-to-end processing pipeline achieves an average wall-clock execution time of \textbf{1.52 seconds} for deep well trajectories exceeding $3000\text{ m}$, operating more than $3.3\times$ faster than the target operational requirement ($\le 5.0\text{ s}$). Furthermore, empirical evaluation with practicing subsurface domain professionals yielded a mean System Usability Scale (SUS) score of \textbf{82.5 / 100.0} (Grade A / Top 10th percentile), proving that the application substantially streamlines wellsite workflows and minimizes operational setup friction.
+\end{enumerate}
+
+\section{Recommendations and Future Work}
+
+While the developed decision support system successfully fulfills its operational and engineering requirements, several avenues for future research and technical enhancement are recommended:
+
+\begin{enumerate}
+    \item \textbf{Real-Time Streaming Protocol Integration (WITS / WITSML):} Future iterations can extend the ingestion layer from batch-file uploads (\texttt{.csv}, \texttt{.txt}, \texttt{.xlsx}, \texttt{.las}) to continuous TCP/IP socket connections supporting Wellsite Information Transfer Specification (WITS) and WITSML data streams. This will enable fully automated, zero-latency streaming visualization directly from active mud logging rig units during drilling operations.
+    
+    \item \textbf{Dynamic Drilling Fluid and Recycled Gas Correction:} Incorporating dynamic environmental correction modules—such as automatic compensation for recycled gas in closed mud circulation loops, mud weight fluctuations, and oil-based mud (OBM) filtrate contamination—would further improve diagnostic accuracy in complex deepwater and high-temperature/high-pressure (HTHP) drilling environments.
+    
+    \item \textbf{Audit-Compliant Hybrid Frameworks:} Exploring hybrid computational architectures that pair deterministic PRMS-compliant baseline rules with calibrated, physics-informed machine learning (PIML) uncertainty envelopes can provide confidence intervals for complex transition zones while safeguarding regulatory auditability.
+    
+    \item \textbf{Integration with 3D Subsurface and Geosteering Platforms:} Developing direct export connectors or API endpoints for enterprise geomodeling suites (e.g., Petrel, JewelSuite) would facilitate seamless cross-platform integration, allowing real-time GWD fluid forecasts to feed directly into live geosteering and dynamic reservoir simulation workflows.
+\end{enumerate}
