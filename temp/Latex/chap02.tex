@@ -5,12 +5,12 @@
 In modern upstream oil and gas exploration, subsurface reservoir characterization and real-time drilling decision-making face substantial operational, computational, and regulatory bottlenecks. An in-depth analysis of field operations and existing software tools reveals four primary challenges:
 
 \subsection{Operational Latency and Financial Risk in Reservoir Fluid Typing}
-During rotary drilling, the drill bit penetrates prospective reservoir formations, continuously liberating formation fluids and light alkane gases ($C_1$ through $nC_5$) into the circulating drilling mud \citep{ref9, ref12}. While Gas While Drilling (GWD) chromatographic data is acquired continuously on the very first bit run, exploration and drilling teams—including \textbf{well-site geologists}, \textbf{operations geologists}, and \textbf{petrophysicists}—are unable to utilize this data for definitive hydrocarbon fluid typing in real time \citep{ref8, ref12}. 
+During rotary drilling, the drill bit penetrates prospective reservoir formations, continuously liberating formation fluids and light alkane gases ($C_1$ through $nC_5$) into the circulating drilling mud \citep{ref9, ref12}. While Gas While Drilling (GWD) chromatographic data is acquired continuously on the very first bit run, exploration and drilling teams including \textbf{well-site geologists}, \textbf{operations geologists}, and \textbf{petrophysicists} are unable to utilize this data for definitive hydrocarbon fluid typing in real time \citep{ref8, ref12}. 
 
 Instead, standard operating procedures routinely delay definitive fluid identification until post-drilling Wireline Logging (WL) or Logging While Drilling (LWD) suites can be mobilized \citep{ref8, ref12}. However, wireline logging requires pulling the drill string entirely out of the wellbore, which introduces multiple days of non-productive rig standby time, severe borehole collapse hazards, differential sticking risks, and hundreds of thousands to millions of dollars in specialized logging contractor fees \citep{ref3, ref9}. If hydrocarbon fluid regimes (such as distinguishing gas caps, oil columns, or barren water sands) could be accurately forecasted directly from first-drilling GWD data, wellsite teams could make proactive geosteering adjustments, optimize casing seat depths, or terminate non-productive wells early, preventing massive capital losses \citep{ref3, ref8}.
 
 \subsection{Architectural Stagnation and Complexity in Formation Evaluation Software}
-A fundamental reason GWD data remains underutilized for proactive fluid forecasting lies in the architectural design of current formation evaluation software \citep{ref8, wood2020}. Commercial platforms deployed across the industry—such as Schlumberger (SLB) Techlog, AspenTech Geolog, Advanced Logic Technology WellCAD, and RockWare LogPlot—as well as generic open-source Python scripts operate predominantly as \textit{passive data plotters} \citep{wood2020}:
+A fundamental reason GWD data remains underutilized for proactive fluid forecasting lies in the architectural design of current formation evaluation software \citep{ref8, wood2020}. Commercial platforms deployed across the industry such as Schlumberger (SLB) Techlog, AspenTech Geolog, Advanced Logic Technology WellCAD, and RockWare LogPlot as well as generic open-source Python scripts operate predominantly as \textit{passive data plotters} \citep{wood2020}:
 \begin{enumerate}
     \item \textbf{Lack of Automated Petrophysical Ratio Logic:} Geotechnical drafting tools (e.g., WellCAD, LogPlot) render composite strip log layouts but contain zero built-in calculation logic to compute multi-ratio matrices or forecast fluid types.
     \item \textbf{Complex Scripting and Rigid Hardcoding:} Comprehensive workstation suites (e.g., Techlog, Geolog) treat GWD data as simple visual curves. Executing multi-ratio petrophysical forecasting requires users to write custom routines in proprietary scripting consoles (e.g., Techlog Python Script Editor or Geolog Loglan macros) or develop compiled C++ DLL plugins \citep{wood2020}. Furthermore, ratio formulas and cutoff thresholds are rigidly hardcoded, preventing fast operational tuning during live drilling.
@@ -20,7 +20,7 @@ A fundamental reason GWD data remains underutilized for proactive fluid forecast
 \subsection{The Black-Box AI Dilemma vs. Regulatory PRMS Auditability Mandates}
 To automate well log interpretation, numerous data-driven machine learning (ML) and deep neural network models have been proposed in recent literature \citep{ref1, ref4, ref6}. While machine learning regressors and classifiers achieve high curve-fitting scores on mature benchmark datasets, their internal decision logic consists of non-interpretable statistical weights and complex non-linear mappings \citep{ref1}. 
 
-In petroleum reserve certification, commercial asset transactions, and regulatory filings governed by the \citet{ref3} Petroleum Resources Management System (PRMS), reserve auditors strictly mandate that all petrophysical calculations establishing net pay thickness must be 100\% mathematically traceable, physics-based, and auditable \citep{ref2, ref3}. Opaque, "black-box" machine learning predictions cannot be independently audited or defended under SPE PRMS Chapter 4 standards, creating an unacceptable regulatory risk for asset operators. Consequently, asset teams are forced to choose between non-auditable AI models and slow, passive workstation plotters.
+In petroleum reserve certification, commercial asset transactions, and regulatory filings governed by the \citet{ref3} Petroleum Resources Management System (PRMS), reserve auditors strictly mandate that all petrophysical calculations establishing net pay thickness must be mathematically traceable, physics-based, and auditable \citep{ref2, ref3}. Opaque, "black-box" machine learning predictions cannot be independently audited or defended under SPE PRMS standards, creating an unacceptable regulatory risk for asset operators.
 
 \subsection{Absence of a Lightweight, Cloud-Accessible Decision Support Tool}
 In fast-paced wellsite environments, logging engineers and geologists require a streamlined, zero-installation computational tool that can ingest raw field files, instantly compute derived indicators, and display synchronized multi-track well logs on field laptops or remote monitors without cumbersome software installations, license dongles, or network latency \citep{wood2020}. The absence of such a dedicated platform represents a significant technological gap in operational geoscience.
@@ -37,23 +37,23 @@ Rather than relying on either oversimplified dual-ratio charts (which suffer fro
     \item \textbf{100\% Deterministic PRMS Auditability:} Every mathematical derivation and boundary decision is strictly closed-form and traceable, establishing full compliance with SPE PRMS Chapter 4 audit mandates \citep{ref2, ref3}.
 \end{enumerate}
 
-\subsection{Architectural Innovation: Declarative Parameter Dependency Graph (DAG)}
+\subsection{Architecture: Declarative Parameter Dependency Graph}
 To eliminate the rigid hardcoding prevalent in traditional software, the computation engine represents all petrophysical variables, mathematical formulas, and decision boundaries as a \textbf{declarative directed acyclic graph (DAG)}:
 \begin{itemize}
     \item Physical data channels and computed parameters exist as graph vertices, while mathematical dependencies and boundary decision rules form directed edges.
     \item This architecture enables dynamic in-memory re-evaluation. Through the interactive *Petrophysical Formula and Threshold Manager*, geoscientists can modify mathematical expressions using quick-insert tokens (e.g., $C_1 \dots nC_5, TG, \log_{10}$) or adjust localized cutoff thresholds (e.g., in heavy-oil or tight-gas basins) and immediately observe recomputed log curves across the entire well trajectory in sub-second latency without backend code changes.
 \end{itemize}
 
-\subsection{Interface and Visualization Innovation: API RP 31A Compliant Multi-Track Dashboard}
+\subsection{Interface and Visualization: Multi-Track Dashboard}
 The presentation layer introduces a highly responsive, depth-synchronized well log visualization interface built with Dash and Plotly WebGL:
 \begin{enumerate}
     \item \textbf{Discrete Columnar Strip Log Layout:} To maximize readability and eliminate curve crowding, each parameter is assigned a dedicated vertical track (23 tracks in total), adhering directly to API RP 31A and SPWLA mud logging standards.
-    \item \textbf{Dynamic 25\% Column Normalization Rule:} To prevent visual compression on standard screens, a dynamic layout algorithm enforces a maximum track width of 25\% of the viewport for complex multi-curve overlays while allocating remaining space proportionally across active tracks, guaranteeing 100\% screen-width containment with zero horizontal scrolling.
+    \item \textbf{Dynamic 25\% Column Normalization Rule:} To ease users analytical needs, some input columns goes through normalization so only the irregular data are shown, and none of the common uneeded data are shown in the columns.
     \item \textbf{High-Contrast Color Envelopes and Synchronized Depth Grids:} Parameter curves feature translucent shaded area fills (Emerald Green for alkanes, Vibrant Cyan for fluid indicators, Warm Orange for composite multipliers, and discrete color banding for fluid facies) paired with synchronized horizontal depth gridlines and crosshair tooltips for effortless lateral correlation.
     \item \textbf{Containerized Pipeline Managers:} Ingestion, track management (*Column Configuration Manager*), formula tuning (*Formula & Threshold Manager*), and statistical plot filtering are housed in non-intrusive modal windows, preserving a clean visualization workspace.
 \end{enumerate}
 
-\subsection{Deployment Innovation: Zero-Installation Serverless Edge Architecture}
+\subsection{Deployment: Zero-Installation Serverless Edge Architecture}
 To eliminate commercial software licensing barriers and deployment friction:
 \begin{itemize}
     \item The application is built entirely on open-source Python technologies and deployed to the \textbf{Vercel} serverless cloud platform.
