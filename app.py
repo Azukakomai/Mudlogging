@@ -12,7 +12,7 @@ Features:
   • Real-time deterministic recomputation of well logs and fluid facies zones
   • Upload and CSV Export
 """
-
+import os
 import io
 import json
 import base64
@@ -50,10 +50,10 @@ CLR_MUTED      = "#94a3b8"  # Slate 400
 CLR_DARK_MUTED = "#64748b"  # Slate 500
 
 ZONE_COLORS = {
-    "Gas":     "#f43f5e",
-    "Oil":     "#10b981",
-    "Water":   "#0284c7",
-    "No Show": "#475569",
+    "Gas":         "#f43f5e",
+    "Oil":         "#10b981",
+    "Non-Bearing": "#475569",
+    "No Show":     "#475569",
 }
 
 # Default Multi-Track Specifications (All input columns & 16 Chapter 3 derived ratios)
@@ -189,7 +189,7 @@ app.index_string = """<!DOCTYPE html>
             }
             #global-crosshair-line {
                 position: absolute;
-                left: 52px;
+                left: 62px;
                 right: 50px;
                 height: 0px;
                 border-top: 1.5px dashed #0f172a;
@@ -400,10 +400,6 @@ app.index_string = """<!DOCTYPE html>
                                             zoneBadge.style.background = '#065f46';
                                             zoneBadge.style.color = '#6ee7b7';
                                             zoneBadge.style.borderColor = '#10b981';
-                                        } else if (zone === 'Water') {
-                                            zoneBadge.style.background = '#0c4a6e';
-                                            zoneBadge.style.color = '#7dd3fc';
-                                            zoneBadge.style.borderColor = '#0284c7';
                                         } else {
                                             zoneBadge.style.background = '#1e293b';
                                             zoneBadge.style.color = '#cbd5e1';
@@ -708,8 +704,8 @@ formulas_modal = dbc.Modal(
                                         html.Span(id="formula-thresh-oil", children=DEFAULT_FORMULAS["WH"]["oil"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
                                     ], className="col-4"),
                                     html.Div([
-                                        html.Span("🔵 Water Zone: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
-                                        html.Span(id="formula-thresh-water", children=DEFAULT_FORMULAS["WH"]["water"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
+                                        html.Span("⚪ Non-Bearing: ", style={"fontSize": "12px", "fontWeight": "600", "color": "#94a3b8"}),
+                                        html.Span(id="formula-thresh-water", children=DEFAULT_FORMULAS["WH"]["non_bearing"], style={"fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace"}),
                                     ], className="col-4"),
                                 ], className="row g-2"),
                             ], style={"background": "rgba(16, 26, 46, 0.6)", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px", "marginBottom": "14px"}),
@@ -976,9 +972,8 @@ app.layout = html.Div([
         html.Div([
             html.Div([
                 html.Span("Fluid Zone Overlay:", style={"fontSize": "11px", "fontWeight": "600", "color": CLR_MUTED, "marginRight": "10px"}),
-                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#10b981", "display": "inline-block", "marginRight": "4px"}), "Gas"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#10b981"}),
-                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#f43f5e", "display": "inline-block", "marginRight": "4px"}), "Oil"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#f43f5e"}),
-                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#0284c7", "display": "inline-block", "marginRight": "4px"}), "Water"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#38bdf8"}),
+                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#f43f5e", "display": "inline-block", "marginRight": "4px"}), "Gas"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#f43f5e"}),
+                html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#10b981", "display": "inline-block", "marginRight": "4px"}), "Oil"], className="me-3", style={"fontSize": "11px", "fontWeight": "600", "color": "#10b981"}),
                 html.Span([html.Span(style={"width": "10px", "height": "10px", "borderRadius": "2px", "background": "#475569", "display": "inline-block", "marginRight": "4px"}), "No Show"], style={"fontSize": "11px", "fontWeight": "600", "color": "#94a3b8"}),
             ], className="d-flex align-items-center flex-wrap"),
 
@@ -1226,8 +1221,8 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
     if has_zone:
         ci = total_cols
         zv = filtered_df["ZONE"].values
-        znr = [3 if z == "Gas" else 2 if z == "Oil" else 1 if z == "Water" else 0 for z in zv]
-        zclr = [ZONE_COLORS.get(z, ZONE_COLORS["No Show"]) for z in zv]
+        znr = [1 if z in ("Gas", "Oil") else 0 for z in zv]
+        zclr = [ZONE_COLORS.get(z, ZONE_COLORS["Non-Bearing"]) for z in zv]
         fig.add_trace(
             go.Bar(
                 x=znr, y=depth, orientation="h",
@@ -1238,6 +1233,7 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
             row=1, col=ci,
         )
         fig.update_layout(**{f"xaxis{ci}": dict(
+            range=[0, 1],
             showticklabels=False, zeroline=False,
             showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
             gridcolor="#e2e8f0",
@@ -1247,10 +1243,10 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
     # Invert Y-axis for well depth on all subplots with crisp track borders
     fig.update_yaxes(
         autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8,
-        title_text="DEPTH (m)", title_font=dict(size=9.5, color="#000000", family="Inter, sans-serif", weight="bold"),
+        title_text="DEPTH (m)", title_font=dict(size=12.5, color="#000000", family="Inter, sans-serif", weight="bold"),
         row=1, col=1,
         showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
-        tickfont=dict(size=8, color="#000000", family="'JetBrains Mono', monospace"),
+        tickfont=dict(size=11.5, color="#000000", family="'JetBrains Mono', monospace", weight="bold"),
         tickcolor="#000000",
         showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
     )
@@ -1258,7 +1254,7 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         fig.update_layout(**{f"yaxis{c_idx}": dict(
             autorange="reversed", gridcolor="#e2e8f0", gridwidth=0.8, showgrid=True, zeroline=False,
             showline=True, linewidth=1.4, linecolor="#000000", mirror=True,
-            tickfont=dict(size=7.5, color="#000000", family="'JetBrains Mono', monospace"),
+            tickfont=dict(size=9.5, color="#000000", family="'JetBrains Mono', monospace"),
             tickcolor="#000000",
             showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dot", spikethickness=1.2, spikecolor="#000000"
         )})
@@ -1268,18 +1264,18 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         autosize=True,
         paper_bgcolor="#ffffff",
         plot_bgcolor="#ffffff",
-        font=dict(family="Inter, sans-serif", size=8.5, color="#000000"),
-        margin=dict(l=52, r=15, t=55, b=25),
+        font=dict(family="Inter, sans-serif", size=9.5, color="#000000"),
+        margin=dict(l=62, r=15, t=65, b=25),
         hovermode="y unified",
     )
 
-    # Boxed Track Headers matching petrophysical well log layout
+    # Boxed Track Headers matching petrophysical well log layout (Enlarged Column Names)
     for ann in fig.layout.annotations:
-        ann.font = dict(size=8, color="#000000", family="Inter, sans-serif", weight="bold")
+        ann.font = dict(size=11.5, color="#000000", family="Inter, sans-serif", weight="bold")
         ann.bgcolor = "#f8fafc"
         ann.bordercolor = "#000000"
-        ann.borderwidth = 1.2
-        ann.borderpad = 3
+        ann.borderwidth = 1.3
+        ann.borderpad = 4.5
 
     depth_zone_pairs = []
     if "ZONE" in filtered_df.columns:
@@ -1569,21 +1565,18 @@ def update_threshold_zone_preview(wh_g_min, wh_g, wh_o, bh_g, bh_o, ch_g, r_nc4_
         vc = test_zones.value_counts().to_dict()
         n_gas = vc.get("Gas", 0)
         n_oil = vc.get("Oil", 0)
-        n_wat = vc.get("Water", 0)
-        n_ns  = vc.get("No Show", 0)
+        n_nb  = vc.get("Non-Bearing", vc.get("No Show", 0))
 
         p_gas = (n_gas / total) * 100.0
         p_oil = (n_oil / total) * 100.0
-        p_wat = (n_wat / total) * 100.0
-        p_ns  = (n_ns / total) * 100.0
+        p_nb  = (n_nb / total) * 100.0
 
         return html.Div([
             html.Div("Live Fluid Facies Breakdown on Current Dataset", style={"fontSize": "11px", "fontWeight": "700", "color": CLR_MUTED, "marginBottom": "6px", "textTransform": "uppercase"}),
             html.Div([
-                html.Span(f"🟢 Gas: {n_gas} ({p_gas:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
-                html.Span(f"🔴 Oil: {n_oil} ({p_oil:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
-                html.Span(f"🔵 Water: {n_wat} ({p_wat:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#38bdf8"}),
-                html.Span(f"⚪ No Show: {n_ns} ({p_ns:.1f}%)", style={"fontSize": "12px", "fontWeight": "600", "color": "#94a3b8"}),
+                html.Span(f"🔴 Gas: {n_gas} ({p_gas:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#f43f5e"}),
+                html.Span(f"🟢 Oil: {n_oil} ({p_oil:.1f}%)", className="me-3", style={"fontSize": "12px", "fontWeight": "600", "color": "#10b981"}),
+                html.Span(f"⚪ Non-Bearing: {n_nb} ({p_nb:.1f}%)", style={"fontSize": "12px", "fontWeight": "600", "color": "#94a3b8"}),
             ], className="d-flex align-items-center flex-wrap"),
         ], style={"background": "#070c18", "border": f"1px solid {CLR_BORDER}", "borderRadius": "8px", "padding": "10px 14px"})
     except Exception:
@@ -1958,5 +1951,7 @@ def open_browser():
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
     threading.Thread(target=open_browser, daemon=True).start()
     app.run(debug=False, port=8051)

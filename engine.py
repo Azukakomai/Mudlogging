@@ -8,6 +8,7 @@ Implements all 16 derived indicators from the thesis methodology:
 Every formula is an explicit, auditable physics equation — no black-box ML.
 """
 
+# pyrefly: ignore [missing-import]
 import numpy as np
 import pandas as pd
 
@@ -35,119 +36,119 @@ DEFAULT_FORMULAS = {
         "expr": "C1",
         "gas": "C1 >= 2000",
         "oil": "500 <= C1 < 2000",
-        "water": "C1 < 500",
+        "non_bearing": "C1 < 500",
     },
     "WH": {
         "name": "Haworth Wetness Ratio (Wh)",
         "expr": "((C2 + C3 + IC4 + NC4 + IC5 + NC5) / TG) * 100.0",
-        "gas": "Wh < 17.5",
+        "gas": "0.5 <= Wh < 17.5",
         "oil": "17.5 <= Wh <= 40.0",
-        "water": "Wh > 40.0",
+        "non_bearing": "Wh < 0.5 or Wh == 0",
     },
     "BH": {
         "name": "Haworth Balance Ratio (Bh)",
         "expr": "(C1 + C2) / (C3 + IC4 + NC4 + IC5 + NC5)",
         "gas": "Bh >= 15.0",
         "oil": "0.5 <= Bh < 15.0",
-        "water": "Bh < 0.5",
+        "non_bearing": "Bh == 0 or Undefined",
     },
     "CH": {
         "name": "Haworth Character Ratio (Ch)",
         "expr": "(IC4 + NC4 + IC5 + NC5) / C3",
-        "gas": "Ch < 0.5",
+        "gas": "0 < Ch < 0.5",
         "oil": "Ch >= 0.5",
-        "water": "Undefined",
+        "non_bearing": "Ch == 0",
     },
     "R1_C1_C2": {
         "name": "Pixler R1 (C1 / C2)",
         "expr": "C1 / C2",
         "gas": "R1 >= 15.0",
         "oil": "2.0 <= R1 < 15.0",
-        "water": "R1 < 2.0",
+        "non_bearing": "R1 == 0 or Undefined",
     },
     "R2_C1_C3": {
         "name": "Pixler R2 (C1 / C3)",
         "expr": "C1 / C3",
         "gas": "R2 > 30.0",
         "oil": "4.0 <= R2 <= 30.0",
-        "water": "R2 < 4.0",
+        "non_bearing": "R2 == 0",
     },
     "R3_C3_C1": {
         "name": "Pixler R3 (C3 / C1)",
         "expr": "C3 / C1",
-        "gas": "R3 < 0.033",
+        "gas": "0 < R3 < 0.033",
         "oil": "0.033 <= R3 <= 0.25",
-        "water": "R3 > 0.25",
+        "non_bearing": "R3 == 0",
     },
     "R4_C2_C1": {
         "name": "Pixler R4 (C2 / C1)",
         "expr": "C2 / C1",
-        "gas": "R4 < 0.067",
+        "gas": "0 < R4 < 0.067",
         "oil": "0.067 <= R4 <= 0.50",
-        "water": "R4 > 0.50",
+        "non_bearing": "R4 == 0",
     },
     "RATIO_IC4": {
         "name": "Expanded Ratio iC4 (C1 / iC4)",
         "expr": "C1 / IC4",
         "gas": "Ratio_iC4 > 150.0",
         "oil": "15.0 <= Ratio_iC4 <= 150.0",
-        "water": "Ratio_iC4 < 15.0",
+        "non_bearing": "Ratio_iC4 == 0",
     },
     "RATIO_NC4": {
         "name": "Expanded Ratio nC4 (C1 / nC4)",
         "expr": "C1 / NC4",
         "gas": "Ratio_nC4 > 100.0",
         "oil": "10.0 <= Ratio_nC4 <= 100.0",
-        "water": "Ratio_nC4 < 10.0",
+        "non_bearing": "Ratio_nC4 == 0",
     },
     "TG": {
         "name": "Total Gas Volume (TG)",
         "expr": "C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5",
-        "gas": "TG >= 2000",
-        "oil": "500 <= TG < 2000",
-        "water": "TG < 500",
+        "gas": "TG >= 1500",
+        "oil": "500 <= TG < 1500",
+        "non_bearing": "TG < 500",
     },
     "DRYNESS": {
         "name": "Dryness Ratio (DR = C1 / TG)",
         "expr": "C1 / TG",
         "gas": "DR >= 0.85",
         "oil": "0.50 <= DR < 0.85",
-        "water": "DR < 0.50",
+        "non_bearing": "DR == 0 or No Gas",
     },
     "CARBON_INDEX": {
         "name": "Carbon Density Index (Icarbon)",
         "expr": "TG / (C1 + 2*C2 + 3*C3 + 4*IC4 + 4*NC4 + 5*IC5 + 5*NC5)",
         "gas": "Icarbon > 0.85",
         "oil": "0.40 <= Icarbon <= 0.85",
-        "water": "Icarbon < 0.40",
+        "non_bearing": "Icarbon == 0",
     },
     "GOW": {
         "name": "Composite GOW",
         "expr": "((C3 + IC4 + NC4 + IC5 + NC5) * TG) / (C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5)",
-        "gas": "GOW < 500",
+        "gas": "0 < GOW < 500",
         "oil": "500 <= GOW <= 15000",
-        "water": "GOW > 15000",
+        "non_bearing": "GOW == 0",
     },
     "GOW_NOTG": {
         "name": "GOW No-TG (Normalized Heavy Fraction)",
         "expr": "(C3 + IC4 + NC4 + IC5 + NC5) / (C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5)",
-        "gas": "GOW_noTG < 0.015",
+        "gas": "0 < GOW_noTG < 0.015",
         "oil": "0.015 <= GOW_noTG <= 0.08",
-        "water": "GOW_noTG > 0.08",
+        "non_bearing": "GOW_noTG == 0",
     },
     "WBS": {
         "name": "Wetness-Balance Score (WBS)",
         "expr": "(log10(BH) - 0.903) / 2.097 - log10(WH) / 2",
         "gas": "WBS > 0",
         "oil": "-0.5 <= WBS <= 0",
-        "water": "WBS < -0.5",
+        "non_bearing": "WBS == 0 or Undefined",
     },
     "GOR": {
         "name": "Gas-Oil Ratio (GOR) Screening",
         "expr": "where((TG > 0.8) & (TG < 1.2) & (C1 > 2000), 0, 1)",
         "gas": "GOR == 0 (Dry Gas Screening)",
         "oil": "GOR == 1 (Associated Gas / Oil)",
-        "water": "Undefined",
+        "non_bearing": "Undefined",
     },
 }
 
@@ -405,24 +406,16 @@ def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns
 def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     """
     Applies rule-based expert decision logic per depth row matching Chapter 3 criteria:
-    Both Oil and Gas require heavier hydrocarbon fractions (iC4, nC4, iC5, nC5) data:
-    Gas:
-      - Has iC4, nC4, and iC5 (sometimes even nC5)
-      - Spike in C1, C2, C3 and TG
-      - Normal Pixler R1-R4 ratios (R1 >= 15.0, R4 < 0.067)
-      - Spike in Ratio nC4 (C1 / nC4 >= 100.0)
-      - Normal Dryness (DR >= 0.85) & Carbon Index (Ci >= 0.85)
-      - Active spike in Wh% (0.5% <= Wh < 17.5%)
-      - Reverse dip in Bh (Bh >= 15.0)
-      - Spike in Ch (Ch < 0.5), GOW, and GOW_noTG (< 0.015)
-    Oil:
-      - Has iC4 and nC4, but absence / none in iC5 & nC5
-      - Ordinary TG / reverse dip in TG/Dryness
-      - Reverse spike in R1 (2.0 <= R1 < 15.0)
-      - Bump in R4 (R4 >= 0.067)
-      - Heavier fraction indicators (17.5% <= Wh <= 40%, 0.5 <= Bh < 15.0, Ch >= 0.5)
-    No Show:
-      - Background intervals where iC4, nC4, iC5, and nC5 are absent (<= 0.05 ppm).
+    Three Facies Classes: Gas, Oil, Non-Bearing (Water dropped per user instruction).
+    
+    Rules:
+      1. Both Oil and Gas strictly require heavier hydrocarbon fractions (iC4, nC4, iC5, nC5) > 0.05 ppm.
+      2. If all hydrocarbon inputs or generated columns are zero/missing/undefined, that indicator casts
+         a Non-Bearing vote (0 votes for Gas, 0 votes for Oil).
+      3. Gas: Has iC5/nC5 pentanes, C1-C3 and TG spikes, normal Pixler R1 & R4, Ratio nC4 spike.
+      4. Oil: Has iC4/nC4 but NO iC5/nC5, moderate TG, reverse spike in R1, bump in R4, heavier Wh/Bh.
+      5. Non-Bearing: Background gas or absent C4-C5 data.
+      6. Spatial continuity: Any connected pay package containing Gas is consolidated to solid Gas.
     """
     th = dict(DEFAULT_THRESHOLDS)
     if thresholds and isinstance(thresholds, dict):
@@ -430,7 +423,6 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
 
     tg_noise = float(th.get("tg_noise", 300.0))
     c1_noise = float(th.get("c1_noise", 200.0))
-    c1_pure_gas = float(th.get("c1_pure_gas", 2000.0))
     det_lim = float(th.get("c4_c5_detection_limit", 0.05))
 
     wh_gas_min = float(th.get("wh_gas_min", 0.5))
@@ -482,8 +474,6 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
     else:
         derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
 
-    heavy_sum = C2 + C3 + IC4 + NC4 + IC5 + NC5
-
     for i in range(n):
         tg = derived_tg[i]
         c1 = C1[i]
@@ -494,12 +484,18 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
         ic5 = IC5[i]
         nc5 = NC5[i]
 
-        # 1. Background Noise / Low Gas Cutoff:
-        if (tg < tg_noise and c1 < c1_noise) or c1 <= 0:
-            zones.append("No Show")
+        # 1. Base Hydrocarbon Continuity Gate:
+        # If C1, C2, or C3 is missing, NaN, or <= 0 -> Non-Bearing (bypasses voting)
+        if (c1 <= 0 or c2 <= 0 or c3 <= 0 or not np.isfinite(c1) or not np.isfinite(c2) or not np.isfinite(c3)):
+            zones.append("Non-Bearing")
             continue
 
-        # 2. Check presence of Butanes (iC4, nC4) and Pentanes (iC5, nC5)
+        # 2. Background Noise / Baseline Cutoff:
+        if (tg < tg_noise and c1 < c1_noise):
+            zones.append("Non-Bearing")
+            continue
+
+        # 3. Check presence of Butanes (iC4, nC4) and Pentanes (iC5, nC5)
         has_ic4 = (ic4 > det_lim) and np.isfinite(ic4)
         has_nc4 = (nc4 > det_lim) and np.isfinite(nc4)
         has_ic5 = (ic5 > det_lim) and np.isfinite(ic5)
@@ -509,21 +505,20 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
         has_c5 = has_ic5 or has_nc5
 
         # STRICT RULE: Must have ic4, nc4, ic5, or nc5 data present to assign Gas or Oil.
-        # If all C4 & C5 channels are missing / zero / below detection limit -> No Show
+        # If all C4 & C5 channels are missing / zero / below detection limit -> Non-Bearing
         if not has_c4 and not has_c5:
-            zones.append("No Show")
+            zones.append("Non-Bearing")
             continue
 
         gas_votes = 0
         oil_votes = 0
-        water_votes = 0
 
         # --- Rule 1: Hydrocarbon Speciation (iC4, nC4, iC5, nC5) ---
         if has_c4 and not has_c5:
             # Classic Oil fingerprint: present iC4/nC4, but absence of iC5/nC5
             oil_votes += 4
         elif has_c5:
-            # Gas fingerprint: includes light pentane traces (iC5 and sometimes nC5)
+            # Gas fingerprint: includes light pentane traces (iC5 and/or nC5)
             gas_votes += 3
 
         # Special case: nothing in ic4 sometimes, but spike in nc4 ratio
@@ -537,10 +532,11 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
             gas_votes += 2
         if tg >= 1500:
             gas_votes += 2
-        elif tg < 1500:
+        elif 0 < tg < 1500:
             oil_votes += 1
 
         # --- Rule 3: Pixler R1 (C1/C2) & Pixler R4 (C2/C1 Bump) ---
+        # If c2 <= 0 or c1 <= 0, value is 0/undefined -> Non-Bearing (0 votes)
         if c2 > 0 and c1 > 0:
             r1 = c1 / c2
             r4 = c2 / c1
@@ -550,86 +546,77 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
             elif r1_oil_min <= r1 < r1_gas_min:
                 # Reverse spike in R1 -> Oil
                 oil_votes += 2
-            elif r1 < r1_oil_min:
-                water_votes += 3
 
             if r4 >= r4_oil_bump_min:
                 # Bump in R4 (C2/C1) -> Oil
                 oil_votes += 2
 
         # --- Rule 4: Spike in Ratio nC4 (C1 / nC4) ---
+        # If nc4 <= 0, value is 0 -> Non-Bearing (0 votes)
         if nc4 > 0 and c1 > 0:
             r_nc4 = c1 / nc4
             if r_nc4 >= ratio_nc4_gas_min:
                 gas_votes += 2
 
         # --- Rule 5: Haworth Wetness (Wh) & Wh% Spike ---
+        # If wh <= 0 or NaN -> Non-Bearing (0 votes)
         wh = Wh[i]
-        if not np.isnan(wh):
-            if wh < wh_gas_min:
-                gas_votes += 1
-            elif wh_gas_min <= wh < wh_gas_max:
+        if not np.isnan(wh) and wh > 0:
+            if wh_gas_min <= wh < wh_gas_max:
                 # Active Wh% spike for Gas
                 gas_votes += 2
             elif wh_gas_max <= wh <= wh_oil_max:
                 oil_votes += 2
-            else:
-                water_votes += 3
 
         # --- Rule 6: Haworth Balance (Bh) Reverse Dip ---
+        # If bh <= 0 or NaN -> Non-Bearing (0 votes)
         bh = Bh[i]
-        if not np.isnan(bh):
+        if not np.isnan(bh) and bh > 0:
             if bh >= bh_gas_min:
                 gas_votes += 2
             elif bh_oil_min <= bh < bh_gas_min:
                 oil_votes += 2
-            else:
-                water_votes += 3
 
         # --- Rule 7: Haworth Character (Ch) Spike ---
+        # If ch <= 0 or NaN -> Non-Bearing (0 votes)
         ch = Ch[i]
-        if not np.isnan(ch):
+        if not np.isnan(ch) and ch > 0:
             if ch < ch_gas_max:
                 gas_votes += 1
             else:
                 oil_votes += 1
 
         # --- Rule 8: Dryness Ratio (C1 / TG) ---
+        # If dry <= 0 or NaN or c1 <= 0 or tg <= 0 -> Non-Bearing (0 votes)
         dry = Dry[i]
-        if not np.isnan(dry):
+        if not np.isnan(dry) and dry > 0 and c1 > 0 and tg > 0:
             if dry >= dry_gas_min:
                 gas_votes += 1
             elif dry >= dry_oil_min:
                 oil_votes += 1
-            else:
-                water_votes += 2
 
         # --- Rule 9: Normalized Heavy Gas (GOW_noTG) ---
+        # If gow_n <= 0 or NaN -> Non-Bearing (0 votes)
         gow_n = Gow_notg[i]
-        if not np.isnan(gow_n):
+        if not np.isnan(gow_n) and gow_n > 0:
             if gow_n < gow_notg_gas_max:
                 gas_votes += 1
             elif gow_n <= gow_notg_oil_max:
                 oil_votes += 1
-            else:
-                water_votes += 2
 
         # --- Rule 10: Wetness-Balance Score (WBS) ---
+        # If wbs == 0 or NaN -> Non-Bearing (0 votes)
         wbs = Wbs[i]
-        if not np.isnan(wbs):
+        if not np.isnan(wbs) and np.isfinite(wbs) and wbs != 0.0:
             if wbs > wbs_gas_min:
                 gas_votes += 1
             elif wbs >= wbs_oil_min:
                 oil_votes += 1
-            else:
-                water_votes += 1
 
-        # --- Decision matrix ---
-        if water_votes > gas_votes and water_votes > oil_votes and water_votes >= 4:
-            zones.append("Water")
-        elif gas_votes > oil_votes:
+        # --- Decision matrix (Gas vs Oil vs Non-Bearing) ---
+        if gas_votes > oil_votes and gas_votes > 0:
             zones.append("Gas")
-        elif oil_votes > gas_votes:
+        elif oil_votes > gas_votes and oil_votes > 0:
             zones.append("Oil")
         elif gas_votes == oil_votes and gas_votes > 0:
             if has_c5:
@@ -637,11 +624,11 @@ def _classify_zones(df: pd.DataFrame, thresholds: dict = None) -> pd.Series:
             else:
                 zones.append("Oil")
         else:
-            zones.append("No Show")
+            zones.append("Non-Bearing")
 
     # -----------------------------------------------------------------------
     # Spatial Cluster & Neighbor Rule:
-    # If an active continuous hydrocarbon package (contiguous non-"No Show" intervals)
+    # If an active continuous hydrocarbon package (contiguous non-"Non-Bearing" intervals)
     # contains any "Gas" prediction, then ALL "Oil" predictions in that same contiguous
     # package are switched to "Gas" regardless of individual point votes.
     # -----------------------------------------------------------------------

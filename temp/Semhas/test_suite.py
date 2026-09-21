@@ -155,7 +155,7 @@ class TestPetrophysicalFormulas(unittest.TestCase):
             'TG': 15750.0
         }])
         res = compute_all(df_no_c4_c5)
-        self.assertEqual(res['ZONE'].iloc[0], 'No Show')
+        self.assertEqual(res['ZONE'].iloc[0], 'Non-Bearing')
 
     def test_spatial_neighbor_oil_to_gas_reclassification(self):
         """Validates that an Oil prediction with Gas as a neighbor is reclassified as Gas."""
@@ -170,6 +170,21 @@ class TestPetrophysicalFormulas(unittest.TestCase):
         self.assertEqual(res['ZONE'].iloc[0], 'Gas')
         self.assertEqual(res['ZONE'].iloc[1], 'Gas')
         self.assertEqual(res['ZONE'].iloc[2], 'Gas')
+
+
+    def test_missing_c1_c2_c3_bypasses_to_nonbearing(self):
+        """Validates that any row with C1, C2, or C3 missing/zero strictly bypasses voting and returns Non-Bearing."""
+        # Case 1: C1 is 0
+        df_zero_c1 = pd.DataFrame([{'DEPTH': 1000.0, 'C1': 0.0, 'C2': 500.0, 'C3': 100.0, 'IC4': 50.0, 'NC4': 50.0, 'IC5': 20.0, 'NC5': 10.0, 'TG': 680.0}])
+        self.assertEqual(compute_all(df_zero_c1)['ZONE'].iloc[0], 'Non-Bearing')
+
+        # Case 2: C2 is 0
+        df_zero_c2 = pd.DataFrame([{'DEPTH': 1000.0, 'C1': 20000.0, 'C2': 0.0, 'C3': 100.0, 'IC4': 50.0, 'NC4': 50.0, 'IC5': 20.0, 'NC5': 10.0, 'TG': 20180.0}])
+        self.assertEqual(compute_all(df_zero_c2)['ZONE'].iloc[0], 'Non-Bearing')
+
+        # Case 3: C3 is 0
+        df_zero_c3 = pd.DataFrame([{'DEPTH': 1000.0, 'C1': 20000.0, 'C2': 500.0, 'C3': 0.0, 'IC4': 50.0, 'NC4': 50.0, 'IC5': 20.0, 'NC5': 10.0, 'TG': 20580.0}])
+        self.assertEqual(compute_all(df_zero_c3)['ZONE'].iloc[0], 'Non-Bearing')
 
 
 if __name__ == '__main__':

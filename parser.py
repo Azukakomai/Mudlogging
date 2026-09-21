@@ -20,25 +20,34 @@ def parse_mudlog_file(file_path_or_buffer):
             raise FileNotFoundError(f"File not found: {file_path_or_buffer}")
         
         ext = os.path.splitext(file_path_or_buffer)[1].lower()
-        # Extracts file extension
         if ext in ['.xlsx', '.xls']:
             df_raw = pd.read_excel(file_path_or_buffer)
-        # if Extension is not xlsx
         else:
             with open(file_path_or_buffer, 'r', encoding='utf-8', errors='ignore') as f:
                 lines = f.readlines()
-            
             header_idx = 0
             for i, line in enumerate(lines[:100]):
-                # finding header index
                 line_upper = line.upper()
-                if 'DEPTH' in line_upper or 'METRES' in line_upper or 'C1' in line_upper:
+                if 'DEPTH' in line_upper or 'C1' in line_upper:
                     header_idx = i
                     break
-
-            # Joins all lines from the header index to the end
             content = "".join(lines[header_idx:])
             df_raw = pd.read_csv(io.StringIO(content))
+    elif hasattr(file_path_or_buffer, 'read') or hasattr(file_path_or_buffer, 'getvalue'):
+        raw = file_path_or_buffer.getvalue() if hasattr(file_path_or_buffer, 'getvalue') else file_path_or_buffer.read()
+        if isinstance(raw, bytes):
+            text_str = raw.decode('utf-8', errors='ignore')
+        else:
+            text_str = str(raw)
+        lines = text_str.splitlines(keepends=True)
+        header_idx = 0
+        for i, line in enumerate(lines[:100]):
+            line_upper = line.upper()
+            if 'DEPTH' in line_upper or 'C1' in line_upper:
+                header_idx = i
+                break
+        content = "".join(lines[header_idx:])
+        df_raw = pd.read_csv(io.StringIO(content))
     else:
         df_raw = pd.read_csv(file_path_or_buffer)
 

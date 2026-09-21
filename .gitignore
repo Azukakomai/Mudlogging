@@ -1,0 +1,50 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Distribution / packaging / binaries (>100MB potential)
+dist/
+build/
+*.exe
+*.pkg
+*.dll
+*.so
+*.dylib
+*.bin
+*.spec
+*.cer
+
+# Archives & compressed files (>100MB)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.iso
+
+# Large datasets & machine learning model weights (>100MB)
+*.h5
+*.hdf5
+*.pth
+*.pt
+*.onnx
+*.ckpt
+*.pkl
+*.parquet
+*.feather
+
+# Large log / raw data files (>100MB potential)
+*.las
+*.dat
+
+# Specific large files (>100MB)
+Mudlogging_Release_v1.0.zip
+
+# Vercel & Environment
+.vercel
+.env
+.env.local
+.env.*.local
