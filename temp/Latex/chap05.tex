@@ -2,11 +2,11 @@
 
 \section{Software Module Architecture and Engineering Strategy}
 
-The implementation of the Gas While Drilling (GWD) decision support system follows the decoupled three-tier architectural design established in Chapter~4. The codebase is organized into four dedicated Python modules, ensuring modularity, strict separation of concerns, and reproducible scientific computing:
+The implementation of the Gas While Drilling (GWD) decision support system follows the decoupled three-tier architectural design established in Chapter~4. The codebase is organized into dedicated Python modules, ensuring modularity, strict separation of concerns, and reproducible scientific computing:
 
 \begin{enumerate}
-    \item \texttt{parser.py}: The Data Ingestion and Normalization Layer, responsible for parsing multi-format well logs, stripping metadata headers, mapping heterogeneous column aliases, type casting, and sorting depth records.
-    \item \texttt{engine.py}: The Petrophysical Calculation and Deterministic Logic Engine, encapsulating the 16 derived indicator formulas, safe numerical division routines, dynamic DAG evaluation, and rule-based majority-voting zone classification.
+    \item \texttt{parser.py}: The Data Ingestion and Normalization Layer, responsible for parsing multi-format well logs, stripping metadata headers, mapping heterogeneous column aliases, type casting, validating numeric depth rows, and sorting depth records.
+    \item \texttt{engine.py}: The Petrophysical Calculation and Deterministic Logic Engine, encapsulating the 16 derived indicator formulas, safe numerical division routines, dynamic expression evaluation, and rule-based majority-voting zone classification.
     \item \texttt{app.py}: The Reactive Presentation and Dashboard Layer, constructed using Dash, Bootstrap components, and Plotly WebGL to manage user interactions, modal dialogs, asynchronous state updates, and multi-track visual rendering.
     \item \texttt{evaluator.py}: The Automated Verification and Benchmarking Suite, generating synthetic test arrays, running unit assertions, and calculating classification metrics and confusion matrices.
 \end{enumerate}
@@ -18,25 +18,35 @@ The \texttt{parser.py} module implements the automated data ingestion pipeline v
 \subsection{Header Isolation and Metadata Stripping}
 To isolate the tabular data matrix from non-standard company headers and rig operator remarks, the parser inspects the incoming file stream line-by-line:
 \begin{lstlisting}[language=Python, caption={Header isolation algorithm in \texttt{parser.py}}]
-header_idx = 0
-for i, line in enumerate(lines[:100]):
-    line_upper = line.upper()
-    if 'DEPTH' in line_upper or 'METRES' in line_upper or 'C1' in line_upper or '~A' in line_upper:
-        header_idx = i
-        break
-content = "".join(lines[header_idx:])
-df_raw = pd.read_csv(io.StringIO(content), sep=None, engine='python')
+if isinstance(file_path_or_buffer, str):
+    ext = os.path.splitext(file_path_or_buffer)[1].lower()
+    if ext in ['.xlsx', '.xls']:
+        df_raw = pd.read_excel(file_path_or_buffer)
+    else:
+        with open(file_path_or_buffer, 'r', 
+                  encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+        header_idx = 0
+        for i, line in enumerate(lines[:100]):
+            line_upper = line.upper()
+            if 'DEPTH' in line_upper or 'C1' in line_upper:
+                header_idx = i
+                break
+        content = "".join(lines[header_idx:])
+        df_raw = pd.read_csv(io.StringIO(content))
 \end{lstlisting}
 This routine automatically scans up to 100 header lines, identifies the first occurrence of standard depth or gas tokens, and initiates CSV parsing directly from the tabular boundary.
 
 \subsection{Column Mapping and Standardization}
-Heterogeneous header naming conventions across different logging service companies are normalized using a global translation dictionary:
+Heterogeneous header naming conventions across different logging service companies are normalized using a comprehensive translation dictionary:
 \begin{lstlisting}[language=Python, caption={Column standardization mapping in \texttt{parser.py}}]
 column_mapping = {
-    'DEP': 'DEPTH', 'DEPTH_M': 'DEPTH', 'DEPTH_METRES': 'DEPTH', 'MD': 'DEPTH',
-    'CH4': 'C1', 'METHANE': 'C1',
-    'C2H6': 'C2', 'ETHANE': 'C2',
-    'C3H8': 'C3', 'PROPANE': 'C3',
+    'DEP': 'DEPTH', 'DEPTH_M': 'DEPTH', 
+    'DEPTH_METRES': 'DEPTH', 'MD': 'DEPTH', 
+    'MEASURED_DEPTH': 'DEPTH', 'DEPT': 'DEPTH',
+    'C1 (PPM)': 'C1', 'CH4': 'C1', 'METHANE': 'C1',
+    'C2 (PPM)': 'C2', 'C2H6': 'C2', 'ETHANE': 'C2',
+    'C3 (PPM)': 'C3', 'C3H8': 'C3', 'PROPANE': 'C3',
     'I-C4': 'IC4', 'ISOBUTANE': 'IC4', 'I_C4': 'IC4',
     'N-C4': 'NC4', 'NORMALBUTANE': 'NC4', 'N_C4': 'NC4',
     'I-C5': 'IC5', 'ISOPENTANE': 'IC5', 'I_C5': 'IC5',
@@ -46,15 +56,30 @@ column_mapping = {
 df_raw = df_raw.rename(columns=column_mapping)
 \end{lstlisting}
 
-\subsection{Type Casting, Cleansing, and Depth Ordering}
-All required channels are validated. Missing gas fractions are initialized with $0.0$, invalid non-numeric strings are coerced to numeric floats (\texttt{errors='coerce'}), null entries are filled with $0.0$, and the DataFrame is sorted strictly in ascending depth order:
-\begin{lstlisting}[language=Python, caption={Data cleansing and type casting in \texttt{parser.py}}]
-for col in ['DEPTH', 'C1', 'C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5']:
-    if col not in df_raw.columns:
-        df_raw[col] = 0.0
-    df_raw[col] = pd.to_numeric(df_raw[col], errors='coerce').fillna(0.0)
+\subsection{Depth Validation, Cleansing, and Depth Ordering}
+All required channels are validated. Non-depth rows (such as text comments or blank entries) are filtered using a strict float-casting check, missing channels are initialized with $0.0$, invalid non-numeric strings are coerced to numeric floats (\texttt{errors='coerce'}), and the DataFrame is sorted strictly in ascending depth order:
+\begin{lstlisting}[language=Python, caption={Depth validation and type casting in \texttt{parser.py}}]
+valid_rows = []
+for idx, row in df_raw.iterrows():
+    try:
+        depth_val = float(row['DEPTH'])
+        valid_rows.append(idx)
+    except (ValueError, TypeError):
+        continue
 
-df_clean = df_raw.dropna(subset=['DEPTH']).sort_values(by='DEPTH').reset_index(drop=True)
+df_clean = df_raw.loc[valid_rows].copy()
+cols = ['DEPTH', 'C1', 'C2', 'C3', 
+        'IC4', 'NC4', 'IC5', 'NC5']
+if 'TG' in df_clean.columns:
+    cols.append('TG')
+
+for col in cols:
+    df_clean[col] = pd.to_numeric(
+        df_clean[col], errors='coerce'
+    ).fillna(0.0)
+
+df_clean = (df_clean.sort_values(by='DEPTH')
+            .reset_index(drop=True))
 \end{lstlisting}
 
 \section{Vectorized Deterministic Calculation Pipeline (\texttt{engine.py})}
@@ -62,193 +87,161 @@ df_clean = df_raw.dropna(subset=['DEPTH']).sort_values(by='DEPTH').reset_index(d
 The \texttt{engine.py} module implements the mathematical formulations and deterministic decision logic defined in Chapter~3 and Chapter~4.
 
 \subsection{Safe Numerical Division (\texttt{\_safe\_div})}
-To prevent runtime crashes and invalid infinity values caused by zero-gas readings, division is wrapped in a vectorized safe-division routine:
+To prevent runtime crashes and invalid infinity values caused by zero-gas readings, division is wrapped in an element-wise safe-division routine:
 \begin{lstlisting}[language=Python, caption={Vectorized safe division in \texttt{engine.py}}]
 def _safe_div(numerator, denominator):
-    num = np.asarray(numerator, dtype=np.float64)
-    den = np.asarray(denominator, dtype=np.float64)
+    """Element-wise division that returns NaN where denominator is zero."""
     with np.errstate(divide='ignore', invalid='ignore'):
-        result = np.where(den > 0.0, num / den, np.nan)
+        result = np.where(
+            denominator != 0, 
+            numerator / denominator, 
+            np.nan
+        )
     return result
 \end{lstlisting}
 
 \subsection{16-Indicator Parameter Derivation (\texttt{compute\_all})}
 Given a cleaned DataFrame, \texttt{compute\_all(df)} calculates the full matrix of 16 petrophysical parameters using vectorized operations:
 \begin{lstlisting}[language=Python, caption={Vectorized petrophysical parameter calculation in \texttt{engine.py}}]
-# 1. Pixler Ratios
-df['R1'] = _safe_div(df['C1'], df['C2'])
-df['R2'] = _safe_div(df['C1'], df['C3'])
-df['R3'] = _safe_div(df['C2'], df['C3'])
-df['Ratio_iC4'] = _safe_div(df['C1'], df['IC4'])
-df['Ratio_nC4'] = _safe_div(df['C1'], df['NC4'])
+# 1. Base Total Gas Volume (TG)
+derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
+if 'TG' in out and (out['TG'] > 0).any():
+    TG = np.where(out['TG'] > 0, out['TG'], derived_tg)
+else:
+    TG = derived_tg
+out['DERIVED_TG'] = derived_tg
+out['TG_USED'] = TG
 
-# 2. Total Gas & Gas Dryness
-c_sum = df['C1'] + df['C2'] + df['C3'] + df['IC4'] + df['NC4'] + df['IC5'] + df['NC5']
-df['TG'] = np.where(df.get('TG', 0) > 0, df['TG'], c_sum)
-df['Dryness'] = _safe_div(df['C1'], df['TG'])
+# 2. Pixler Ratios & Butane Multipliers
+out['R1_C1_C2']  = _safe_div(C1, C2)
+out['R2_C1_C3']  = _safe_div(C1, C3)
+out['R3_C3_C1']  = _safe_div(C3, C1)
+out['R4_C2_C1']  = _safe_div(C2, C1)
+out['RATIO_IC4'] = _safe_div(C1, IC4)
+out['RATIO_NC4'] = _safe_div(C1, NC4)
 
-# 3. Carbon Index
-c_weighted = (df['C1'] + 2*df['C2'] + 3*df['C3'] + 4*df['IC4'] + 
-              4*df['NC4'] + 5*df['IC5'] + 5*df['NC5'])
-df['Ci'] = _safe_div(df['TG'], c_weighted)
+# 3. Dryness & Carbon Density Index
+out['DRYNESS'] = _safe_div(C1, TG)
+c_wt = (C1 + 2*C2 + 3*C3 + 4*IC4 + 
+        4*NC4 + 5*IC5 + 5*NC5)
+out['CARBON_INDEX'] = _safe_div(TG, c_wt)
 
 # 4. Haworth Show Evaluation Ratios
-heavy_gas = df['C2'] + df['C3'] + df['IC4'] + df['NC4'] + df['IC5'] + df['NC5']
-df['Wh'] = _safe_div(heavy_gas, df['TG']) * 100.0
-df['Bh'] = _safe_div(df['C1'] + df['C2'], df['C3'] + df['IC4'] + df['NC4'] + df['IC5'] + df['NC5'])
-df['Ch'] = _safe_div(df['IC4'] + df['NC4'] + df['IC5'] + df['NC5'], df['C3'])
+heavy_sum = C2 + C3 + IC4 + NC4 + IC5 + NC5
+heavy_c3_plus = C3 + IC4 + NC4 + IC5 + NC5
+out['WH'] = _safe_div(heavy_sum, TG) * 100.0
+out['BH'] = _safe_div(C1 + C2, heavy_c3_plus)
+out['CH'] = _safe_div(IC4 + NC4 + IC5 + NC5, C3)
 
 # 5. Composite Indicators & Whittaker Score
-df['GOW'] = _safe_div(heavy_gas * df['TG'], df['TG'])
-df['GOW_noTG'] = _safe_div(df['C1'] * df['C2'], df['C3'] * df['NC4'] * df['NC5'])
-log_bh = np.where(df['Bh'] > 0, np.log10(df['Bh']), np.nan)
-log_wh = np.where(df['Wh'] > 0, np.log10(df['Wh']), np.nan)
-df['WBS'] = (log_bh - 0.903) / 2.097 - (log_wh / 2.0)
-df['GOR'] = np.where(df['Wh'] > 0, 1000.0 / (df['Wh'] + 1e-5), np.nan)
+out['GOW'] = _safe_div(heavy_c3_plus * TG, derived_tg)
+out['GOW_NOTG'] = _safe_div(heavy_c3_plus, derived_tg)
+log_bh = np.where(Bh > 0, np.log10(Bh), np.nan)
+log_wh = np.where(Wh > 0, np.log10(Wh), np.nan)
+out['WBS'] = (log_bh - 0.903) / 2.097 - (log_wh / 2.0)
+out['GOR'] = np.where(
+    (TG > 0.8) & (TG < 1.2) & (C1 > 2000), 0, 1
+)
 \end{lstlisting}
 
 \subsection{Deterministic Majority-Voting Zone Classification (\texttt{\_classify\_zones})}
-The classification routine evaluates the multi-parameter matrix row-by-row, tallying independent votes for Gas, Oil, and Water pay:
+The classification routine evaluates the multi-parameter matrix row-by-row, evaluating speciation presence, noise floors, and independent votes for Gas and Oil pay:
 \begin{lstlisting}[language=Python, caption={Majority-voting zone classification in \texttt{engine.py}}]
-def _classify_zones(df, thresholds):
-    zones = []
-    for _, row in df.iterrows():
-        tg, c1 = row.get('TG', 0.0), row.get('C1', 0.0)
-        # Noise Floor Filter
-        if tg < thresholds['tg_floor'] and c1 < thresholds['c1_floor']:
-            zones.append('No Show')
-            continue
-            
-        votes = {'Gas': 0, 'Oil': 0, 'Water': 0}
-        # Haworth Wh Vote
-        wh = row.get('Wh', np.nan)
-        if pd.notna(wh):
-            if thresholds['wh_gas_min'] <= wh < thresholds['wh_gas_max']: votes['Gas'] += 1
-            elif thresholds['wh_gas_max'] <= wh < thresholds['wh_oil_max']: votes['Oil'] += 1
-            else: votes['Water'] += 1
-            
-        # Haworth Bh Vote
-        bh = row.get('Bh', np.nan)
-        if pd.notna(bh):
-            if bh > thresholds['bh_gas_min']: votes['Gas'] += 1
-            elif bh >= thresholds['bh_oil_min']: votes['Oil'] += 1
-            else: votes['Water'] += 1
-            
-        # Pixler R1 Vote
-        r1 = row.get('R1', np.nan)
-        if pd.notna(r1):
-            if r1 >= thresholds['r1_gas_min']: votes['Gas'] += 1
-            elif r1 >= thresholds['r1_oil_min']: votes['Oil'] += 1
-            else: votes['Water'] += 1
-            
-        # Tally majority vote
-        best_zone = max(votes, key=votes.get)
-        zones.append(best_zone if votes[best_zone] > 0 else 'No Show')
-    return zones
+def _classify_zones(df, thresholds=None):
+    # 1. Base Hydrocarbon Continuity Gate
+    if (c1 <= 0 or c2 <= 0 or c3 <= 0):
+        zones.append("Non-Bearing")
+        continue
+
+    # 2. Noise Floor / Baseline Cutoff Gate
+    if (tg < tg_noise and c1 < c1_noise):
+        zones.append("Non-Bearing")
+        continue
+
+    # 3. Hydrocarbon Speciation Presence
+    has_c4 = (ic4 > det_lim) or (nc4 > det_lim)
+    has_c5 = (ic5 > det_lim) or (nc5 > det_lim)
+    if not has_c4 and not has_c5:
+        zones.append("Non-Bearing")
+        continue
+
+    gas_votes, oil_votes = 0, 0
+    if has_c4 and not has_c5:
+        oil_votes += 4
+    elif has_c5:
+        gas_votes += 3
+
+    # Pixler R1 & R4 Trends
+    if c2 > 0 and c1 > 0:
+        r1, r4 = c1 / c2, c2 / c1
+        if r1 >= r1_gas_min and r4 < r4_oil_bump_min:
+            gas_votes += 2
+        elif r1_oil_min <= r1 < r1_gas_min:
+            oil_votes += 2
+
+    # Haworth Wetness (Wh) & Balance (Bh)
+    if not np.isnan(wh) and wh > 0:
+        if wh_gas_min <= wh < wh_gas_max:
+            gas_votes += 2
+        elif wh_gas_max <= wh <= wh_oil_max:
+            oil_votes += 2
+
+    # Decision Consensus
+    if gas_votes > oil_votes and gas_votes > 0:
+        zones.append("Gas")
+    elif oil_votes > gas_votes and oil_votes > 0:
+        zones.append("Oil")
+    else:
+        zones.append("Non-Bearing")
+    return pd.Series(zones, index=df.index)
 \end{lstlisting}
 
-\section{Interactive Reactive User Interface (\texttt{app.py})}
+\section{Interactive Reactive User Interface and State Management (\texttt{app.py})}
 
 The \texttt{app.py} module constructs the single-page web dashboard using Dash, Plotly, and Dash Bootstrap Components.
 
 \subsection{Multi-Track Plotly Chart Builder (\texttt{render\_full\_continuous\_tracks})}
-The visualization engine generates a 23-column continuous strip log using \texttt{plotly.subplots.make\_subplots}:
+The visualization engine generates a continuous multi-track strip log using \texttt{plotly.subplots.make\_subplots} with closed polygon fills:
 \begin{lstlisting}[language=Python, caption={Plotly multi-track chart generation in \texttt{app.py}}]
 fig = make_subplots(
-    rows=1, cols=len(active_tracks) + 1,
+    rows=1, cols=total_cols,
     shared_yaxes=True,
-    horizontal_spacing=0.003,
-    column_widths=normalized_widths
+    horizontal_spacing=0.0028,
+    subplot_titles=titles,
+    column_widths=norm_widths,
 )
-for col_idx, spec in enumerate(active_tracks, start=1):
-    fig.add_trace(
-        go.Scatter(
-            x=df[spec['col']], y=df['DEPTH'],
-            mode='lines', line=dict(color=spec['color'], width=1.2),
-            fill='tozerox', fillcolor=spec['fill_color'],
-            name=spec['label']
-        ),
-        row=1, col=col_idx
+for i, spec in enumerate(active_specs, start=1):
+    poly_x, poly_y = build_well_log_polygons(
+        vals_plot, depth
     )
-fig.update_yaxes(autorange='reversed', title_text='Measured Depth (m)', row=1, col=1)
+    if len(poly_x) > 0:
+        fig.add_trace(
+            go.Scatter(
+                x=poly_x, y=poly_y, mode="lines",
+                line=dict(width=0, color=fill_color),
+                fill="toself", fillcolor=fill_color,
+                connectgaps=False, showlegend=False,
+                hoverinfo="skip"
+            ),
+            row=1, col=i
+        )
+fig.update_yaxes(
+    autorange="reversed", 
+    title_text="Measured Depth (m)", 
+    row=1, col=1
+)
 \end{lstlisting}
-The Y-axis is inverted (\texttt{autorange='reversed'}) so depth begins at $0\text{ m}$ at the top and increases downwards, matching standard well logging orientation.
+The Y-axis is inverted (\texttt{autorange='reversed'}) so depth begins at the top and increases downwards, matching standard well logging orientation.
 
-\subsection{Operational Interface Artifacts}
-Figure~\ref{fig:app_main_working} demonstrates the working application interface rendering all 23 active chromatographic gas curves, Pixler diagnostic ratios, Haworth indicators, composite multipliers, and color-coded fluid facies blocks across a continuous depth trajectory ($1815\text{ m} - 3075\text{ m}$).
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.98\textwidth]{app_main_tracks.png}
-    \caption{Operational application continuous multi-track well log interface displaying all active gas curves, derived petrophysical ratios, and predicted fluid facies.}
-    \label{fig:app_main_working}
-\end{figure}
-
-\subsection{Dynamic Configuration Dropdown and Pipeline Managers}
-The top navigation bar provides access to dynamic management modals via the Configuration Dropdown (Figure~\ref{fig:app_config_working}):
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.35\textwidth]{app_config_dropdown.png}
-    \caption{Working Configuration Dropdown menu in the top navigation header.}
-    \label{fig:app_config_working}
-\end{figure}
-
-\subsubsection{Column Configuration and Display Manager Implementation}
-The column manager modal provides three functional tabs:
-\begin{itemize}
-    \item \textbf{Show / Hide Columns (Figure~\ref{fig:app_col_showhide}):} Interactive checkboxes to toggle curve visibility with dynamic 25\% width reallocation.
-    \item \textbf{Add New Column (Figure~\ref{fig:app_col_add}):} Custom expression builder with variable insertion chips.
-    \item \textbf{Remove Columns (Figure~\ref{fig:app_col_remove}):} Interface to delete user-created columns.
-\end{itemize}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.82\textwidth]{app_columns_showhide.png}
-    \caption{Column Configuration Manager: Show / Hide Columns interface.}
-    \label{fig:app_col_showhide}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{app_columns_add.png}
-        \caption{Add New Column interface.}
-        \label{fig:app_col_add}
-    \end{minipage}
-    \hfill
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{app_columns_remove.png}
-        \caption{Remove Columns interface.}
-        \label{fig:app_col_remove}
-    \end{minipage}
-\end{figure}
-
-\subsubsection{Petrophysical Formula and Threshold Manager Implementation}
-The formula manager modal enables real-time mathematical and cutoff adjustments:
-\begin{itemize}
-    \item \textbf{Formula Expressions (Figure~\ref{fig:app_form_expr}):} Mathematical syntax editor with live sample verification (First Interval, Mean, Min, Max).
-    \item \textbf{Classification Thresholds (Figure~\ref{fig:app_form_thresh}):} Granular threshold tuning with live fluid facies breakdown tallying predicted intervals.
-\end{itemize}
-
-\begin{figure}[H]
-    \centering
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{app_formulas_expressions.png}
-        \caption{Formula Expressions editor with live sample preview.}
-        \label{fig:app_form_expr}
-    \end{minipage}
-    \hfill
-    \begin{minipage}[t]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{app_formulas_thresholds.png}
-        \caption{Classification Thresholds tuning with live facies tally.}
-        \label{fig:app_form_thresh}
-    \end{minipage}
-\end{figure}
+\subsection{Reactive Callback Lifecycle and In-Memory State Synchronization}
+To ensure zero latency and eliminate persistent disk I/O, the presentation layer utilizes client-side memory stores (\texttt{dcc.Store}):
+\begin{enumerate}
+    \item \texttt{store-raw}: Caches the initial ingested and cleansed tabular matrix in memory.
+    \item \texttt{store-computed}: Stores the derived 16-indicator DataFrame along with dynamic user-defined columns and predicted fluid zones.
+    \item \texttt{store-schema}: Maintains track configuration metadata (visibility flags, scale types, colors, column widths).
+    \item \texttt{store-formulas} \& \texttt{store-thresholds}: Hold customized mathematical expressions and active cutoff thresholds.
+\end{enumerate}
+When an evaluator modifies a threshold or toggles a column track, Dash's reactive dependency graph executes \texttt{@app.callback} routines, recomputing derived matrices in memory in sub-second time without requiring full-page reloads.
 
 \section{Automated Verification and Benchmarking Suite (\texttt{evaluator.py})}
 

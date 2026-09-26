@@ -2,9 +2,9 @@
 
 \section{Gas While Drilling (GWD) and Mud Logging Fundamentals}
 
-In petroleum drilling engineering, mud logging represents the continuous surface extraction, monitoring, and geochemical analysis of rock cuttings and formation fluids carried out of the borehole by the circulating drilling fluid \citep{ref9, ref12}. As the rotary drill bit grinds through subsurface geological strata, hydrocarbons trapped within the rock pore spaces are crushed and liberated into the drilling mud. 
+In petroleum drilling engineering, mud logging represents the continuous surface extraction, monitoring, and geochemical analysis of rock cuttings and formation fluids carried out of the borehole by circulating drilling mud \citep{ref9, ref12}. As the rotary drill bit grinds through subsurface geological strata, hydrocarbons trapped within the rock pore spaces are crushed and liberated into the circulating drilling fluid.
 
-At the surface, a mechanical gas trap agitator installed at the "possum belly" of the shale shaker extracts the volatile gas mixture from the mud stream. A continuous pneumatic sample line transports the gas to a field logging unit equipped with a high-speed gas chromatograph (GC) and a total hydrocarbon analyzer (flame ionization detector, FID) \citep{ref12, haworth1985}. The chromatographic analysis decomposes the liberated hydrocarbon gas into its individual alkane constituents:
+At the surface, a mechanical gas trap agitator installed at the shaker "possum belly" extracts the volatile gas mixture from the mud stream. A continuous pneumatic sample line transports the gas to a field logging unit equipped with a high-speed gas chromatograph (GC) and a total hydrocarbon flame ionization detector (FID) \citep{ref12, haworth1985}. The chromatographic analysis decomposes the liberated hydrocarbon gas into its individual alkane constituents:
 \begin{itemize}
     \item \textbf{Methane ($C_1$, $\text{CH}_4$):} The lightest, most volatile alkane molecule, characteristic of non-associated dry natural gas reservoirs.
     \item \textbf{Ethane ($C_2$, $\text{C}_2\text{H}_6$):} Light hydrocarbon gas fraction, associated with gas-condensate and volatile oil caps.
@@ -16,35 +16,9 @@ At the surface, a mechanical gas trap agitator installed at the "possum belly" o
 
 Because GWD chromatographic data is collected in real time during the initial drilling pass, analyzing the relative proportions, ratios, and compositional trends of these alkane fractions provides the earliest diagnostic insights into reservoir fluid phase, fluid contacts, and formation productivity \citep{haworth1985, ref12}.
 
-\section{Critical Review of Existing Formation Evaluation Software}
-
-The interpretation of well log and mud log data has historically relied on the expertise of petrophysicists supported by specialized computer-aided formation evaluation software \citep{ref8, wood2020}. Over past decades, commercial software suites and programmatic libraries have transformed wellsite workflows by replacing paper strip logs with digital visualization environments. However, an objective examination reveals critical limitations:
-
-\subsection{Commercial Workstation Suites}
-\begin{enumerate}
-    \item \textbf{Schlumberger (SLB) Techlog and AspenTech Geolog:}
-    \begin{itemize}
-        \item \textit{Capabilities:} High-end enterprise platforms providing advanced multi-track log visualization, borehole image processing, geomechanical modeling, and integration with large-scale corporate databases \citep{wood2020}.
-        \item \textit{Limitations:} Heavyweight workstation architecture requiring complex installations, high-performance hardware, and multi-thousand-dollar annual licensing fees (frequently exceeding \$20,000 to \$50,000 per seat) \citep{wood2020}. Crucially, with respect to GWD mud log data, they function primarily as passive visualizers. Calculating multi-ratio petrophysical indicators or executing automated fluid predictions requires writing complex routines in specialized proprietary scripting consoles (e.g., Techlog Python Script Editor or Geolog Loglan macros) or compiling C++ DLL plugins.
-    \end{itemize}
-    
-    \item \textbf{Advanced Logic Technology WellCAD and RockWare LogPlot:}
-    \begin{itemize}
-        \item \textit{Capabilities:} Industry-standard geotechnical drafting engines providing flexible visual layouts for lithological patterns, core descriptions, and standardized wellsite composite logs.
-        \item \textit{Limitations:} Strictly visual plotting engines with zero built-in petrophysical calculation logic. They plot raw gas values ($C_1 - C_5$) as static visual lines but possess no automated algorithms to derive ratio matrices or forecast hydrocarbon fluid regimes.
-    \end{itemize}
-\end{enumerate}
-
-\subsection{Open-Source and Programmatic Log Plotters}
-In the open-source software ecosystem, several Python libraries (such as \texttt{lasio}, \texttt{welly}, and standard \texttt{matplotlib/plotly} scripts) have been developed for petrophysical data manipulation \citep{wood2020}:
-\begin{itemize}
-    \item \textit{Capabilities:} Free, scriptable parsing of Log ASCII Standard (\texttt{.las}) files and programmatic 2D line plotting without commercial licensing costs.
-    \item \textit{Limitations:} They lack an integrated graphical user interface (GUI), requiring users to write manual Python code for every file parsing, ratio calculation, and visual track configuration. Furthermore, they contain no automated GWD multi-ratio interpretation pipelines or deterministic decision-tree logic, serving only as low-level scripting building blocks.
-\end{itemize}
-
 \section{Theoretical and Mathematical Formulations of Petrophysical Ratios}
 
-To extract diagnostic intelligence from raw chromatographic data, petroleum engineers and petrophysicists have established deterministic ratio formulations. The calculation engine developed in this research implements 16 derived petrophysical indicators governed by canonical literature:
+To extract diagnostic intelligence from raw chromatographic gas data, petroleum engineering and petrophysics have established deterministic ratio formulations. The canonical methods documented in petrophysical literature include:
 
 \subsection{Classic and Expanded Pixler Ratios \citep{ref13}}
 The Pixler method evaluates light-to-medium hydrocarbon fractions to delineate gas from oil regimes:
@@ -61,7 +35,7 @@ In accordance with \citet{ref13}, the primary diagnostic cutoff boundaries for $
 \end{itemize}
 
 \subsection{Expanded Butane Isomer Multipliers}
-Tracks methane against separated butane isomers to capture sensitivity to heavier, liquid-associated hydrocarbon fractions:
+Tracking methane against separated butane isomers provides sensitivity to heavier, liquid-associated hydrocarbon fractions:
 \begin{equation}
     \text{Ratio}_{\text{iC4}} = \frac{C_1}{iC_4}, \quad \text{Ratio}_{\text{nC4}} = \frac{C_1}{nC_4}
 \end{equation}
@@ -71,7 +45,7 @@ Tracks methane against separated butane isomers to capture sensitivity to heavie
 \end{itemize}
 
 \subsection{Total Gas Volume ($TG$) and Gas Dryness Ratio ($DR$) \citep{ref14}}
-Calculated by summing all recorded hydrocarbon gas fractions when Total Gas is not pre-recorded:
+When Total Gas is not pre-recorded, it is derived by summing all recorded hydrocarbon gas fractions:
 \begin{equation}
     TG = C_1 + C_2 + C_3 + iC_4 + nC_4 + iC_5 + nC_5
 \end{equation}
@@ -97,7 +71,7 @@ Quantifies carbon density across the gas stream, scaled by carbon atom count:
 \end{itemize}
 
 \subsection{Expanded Haworth Show Evaluation Ratios \citep{haworth1985, ref12}}
-These three expanded parameters form the foundational multi-ratio fluid typing framework (Wetness $W_h$, Balance $B_h$, and Character $C_h$):
+These three expanded parameters form foundational multi-ratio fluid typing indicators (Wetness $W_h$, Balance $B_h$, and Character $C_h$):
 \begin{equation}
     W_h = \left( \frac{C_2 + C_3 + iC_4 + nC_4 + iC_5 + nC_5}{TG} \right) \times 100\%
 \end{equation}
@@ -147,7 +121,7 @@ Continuous composite indicators isolate heavy fluid concentrations and decouple 
     \item \textbf{SPE GOR Proxy:} $GOR \ge 3000\text{ scf/bbl} \rightarrow$ Gas / Condensate; $GOR < 3000\text{ scf/bbl} \rightarrow$ Oil column.
 \end{itemize}
 
-Table~\ref{tab:lit_thresholds_chap3} synthesizes the complete matrix of canonical literature threshold criteria establishing the baseline decision rules implemented in the engine.
+Table~\ref{tab:lit_thresholds_chap3} synthesizes the complete matrix of canonical literature threshold criteria establishing baseline petrophysical decision rules.
 
 \begin{table}[H]
 \centering
@@ -175,25 +149,61 @@ SPE GOR Proxy & Empirical $GOR$ Formula & $GOR \ge 3000\text{ scf/bbl}$ & $GOR <
 }
 \end{table}
 
-\section{Machine Learning Approaches vs. Regulatory PRMS Audit Constraints}
+\section{Critical Review of Existing Formation Evaluation Softwares}
 
-Parallel to classical formation evaluation techniques, the application of machine learning (ML) and deep learning (DL) to subsurface prediction has grown substantially since its early introduction to petroleum engineering \citep{ref1}. The conceptual groundwork for applying artificial intelligence techniques to oilfield problems was laid by \citet{ref1}, who demonstrated that Artificial Neural Networks (ANN) could approximate complex, non-linear mappings between well log inputs and reservoir properties that resist explicit analytical formulation. 
+The interpretation of well log and mud log data has historically depended on the expertise of petrophysicists supported by specialized computer-aided formation evaluation software \citep{ref8, wood2020}. Over past decades, commercial and programmatic software platforms have transformed wellsite operations by replacing paper strip logs with digital visualization environments \citep{wood2020}. However, an objective examination of current software tools reveals that existing applications operate predominantly as \textit{data plotters and curve visualizers} rather than proactive forecasting systems \citep{ref8, wood2020}.
 
-Over the subsequent decades, data-driven methods have expanded into rock mechanical parameter prediction \citep{ref5}, automated curve reconstruction and missing log completion using gradient-boosted decision trees \citep{ref4}, and flexible graph neural networks (GNN) such as FlexLogNet \citep{ref6}. While these statistical models achieve high empirical curve-fitting performance, they present fundamental limitations when applied to real-time formation evaluation:
+\subsection{Commercial Enterprise Software Suites}
+In enterprise petroleum operations, several dominant software platforms are widely deployed across exploration and production assets:
 \begin{enumerate}
-    \item \textbf{Opacities and Black-Box Nature:} Neural networks and ensemble trees distribute decision logic across millions of statistical weights and non-linear activation functions, obscuring physical causality.
-    \item \textbf{SPE PRMS Chapter 4 Reserve Certification Mandates:} Under international reserve evaluation guidelines established by the Society of Petroleum Engineers (SPE), World Petroleum Council (WPC), American Association of Petroleum Geologists (AAPG), Society of Petroleum Evaluation Engineers (SPEE), and Society of Exploration Geophysicists (SEG), all procedures determining commercial hydrocarbon reserves and net pay intervals must be 100\% mathematically traceable, deterministic, and auditable \citep{ref2, ref3}. Black-box machine learning predictions are legally disqualified during formal commercial audits and public disclosures.
-    \item \textbf{Training Data Scarcity in Wildcat Wells:} Supervised ML models require massive historical training datasets with verified core or production tests, which are unavailable when drilling exploratory wildcat wells in frontier basins.
+    \item \textbf{Schlumberger (SLB) Techlog and AspenTech Geolog:} These platforms represent the high-end enterprise standard for integrated petrophysics, borehole geology, and geomechanics \citep{wood2020}.
+    \begin{itemize}
+        \item \textit{Capabilities:} They provide robust graphical rendering engines capable of displaying hundreds of synchronous curve tracks alongside high-resolution borehole images, full support for industry standard LAS/DLIS formats, and deep integration with geological modeling databases.
+        \item \textit{Limitations:} They are massive, heavyweight workstation applications burdened by cost-prohibitive licensing fees (frequently exceeding \$20,000 to \$50,000 per annual seat license) \citep{wood2020}. Crucially, regarding Gas While Drilling (GWD) data, they function primarily as passive visualizers; calculating expanded multi-ratio indicators or custom fluid predictions requires writing complex scripts in specialized proprietary consoles (e.g., Techlog Python Script Editor or Geolog Loglan macro language) or developing compiled C++ DLL plugins \citep{wood2020}.
+    \end{itemize}
+
+    \item \textbf{WellCAD (Advanced Logic Technology) and LogPlot (RockWare):} These tools are widely utilized industry standards for composite well log presentation and geotechnical strip log drafting.
+    \begin{itemize}
+        \item \textit{Capabilities:} Outstanding layout customization for lithological symbols, mud log visual tracks, and standardized PDF export formatting tailored for wellsite operational reports.
+        \item \textit{Limitations:} They are strictly visual drafting and plotting engines with no built-in petrophysical calculation logic. They plot raw chromatographic gas values ($C_1 - C_5$) as static visual lines but possess no automated algorithms to derive ratio matrices or forecast hydrocarbon fluid regimes.
+    \end{itemize}
 \end{enumerate}
 
-These regulatory constraints justify the development of a transparent, deterministic rule-based calculation engine that delivers automated multi-ratio intelligence while strictly preserving PRMS auditability.
+\subsection{Open-Source and Programmatic Log Plotters}
+In the open-source domain, several Python libraries (such as \texttt{lasio}, \texttt{welly}, and standard \texttt{matplotlib/plotly} scripts) have gained popularity for petrophysical data handling \citep{wood2020}:
+\begin{itemize}
+    \item \textit{Capabilities:} They offer free, scriptable parsing of standard LAS files and flexible 2D line plotting without commercial licensing barriers.
+    \item \textit{Limitations:} They lack an integrated, user-friendly graphical user interface (GUI), requiring users to write manual Python code for every calculation and visual track setup. Furthermore, they contain no automated GWD multi-ratio interpretation pipelines or deterministic fluid-typing decision trees, leaving them as low-level programmatic drafting utilities.
+\end{itemize}
 
-\section{Software Engineering Framework and Core Technologies}
+\section{Machine Learning Approaches in Formation Evaluation}
 
-The software engineering methodology follows an adapted Software Development Life Cycle (SDLC) tailored for scientific computing and operational decision support systems:
-\begin{enumerate}
-    \item \textbf{Python 3 Computing Ecosystem:} The core computational engine is implemented in Python, leveraging \textbf{NumPy} for vectorized array processing and contiguous memory operations, and \textbf{Pandas} for high-performance tabular data frame manipulation.
-    \item \textbf{Dash Reactive Web Framework:} Built by Plotly, Dash integrates Flask, React.js, and Plotly.js into a reactive Python environment. Interactive callbacks (\texttt{@app.callback}) execute asynchronous state updates in memory without requiring full-page reloads.
-    \item \textbf{Plotly WebGL Visualization Engine:} Plotly provides hardware-accelerated WebGL rendering for continuous vertical subplots, generating synchronized depth axes, hover crosshairs, and dynamic shaded area fills without browser DOM degradation.
-    \item \textbf{Vercel Serverless Cloud Deployment:} To provide global, zero-installation access, the application is packaged as a serverless application deployed on the \textbf{Vercel} edge platform, leveraging edge network caching for sub-second delivery over high-latency field connections.
-\end{enumerate}
+Parallel to classical formation evaluation techniques, the application of machine learning (ML) and deep learning (DL) to subsurface prediction has grown substantially since its early introduction to petroleum engineering \citep{ref1}. The conceptual groundwork for applying artificial intelligence techniques to oilfield problems was laid by \citet{ref1}, who demonstrated that Artificial Neural Networks (ANN) could approximate complex, non-linear mappings between well log inputs and reservoir properties that resist explicit analytical formulation. Over the subsequent decades, this research trajectory has expanded across a wide range of formation evaluation and logging tasks:
+
+\subsection{In-Situ Parameter and Reservoir Property Prediction}
+Machine learning models have been widely investigated to predict physical and geomechanical parameters from conventional log suites where direct physical measurement is operationally difficult or cost-prohibitive. For instance, \citet{ref5} demonstrated that supervised machine learning algorithms trained on wireline log suites can predict in-situ rock stresses with high statistical accuracy. Similar architectures, including Support Vector Machines (SVM) and Multi-Layer Perceptrons (MLP), have been implemented to predict permeability, shear wave velocity ($V_s$), and total organic carbon (TOC) from standard gamma ray, resistivity, and density-neutron inputs.
+\begin{itemize}
+    \item \textit{Capabilities:} These models excel at approximating complex, non-linear relationships between multi-sensor wireline curves and continuous rock mechanical parameters without requiring explicit physical parameterization, providing rapid estimations when direct physical measurements are cost-prohibitive.
+    \item \textit{Limitations:} Supervised regressors depend heavily on vast volumes of historical calibration data. Their "black-box" nature obscures internal reasoning, rendering continuous parameter estimations non-auditable during formal regulatory and reserve audits \citep{ref1, ref3}. Furthermore, they are highly sensitive to geological distribution shift, frequently suffering severe extrapolation errors when transferred to different geological formations.
+\end{itemize}
+
+\subsection{Well-Log Reconstruction and Missing Curve Generation}
+A frequent operational challenge in legacy wells is the presence of incomplete or degraded log suites. Data-driven algorithms have emerged as powerful tools for curve synthesis and data completion. \citet{ref4} applied ensemble machine learning techniques, specifically gradient-boosted decision trees, for automatic well-log completion and generation across complex geological intervals in the Ordos Basin. Their findings demonstrated that ensemble regressors can effectively reconstruct missing curves by learning statistical correlations across adjacent, intact log tracks.
+\begin{itemize}
+    \item \textit{Capabilities:} Ensemble tree algorithms can effectively restore missing or corrupted log tracks by exploiting multivariate statistical correlations across intact adjacent channels, reducing the need for costly well re-logging.
+    \item \textit{Limitations:} In frontier exploration and wildcat drilling where offset well data is scarce or nonexistent, these models cannot be reliably trained or deployed \citep{ref1}. Moreover, because ensemble reconstructions rely on empirical correlations rather than explicit petrophysical causality, they risk generating physically unrealistic or hallucinated curve artifacts when encountering atypical lithologies, failing strict SOP verification standards \citep{ref3}.
+\end{itemize}
+
+\subsection{Deep Learning and Graph Neural Architectures}
+More recently, advanced deep learning architectures have been introduced to handle flexible and unstructured logging configurations. \citet{ref6} developed \textit{FlexLogNet}, a flexible graph-neural-network-based well-log completion method designed to adaptively utilize whatever log channels are available in a given borehole to predict missing curves. Such deep learning architectures capture complex spatial and inter-curve dependencies, providing high predictive performance across multi-well datasets.
+\begin{itemize}
+    \item \textit{Capabilities:} Graph neural networks and deep sequence models handle heterogeneous, missing, or irregular channel configurations dynamically, effectively capturing multi-scale depth dependencies and spatial variations across complex multi-well datasets.
+    \item \textit{Limitations:} These deep architectures introduce extreme algorithmic opacity and heavy computational/GPU training overheads, making them impractical for lightweight wellsite edge deployment. Furthermore, their latent representations cannot be audited or justified under standard petrophysical operating procedures, and they remain vulnerable to out-of-distribution geological shifts across differing depositional basins.
+\end{itemize}
+
+\subsection{Facies and Hydrocarbon Zone Classification vs. Regulatory PRMS Audits}
+In the domain of automated classification, supervised classification algorithms (such as Random Forests, XGBoost, and deep convolutional networks) have been trained on historical petrophysical datasets to classify lithofacies boundaries and discriminate pay zones from non-productive intervals. These models learn decision boundaries directly from multi-dimensional log feature vectors, achieving high classification scores within targeted training fields.
+\begin{itemize}
+    \item \textit{Capabilities:} Supervised classifiers can rapidly segment multi-dimensional log datasets and map non-linear decision boundaries between distinct lithologies and productive pay zones in well-characterized, mature fields with abundant labeled data.
+    \item \textit{Limitations:} Non-transparent decision boundaries violate SPE PRMS Chapter 4 deterministic auditability mandates, which strictly require physical, documented methodologies for hydrocarbon reserve certification \citep{ref2, ref3}. Additionally, supervised classifiers require extensive, pre-labeled ground-truth training datasets (such as core analyses or production tests) that are unavailable during initial first-drilling GWD operations in wildcat wells.
+\end{itemize}

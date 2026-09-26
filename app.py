@@ -1020,6 +1020,21 @@ app.layout = html.Div([
         dcc.Store(id="store-custom-cols", data=[]),
         dcc.Download(id="download-report"),
 
+        # 4. App Footer
+        html.Footer(
+            html.Div([
+                html.Span(
+                    "Created By Mohammad Azka Khairur Rahman",
+                    style={
+                        "fontSize": "12px",
+                        "fontWeight": "500",
+                        "color": CLR_MUTED,
+                        "letterSpacing": "0.03em",
+                    },
+                ),
+            ], className="text-center py-3 mt-3", style={"borderTop": f"1px solid {CLR_BORDER}"}),
+        ),
+
     ], style={"width": "100%", "padding": "10px 18px 30px 18px"}),
 ], style={"background": CLR_BG, "minHeight": "100vh", "color": CLR_TEXT, "overflowX": "hidden"})
 
