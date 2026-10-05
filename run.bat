@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 title MudLog Pro Desktop Software
-cd /d "%~dp0"
+cd /d "%~dp0desktop_app"
 
 echo =======================================================
 echo   MudLog Pro Desktop Software

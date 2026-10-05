@@ -271,18 +271,65 @@ DEFAULT_THRESHOLDS = {
 }
 
 
-def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns: list = None, threshold_overrides: dict = None) -> pd.DataFrame:
+def apply_input_25_rule(vals: np.ndarray, cutoff: float = 75.0) -> np.ndarray:
+    """
+    Applies the 25% percentile normalization rule to an input gas channel:
+    - The rule ONLY applies if LESS THAN 25% of the data on that channel are <= 0, NaN, or non-finite (zero_fraction < 0.25).
+    - If zero_fraction < 0.25 and cutoff > 0:
+        Calculates the percentile threshold (e.g. P75) across valid positive entries.
+        Entries below the threshold are zeroed out (baseline noise suppression).
+        Entries at or above the threshold are shifted relative to the baseline minimum (vals - min_remaining).
+    - If >= 25% of the channel is already 0, or cutoff <= 0:
+        Channel values are preserved as-is (positive finite values retained, non-positive/NaN zeroed).
+    """
+    if vals is None or len(vals) == 0:
+        return np.array([], dtype=float)
+
+    vals_arr = np.asarray(vals, dtype=float)
+    total_pts = len(vals_arr)
+    zero_pts = np.sum((vals_arr <= 0) | np.isnan(vals_arr) | ~np.isfinite(vals_arr))
+    zero_fraction = (zero_pts / total_pts) if total_pts > 0 else 0.0
+    apply_rule = (cutoff > 0) and (zero_fraction < 0.25)
+
+    if apply_rule:
+        valid_mask = np.isfinite(vals_arr) & (vals_arr > 0)
+        if np.any(valid_mask):
+            p_thresh = float(np.percentile(vals_arr[valid_mask], cutoff))
+            top_mask = valid_mask & (vals_arr >= p_thresh)
+            if np.any(top_mask):
+                min_remaining = float(np.min(vals_arr[top_mask]))
+                vals_norm = np.where(top_mask, vals_arr - min_remaining, 0.0)
+            else:
+                vals_norm = np.zeros_like(vals_arr)
+        else:
+            vals_norm = np.zeros_like(vals_arr)
+        return vals_norm
+    else:
+        return np.where(np.isfinite(vals_arr) & (vals_arr > 0), vals_arr, 0.0)
+
+
+def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns: list = None, threshold_overrides: dict = None, percentile_cutoff: float = 0.0) -> pd.DataFrame:
     """
     Takes a cleaned DataFrame with columns:
         DEPTH, C1, C2, C3, IC4, NC4, IC5, NC5 (and optionally TG)
-    Accepts optional formula_overrides, custom_columns, and threshold_overrides.
-    Returns a new DataFrame with all original columns plus derived columns & Zone.
+    Accepts optional formula_overrides, custom_columns, threshold_overrides, and percentile_cutoff.
+    Applies the 25% normalization rule to input gas channels prior to downstream formulations and decision making.
+    Returns a new DataFrame with all original/normalized columns plus derived columns & Zone.
     """
     out = df.copy()
 
-    C1  = out['C1'].values.astype(float)
-    C2  = out['C2'].values.astype(float)
-    C3  = out['C3'].values.astype(float)
+    # ------------------------------------------------------------------
+    #  Apply 25% Rule to Input Gas Channels before any other formulation
+    # ------------------------------------------------------------------
+    input_gas_channels = ['C1', 'C2', 'C3', 'IC4', 'NC4', 'IC5', 'NC5']
+    for col in input_gas_channels:
+        if col in out.columns:
+            raw_vals = pd.to_numeric(out[col], errors='coerce').values
+            out[col] = apply_input_25_rule(raw_vals, cutoff=percentile_cutoff)
+
+    C1  = out['C1'].values.astype(float) if 'C1' in out.columns else np.zeros(len(out))
+    C2  = out['C2'].values.astype(float) if 'C2' in out.columns else np.zeros(len(out))
+    C3  = out['C3'].values.astype(float) if 'C3' in out.columns else np.zeros(len(out))
     IC4 = out['IC4'].values.astype(float) if 'IC4' in out.columns else np.zeros(len(out))
     NC4 = out['NC4'].values.astype(float) if 'NC4' in out.columns else np.zeros(len(out))
     IC5 = out['IC5'].values.astype(float) if 'IC5' in out.columns else np.zeros(len(out))
@@ -294,8 +341,9 @@ def compute_all(df: pd.DataFrame, formula_overrides: dict = None, custom_columns
     derived_tg = C1 + C2 + C3 + IC4 + NC4 + IC5 + NC5
 
     if 'TG' in out.columns and out['TG'].notna().any() and (out['TG'] > 0).any():
-        TG = out['TG'].values.astype(float)
-        TG = np.where(TG > 0, TG, derived_tg)
+        tg_raw = pd.to_numeric(out['TG'], errors='coerce').values
+        tg_norm = apply_input_25_rule(tg_raw, cutoff=percentile_cutoff)
+        TG = np.where(tg_norm > 0, tg_norm, derived_tg)
     else:
         TG = derived_tg
 

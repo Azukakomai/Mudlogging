@@ -155,7 +155,8 @@ class WellState:
         self.percentile_cutoff = 75.0
         self.computed_df = compute_all(raw_df,
                                        formula_overrides=self.formulas,
-                                       threshold_overrides=self.thresholds)
+                                       threshold_overrides=self.thresholds,
+                                       percentile_cutoff=self.percentile_cutoff)
         # Views that are currently rendering this state (docked + detached)
         self.views: list = []
         self.is_detached = False
@@ -164,7 +165,8 @@ class WellState:
     def recompute(self):
         self.computed_df = compute_all(self.raw_df,
                                        formula_overrides=self.formulas,
-                                       threshold_overrides=self.thresholds)
+                                       threshold_overrides=self.thresholds,
+                                       percentile_cutoff=self.percentile_cutoff)
         for v in list(self.views):
             try:
                 v.refresh_workspace()
@@ -363,12 +365,7 @@ class WellWorkspace(tk.Frame):
 
             if col_key in df.columns:
                 raw_y = pd.to_numeric(df[col_key], errors="coerce").fillna(0.0).values
-                
-                if self.percentile_cutoff > 0 and len(raw_y) > 0 and raw_y.max() > 0:
-                    cutoff_val = np.percentile(raw_y[raw_y > 0], self.percentile_cutoff) if np.any(raw_y > 0) else 0.0
-                    y_vals = np.where(raw_y >= cutoff_val, raw_y, 0.0)
-                else:
-                    y_vals = raw_y
+                y_vals = np.where(np.isfinite(raw_y) & (raw_y > 0), raw_y, 0.0)
 
                 ax.plot(y_vals, depth, color=color, linewidth=1.3, label=track_name)
                 ax.fill_betweenx(depth, 0, y_vals, color=color, alpha=0.14)
@@ -1094,7 +1091,7 @@ class MudLogDesktopApp(tk.Tk):
         self.tabs_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def _create_statusbar(self):
-        """Bottom Status Bar."""
+        """Bottom Status Bar with Dynamic Loading Spinner & Progress Indicators."""
         status_frame = tk.Frame(self, bg=COLOR_EXCEL_PRIMARY, padx=10, pady=3)
         status_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
@@ -1105,13 +1102,70 @@ class MudLogDesktopApp(tk.Tk):
             return pane
 
         self.status_msg = make_pane(status_frame, None, side=tk.LEFT)
-        self.status_depth = make_pane(status_frame, 32, side=tk.LEFT)
-        self.status_tracks = make_pane(status_frame, 18, side=tk.LEFT)
-        self.status_facies = make_pane(status_frame, 34, side=tk.LEFT)
+
+        # Loading animation indicator frame (spinner icon + animated progress bar)
+        self.status_spinner_frame = tk.Frame(status_frame, bg=COLOR_EXCEL_PRIMARY)
+        self.status_spinner_icon = tk.Label(self.status_spinner_frame, text="⏳ ⠋", font=("Segoe UI", 9, "bold"),
+                                            bg=COLOR_EXCEL_PRIMARY, fg="#FEF08A")
+        self.status_spinner_icon.pack(side=tk.LEFT, padx=(0, 4))
+        
+        style = ttk.Style()
+        style.configure("Loading.Horizontal.TProgressbar", thickness=6, background="#10B981", troughcolor=COLOR_EXCEL_DARK)
+        self.status_progress = ttk.Progressbar(self.status_spinner_frame, style="Loading.Horizontal.TProgressbar",
+                                               mode="indeterminate", length=90)
+        self.status_progress.pack(side=tk.LEFT, padx=(0, 6))
+        self._spinner_job = None
+
+        self.status_depth = make_pane(status_frame, 30, side=tk.LEFT)
+        self.status_tracks = make_pane(status_frame, 16, side=tk.LEFT)
+        self.status_facies = make_pane(status_frame, 32, side=tk.LEFT)
         
         self.status_author = tk.Label(status_frame, text=f" {APP_AUTHOR} ", font=("Segoe UI", 9, "bold"),
                                       bg=COLOR_EXCEL_DARK, fg="#A7F3D0", padx=10, pady=2)
         self.status_author.pack(side=tk.RIGHT, padx=2)
+
+    def show_loading(self, msg="Calculating petrophysical indicators..."):
+        """Activates loading animation, progress indicator and wait cursor."""
+        try:
+            self.config(cursor="watch")
+        except Exception:
+            pass
+        self.status_msg.config(text=f"⚙️ {msg}", fg="#FEF08A")
+        self.status_spinner_frame.pack(side=tk.LEFT, padx=6, after=self.status_msg)
+        self.status_progress.start(12)
+        self._spin_loading(0)
+        self.update_idletasks()
+
+    def _spin_loading(self, step=0):
+        """Cycles through animated loading spinner frames."""
+        frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        icon = frames[step % len(frames)]
+        if hasattr(self, 'status_spinner_icon') and self.status_spinner_frame.winfo_ismapped():
+            self.status_spinner_icon.config(text=f"⏳ {icon}")
+            self._spinner_job = self.after(90, lambda: self._spin_loading(step + 1))
+
+    def hide_loading(self, success_msg=None):
+        """Deactivates loading animation and restores normal cursor."""
+        if hasattr(self, '_spinner_job') and self._spinner_job:
+            try:
+                self.after_cancel(self._spinner_job)
+            except Exception:
+                pass
+            self._spinner_job = None
+        try:
+            self.config(cursor="")
+        except Exception:
+            pass
+        self.status_progress.stop()
+        self.status_spinner_frame.pack_forget()
+        self.status_msg.config(fg=COLOR_TEXT_WHITE)
+        if success_msg:
+            self.update_status(success_msg)
+        else:
+            state = self.get_active_workspace()
+            if state:
+                self.update_status(f"Workspace ready ({state.sheet_name}).")
+        self.update_idletasks()
 
     # ──────────────────────────────────────────────────────────────────────────
     #  Google Sheets Multi-Tab Management & Drag-to-Tear-Off
@@ -1482,16 +1536,18 @@ class MudLogDesktopApp(tk.Tk):
     def recompute_active_sheet(self):
         state = self.get_active_workspace()
         if state:
+            self.show_loading(f"Calculating petrophysical indicators & fluid zones for {state.sheet_name}...")
             state.recompute()
-            self.update_status(f"Recomputed {state.sheet_name}.")
+            self.hide_loading(f"Recomputed {state.sheet_name}.")
             messagebox.showinfo("Computation Complete",
                 f"Petrophysical indicators and facies recomputed for '{state.sheet_name}'.",
                 parent=self)
 
     def recompute_all_sheets(self):
+        self.show_loading(f"Recomputing all {len(self.workspaces)} workspace sheets...")
         for state in self.workspaces:
             state.recompute()
-        self.update_status("Recomputed all open sheets.")
+        self.hide_loading("Recomputed all open sheets.")
         messagebox.showinfo("Complete",
             f"Recomputed all {len(self.workspaces)} workspace sheets.", parent=self)
 
@@ -1500,11 +1556,10 @@ class MudLogDesktopApp(tk.Tk):
         p = 75 if "75" in val else (90 if "90" in val else (50 if "50" in val else 0))
         state = self.get_active_workspace()
         if state:
+            self.show_loading(f"Applying {val} (25% rule) & recomputing {state.sheet_name}...")
             state.percentile_cutoff = float(p)
-            view = self._views.get(state.sheet_id)
-            if view:
-                view.render_multi_track_plot()
-            self.update_status(f"Filter cutoff updated to P{p}% for {state.sheet_name}.")
+            state.recompute()
+            self.hide_loading(f"Filter cutoff updated to P{p}% (25% rule) for {state.sheet_name}.")
 
     def open_file_dialog(self, in_new_tab=False, target_workspace_idx=None):
         fpath = filedialog.askopenfilename(
@@ -1522,12 +1577,14 @@ class MudLogDesktopApp(tk.Tk):
             return
 
         try:
+            fname = os.path.basename(fpath)
+            self.show_loading(f"Parsing mudlog file '{fname}'...")
             df_parsed = parse_mudlog_file(fpath)
             if df_parsed.empty:
                 raise ValueError("Parsed mudlog dataframe is empty or invalid.")
 
-            fname = os.path.basename(fpath)
             if in_new_tab:
+                self.show_loading(f"Ingesting '{fname}' & computing petrophysical tracks...")
                 self.add_new_sheet(name=fname[:20], raw_df=df_parsed, file_path=fname)
             else:
                 if target_workspace_idx is not None:
@@ -1535,17 +1592,19 @@ class MudLogDesktopApp(tk.Tk):
                 else:
                     target_state = self.get_active_workspace()
                 if target_state:
+                    self.show_loading(f"Recomputing petrophysical indicators for '{fname}'...")
                     target_state.file_path = fname
                     target_state.raw_df    = df_parsed
                     target_state.recompute()
                     self.file_pill.config(
                         text=f" 📄 {target_state.sheet_name} • {fname} ")
 
-            self.update_status(f"Loaded {fname} ({len(df_parsed)} intervals).")
+            self.hide_loading(f"Loaded {fname} ({len(df_parsed)} intervals).")
             messagebox.showinfo("File Loaded",
                 f"Successfully loaded mudlog data from:\n{fname}\n({len(df_parsed)} intervals)",
                 parent=self)
         except Exception as e:
+            self.hide_loading("File ingestion cancelled or failed.")
             messagebox.showerror("File Ingestion Error",
                 f"Failed to parse mudlog file:\n{str(e)}", parent=self)
 
@@ -1672,10 +1731,12 @@ class MudLogDesktopApp(tk.Tk):
         footer.pack(fill=tk.X, side=tk.BOTTOM)
 
         def save_formulas():
+            self.show_loading(f"Recomputing custom formulas for {ws.sheet_name}...")
             for k, var in entry_vars.items():
                 ws.formulas[k] = var.get().strip()
             ws.recompute()   # WellState.recompute() updates all views
             dlg.destroy()
+            self.hide_loading(f"Updated formulas applied to {ws.sheet_name}.")
 
         def restore_defaults():
             for k, default_meta in DEFAULT_FORMULAS.items():
