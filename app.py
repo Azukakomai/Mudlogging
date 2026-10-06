@@ -126,7 +126,7 @@ def generate_initial_mudlog_data():
         })
 
     raw_df = pd.DataFrame(rows)
-    computed_df = compute_all(raw_df)
+    computed_df = compute_all(raw_df, percentile_cutoff=75.0)
     return raw_df, computed_df
 
 
@@ -1096,17 +1096,11 @@ def build_well_log_polygons(x_vals, y_depths):
 @app.callback(
     Output("tracks-container", "children"),
     [Input("store-computed", "data"),
-     Input("store-schema", "data"),
-     Input("select-percentile-cutoff", "value")]
+     Input("store-schema", "data")]
 )
-def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
+def render_full_continuous_tracks(json_computed, schema):
     if not json_computed:
         return html.Div("No data loaded.", style={"color": CLR_MUTED, "padding": "40px", "textAlign": "center"})
-
-    try:
-        cutoff = float(percentile_cutoff) if percentile_cutoff is not None else 75.0
-    except (ValueError, TypeError):
-        cutoff = 75.0
 
     df = pd.read_json(io.StringIO(json_computed), orient="split")
     filtered_df = df
@@ -1138,8 +1132,6 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         column_widths=norm_widths,
     )
 
-    input_gas_keys = {"C1", "C2", "C3", "IC4", "NC4", "IC5", "NC5", "TG", "TG_USED"}
-
     for i, spec in enumerate(active_specs, start=1):
         col_key = spec.get("key")
         col_id = spec.get("id")
@@ -1148,31 +1140,8 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
         scale_type = spec.get("scale", "linear")
 
         vals = filtered_df[col_key].replace([np.inf, -np.inf], np.nan).values.astype(float)
-        is_input_col = (col_key in input_gas_keys) or (col_id in input_gas_keys)
-
-        # 25% rule ONLY applies to input columns if LESS THAN 25% of the data on that column are 0
-        total_pts = len(vals)
-        zero_pts = np.sum((vals <= 0) | np.isnan(vals) | ~np.isfinite(vals))
-        zero_fraction = (zero_pts / total_pts) if total_pts > 0 else 0.0
-        apply_25_rule = is_input_col and (cutoff > 0) and (zero_fraction < 0.25)
-
-        if apply_25_rule:
-            valid_mask = np.isfinite(vals) & (vals > 0)
-            if np.any(valid_mask):
-                p_thresh = float(np.percentile(vals[valid_mask], cutoff))
-                top_mask = valid_mask & (vals >= p_thresh)
-                if np.any(top_mask):
-                    min_remaining = float(np.min(vals[top_mask]))
-                    vals_plot = np.where(top_mask, vals - min_remaining, 0.0)
-                else:
-                    vals_plot = np.zeros_like(vals)
-            else:
-                vals_plot = np.zeros_like(vals)
-            x_plot = np.where((vals_plot > 0) & np.isfinite(vals_plot), vals_plot, np.nan)
-        else:
-            # When >= 25% of column is already 0, or for generated columns, plot data as-is
-            vals_plot = np.where(np.isfinite(vals) & (vals > 0), vals, 0.0)
-            x_plot = np.where(np.isfinite(vals) & (vals > 0), vals, np.nan)
+        vals_plot = np.where(np.isfinite(vals) & (vals > 0), vals, 0.0)
+        x_plot = np.where(np.isfinite(vals) & (vals > 0), vals, np.nan)
 
         # 1. Closed fill polygons for every track (protruding from left baseline x=0, clean zero cutoffs)
         try:
@@ -1322,13 +1291,18 @@ def render_full_continuous_tracks(json_computed, schema, percentile_cutoff):
     [Input("store-raw", "data"),
      Input("store-formulas", "data"),
      Input("store-custom-cols", "data"),
-     Input("store-thresholds", "data")]
+     Input("store-thresholds", "data"),
+     Input("select-percentile-cutoff", "value")]
 )
-def recompute_dataset(json_raw, formulas, custom_cols, thresholds):
+def recompute_dataset(json_raw, formulas, custom_cols, thresholds, percentile_cutoff):
     if not json_raw:
         return no_update
     df_raw = pd.read_json(io.StringIO(json_raw), orient="split")
-    computed_df = compute_all(df_raw, formula_overrides=formulas, custom_columns=custom_cols, threshold_overrides=thresholds)
+    try:
+        cutoff = float(percentile_cutoff) if percentile_cutoff is not None else 75.0
+    except (ValueError, TypeError):
+        cutoff = 75.0
+    computed_df = compute_all(df_raw, formula_overrides=formulas, custom_columns=custom_cols, threshold_overrides=thresholds, percentile_cutoff=cutoff)
     return computed_df.to_json(orient="split", date_format="iso")
 
 
